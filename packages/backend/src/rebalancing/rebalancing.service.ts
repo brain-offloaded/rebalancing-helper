@@ -32,7 +32,7 @@ export class RebalancingService {
     return {
       id: group.id,
       name: group.name,
-      description: group.description ?? undefined,
+      description: group.description,
       tagIds: group.tags.map((tag) => tag.tagId),
       createdAt: group.createdAt,
       updatedAt: group.updatedAt,
@@ -98,7 +98,7 @@ export class RebalancingService {
     try {
       await this.prisma.rebalancingGroup.delete({ where: { id } });
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2025'

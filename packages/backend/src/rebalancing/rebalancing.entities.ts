@@ -3,80 +3,80 @@ import { ObjectType, Field, ID, Float } from '@nestjs/graphql';
 @ObjectType()
 export class RebalancingGroup {
   @Field(() => ID)
-  id: string;
+  id!: string;
 
   @Field()
-  name: string;
+  name!: string;
 
   @Field({ nullable: true })
-  description?: string;
+  description!: string | null;
 
   @Field(() => [String])
-  tagIds: string[];
+  tagIds!: string[];
 
   @Field()
-  createdAt: Date;
+  createdAt!: Date;
 
   @Field()
-  updatedAt: Date;
+  updatedAt!: Date;
 }
 
 @ObjectType()
 export class TagAllocation {
   @Field()
-  tagId: string;
+  tagId!: string;
 
   @Field()
-  tagName: string;
+  tagName!: string;
 
   @Field()
-  tagColor: string;
+  tagColor!: string;
 
   @Field(() => Float)
-  currentValue: number;
+  currentValue!: number;
 
   @Field(() => Float)
-  currentPercentage: number;
+  currentPercentage!: number;
 
   @Field(() => Float)
-  targetPercentage: number;
+  targetPercentage!: number;
 
   @Field(() => Float)
-  difference: number;
+  difference!: number;
 }
 
 @ObjectType()
 export class RebalancingAnalysis {
   @Field(() => ID)
-  groupId: string;
+  groupId!: string;
 
   @Field()
-  groupName: string;
+  groupName!: string;
 
   @Field(() => Float)
-  totalValue: number;
+  totalValue!: number;
 
   @Field(() => [TagAllocation])
-  allocations: TagAllocation[];
+  allocations!: TagAllocation[];
 
   @Field()
-  lastUpdated: Date;
+  lastUpdated!: Date;
 }
 
 @ObjectType()
 export class InvestmentRecommendation {
   @Field()
-  tagId: string;
+  tagId!: string;
 
   @Field()
-  tagName: string;
+  tagName!: string;
 
   @Field(() => Float)
-  recommendedAmount: number;
+  recommendedAmount!: number;
 
   @Field(() => Float)
-  recommendedPercentage: number;
+  recommendedPercentage!: number;
 
   @Field(() => [String])
-  suggestedSymbols: string[];
+  suggestedSymbols!: string[];
 }

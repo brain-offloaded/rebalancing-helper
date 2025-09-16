@@ -8,7 +8,7 @@ import { CreateTagInput, UpdateTagInput } from './tags.dto';
 export class TagsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createTag(input: CreateTagInput): Promise<Tag> {
+  createTag(input: CreateTagInput): Promise<Tag> {
     return this.prisma.tag.create({
       data: {
         name: input.name,
@@ -18,7 +18,7 @@ export class TagsService {
     });
   }
 
-  async updateTag(input: UpdateTagInput): Promise<Tag> {
+  updateTag(input: UpdateTagInput): Promise<Tag> {
     const { id, ...updates } = input;
 
     return this.prisma.tag.update({
@@ -37,7 +37,7 @@ export class TagsService {
     try {
       await this.prisma.tag.delete({ where: { id } });
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2025'
@@ -48,13 +48,13 @@ export class TagsService {
     }
   }
 
-  async getTags(): Promise<Tag[]> {
+  getTags(): Promise<Tag[]> {
     return this.prisma.tag.findMany({
       orderBy: { name: 'asc' },
     });
   }
 
-  async getTag(id: string): Promise<Tag | null> {
+  getTag(id: string): Promise<Tag | null> {
     return this.prisma.tag.findUnique({ where: { id } });
   }
 }

@@ -6,7 +6,7 @@ export class CreateTagInput {
   @Field()
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @Field({ nullable: true })
   @IsOptional()
@@ -16,7 +16,7 @@ export class CreateTagInput {
   @Field()
   @IsString()
   @IsHexColor()
-  color: string;
+  color!: string;
 }
 
 @InputType()
@@ -24,7 +24,7 @@ export class UpdateTagInput {
   @Field()
   @IsString()
   @IsNotEmpty()
-  id: string;
+  id!: string;
 
   @Field({ nullable: true })
   @IsOptional()

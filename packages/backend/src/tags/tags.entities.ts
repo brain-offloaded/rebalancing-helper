@@ -3,20 +3,20 @@ import { ObjectType, Field, ID } from '@nestjs/graphql';
 @ObjectType()
 export class Tag {
   @Field(() => ID)
-  id: string;
+  id!: string;
 
   @Field()
-  name: string;
+  name!: string;
 
   @Field({ nullable: true })
-  description?: string;
+  description!: string | null;
 
   @Field()
-  color: string;
+  color!: string;
 
   @Field()
-  createdAt: Date;
+  createdAt!: Date;
 
   @Field()
-  updatedAt: Date;
+  updatedAt!: Date;
 }

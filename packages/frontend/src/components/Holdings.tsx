@@ -124,8 +124,10 @@ export const Holdings: React.FC = () => {
   const [showTagModal, setShowTagModal] = useState(false);
 
   const { data: holdingsData, loading: holdingsLoading } = useQuery(GET_BROKERAGE_HOLDINGS);
-  const { data: tagsData } = useQuery(GET_TAGS);
-  const { data: holdingTagsData, refetch: refetchHoldingTags } = useQuery(GET_TAGS_FOR_HOLDING, {
+  const { data: tagsData } = useQuery<{ tags: Tag[] }>(GET_TAGS);
+  const { data: holdingTagsData, refetch: refetchHoldingTags } = useQuery<{
+    tagsForHolding: string[];
+  }>(GET_TAGS_FOR_HOLDING, {
     variables: { holdingSymbol: selectedHolding },
     skip: !selectedHolding,
   });
@@ -157,8 +159,22 @@ export const Holdings: React.FC = () => {
   };
 
   const getTagsForHolding = (symbol: string): Tag[] => {
-    // This is a simplified approach - in a real app, you'd want to fetch this data properly
-    return [];
+    if (symbol !== selectedHolding) {
+      return [];
+    }
+
+    const tagIds = holdingTagsData?.tagsForHolding ?? [];
+    if (tagIds.length === 0) {
+      return [];
+    }
+
+    const tagsById = new Map<string, Tag>(
+      (tagsData?.tags ?? []).map((tag) => [tag.id, tag]),
+    );
+
+    return tagIds
+      .map((tagId) => tagsById.get(tagId))
+      .filter((tag): tag is Tag => Boolean(tag));
   };
 
   if (holdingsLoading) return <div>로딩 중...</div>;

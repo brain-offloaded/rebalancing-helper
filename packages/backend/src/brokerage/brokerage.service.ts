@@ -11,9 +11,7 @@ import {
 export class BrokerageService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createAccount(
-    input: CreateBrokerageAccountInput,
-  ): Promise<BrokerageAccount> {
+  createAccount(input: CreateBrokerageAccountInput): Promise<BrokerageAccount> {
     return this.prisma.brokerageAccount.create({
       data: {
         name: input.name,
@@ -26,9 +24,7 @@ export class BrokerageService {
     });
   }
 
-  async updateAccount(
-    input: UpdateBrokerageAccountInput,
-  ): Promise<BrokerageAccount> {
+  updateAccount(input: UpdateBrokerageAccountInput): Promise<BrokerageAccount> {
     const { id, ...updates } = input;
     const data: Prisma.BrokerageAccountUpdateInput = {
       ...(updates.name !== undefined ? { name: updates.name } : {}),
@@ -54,7 +50,7 @@ export class BrokerageService {
     try {
       await this.prisma.brokerageAccount.delete({ where: { id } });
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2025'
@@ -65,17 +61,17 @@ export class BrokerageService {
     }
   }
 
-  async getAccounts(): Promise<BrokerageAccount[]> {
+  getAccounts(): Promise<BrokerageAccount[]> {
     return this.prisma.brokerageAccount.findMany({
       orderBy: { createdAt: 'asc' },
     });
   }
 
-  async getAccount(id: string): Promise<BrokerageAccount | null> {
+  getAccount(id: string): Promise<BrokerageAccount | null> {
     return this.prisma.brokerageAccount.findUnique({ where: { id } });
   }
 
-  async getHoldings(accountId?: string): Promise<BrokerageHolding[]> {
+  getHoldings(accountId?: string): Promise<BrokerageHolding[]> {
     return this.prisma.brokerageHolding.findMany({
       where: accountId ? { accountId } : undefined,
       orderBy: { symbol: 'asc' },

@@ -5,18 +5,19 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 
 @Injectable()
 export class PrismaService
-  extends PrismaClient
+  extends PrismaClient<Prisma.PrismaClientOptions, 'beforeExit'>
   implements OnModuleInit, OnModuleDestroy
 {
   constructor(private readonly configService: ConfigService) {
     super({
       datasources: {
         db: {
-          url: configService.get<string>('DATABASE_URL') ?? 'file:./prisma/dev.db',
+          url:
+            configService.get<string>('DATABASE_URL') ?? 'file:./prisma/dev.db',
         },
       },
     });

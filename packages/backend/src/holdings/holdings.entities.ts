@@ -3,50 +3,50 @@ import { ObjectType, Field, ID } from '@nestjs/graphql';
 @ObjectType()
 export class HoldingTag {
   @Field(() => ID)
-  id: string;
+  id!: string;
 
   @Field()
-  holdingSymbol: string;
+  holdingSymbol!: string;
 
   @Field()
-  tagId: string;
+  tagId!: string;
 
   @Field()
-  createdAt: Date;
+  createdAt!: Date;
 }
 
 @ObjectType()
 export class EnrichedHolding {
   @Field(() => ID)
-  id: string;
+  id!: string;
 
   @Field()
-  symbol: string;
+  symbol!: string;
 
   @Field()
-  name: string;
+  name!: string;
 
   @Field(() => Number)
-  quantity: number;
+  quantity!: number;
 
   @Field(() => Number)
-  currentPrice: number;
+  currentPrice!: number;
 
   @Field(() => Number)
-  marketValue: number;
+  marketValue!: number;
 
   @Field(() => Number, { nullable: true })
-  averageCost?: number;
+  averageCost!: number | null;
 
   @Field()
-  currency: string;
+  currency!: string;
 
   @Field()
-  accountId: string;
+  accountId!: string;
 
   @Field()
-  lastUpdated: Date;
+  lastUpdated!: Date;
 
   @Field(() => [String])
-  tags: string[];
+  tags!: string[];
 }

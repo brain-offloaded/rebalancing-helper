@@ -3,56 +3,56 @@ import { ObjectType, Field, ID } from '@nestjs/graphql';
 @ObjectType()
 export class BrokerageAccount {
   @Field(() => ID)
-  id: string;
+  id!: string;
 
   @Field()
-  name: string;
+  name!: string;
 
   @Field()
-  brokerName: string;
+  brokerName!: string;
 
   @Field({ nullable: true })
-  description?: string;
+  description!: string | null;
 
   @Field()
-  isActive: boolean;
+  isActive!: boolean;
 
   @Field()
-  createdAt: Date;
+  createdAt!: Date;
 
   @Field()
-  updatedAt: Date;
+  updatedAt!: Date;
 }
 
 @ObjectType()
 export class BrokerageHolding {
   @Field(() => ID)
-  id: string;
+  id!: string;
 
   @Field()
-  symbol: string;
+  symbol!: string;
 
   @Field()
-  name: string;
+  name!: string;
 
   @Field(() => Number)
-  quantity: number;
+  quantity!: number;
 
   @Field(() => Number)
-  currentPrice: number;
+  currentPrice!: number;
 
   @Field(() => Number)
-  marketValue: number;
+  marketValue!: number;
 
   @Field(() => Number, { nullable: true })
-  averageCost?: number;
+  averageCost!: number | null;
 
   @Field()
-  currency: string;
+  currency!: string;
 
   @Field()
-  accountId: string;
+  accountId!: string;
 
   @Field()
-  lastUpdated: Date;
+  lastUpdated!: Date;
 }
