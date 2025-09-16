@@ -19,7 +19,7 @@ export class CreateRebalancingGroupInput {
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  description?: string;
+  description?: string | null;
 
   @Field(() => [String])
   @IsArray()
@@ -42,13 +42,13 @@ export class UpdateRebalancingGroupInput {
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  description?: string;
+  description?: string | null;
 
   @Field(() => [String], { nullable: true })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  tagIds?: string[];
+  tagIds?: string[] | null;
 }
 
 @InputType()

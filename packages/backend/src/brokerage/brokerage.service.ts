@@ -12,15 +12,21 @@ export class BrokerageService {
   constructor(private readonly prisma: PrismaService) {}
 
   createAccount(input: CreateBrokerageAccountInput): Promise<BrokerageAccount> {
+    const data: Prisma.BrokerageAccountCreateInput = {
+      name: input.name,
+      brokerName: input.brokerName,
+      apiKey: input.apiKey,
+      ...(input.description !== undefined
+        ? { description: input.description }
+        : {}),
+      ...(input.apiSecret !== undefined ? { apiSecret: input.apiSecret } : {}),
+      ...(input.apiBaseUrl !== undefined
+        ? { apiBaseUrl: input.apiBaseUrl }
+        : {}),
+    };
+
     return this.prisma.brokerageAccount.create({
-      data: {
-        name: input.name,
-        brokerName: input.brokerName,
-        description: input.description,
-        apiKey: input.apiKey,
-        apiSecret: input.apiSecret,
-        apiBaseUrl: input.apiBaseUrl,
-      },
+      data,
     });
   }
 
@@ -71,7 +77,7 @@ export class BrokerageService {
     return this.prisma.brokerageAccount.findUnique({ where: { id } });
   }
 
-  getHoldings(accountId?: string): Promise<BrokerageHolding[]> {
+  getHoldings(accountId?: string | null): Promise<BrokerageHolding[]> {
     return this.prisma.brokerageHolding.findMany({
       where: accountId ? { accountId } : undefined,
       orderBy: { symbol: 'asc' },

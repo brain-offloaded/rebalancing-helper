@@ -71,7 +71,7 @@ export class HoldingsService {
     });
   }
 
-  getHoldingTags(holdingSymbol?: string): Promise<HoldingTag[]> {
+  getHoldingTags(holdingSymbol?: string | null): Promise<HoldingTag[]> {
     return this.prisma.holdingTag.findMany({
       where: holdingSymbol ? { holdingSymbol } : undefined,
       orderBy: { createdAt: 'asc' },

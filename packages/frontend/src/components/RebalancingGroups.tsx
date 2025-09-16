@@ -135,7 +135,7 @@ const TagColor = styled.div<{ color: string }>`
 interface RebalancingGroup {
   id: string;
   name: string;
-  description?: string;
+  description: string | null;
   tagIds: string[];
   createdAt: string;
   updatedAt: string;

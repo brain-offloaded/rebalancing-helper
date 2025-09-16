@@ -106,7 +106,7 @@ interface Holding {
   quantity: number;
   currentPrice: number;
   marketValue: number;
-  averageCost?: number;
+  averageCost: number | null;
   currency: string;
   accountId: string;
   lastUpdated: string;
@@ -115,7 +115,7 @@ interface Holding {
 interface Tag {
   id: string;
   name: string;
-  description?: string;
+  description: string | null;
   color: string;
 }
 
@@ -207,7 +207,11 @@ export const Holdings: React.FC = () => {
                 <Td>{holding.quantity.toLocaleString()}</Td>
                 <Td>${holding.currentPrice.toFixed(2)}</Td>
                 <Td>${holding.marketValue.toFixed(2)}</Td>
-                <Td>{holding.averageCost ? `$${holding.averageCost.toFixed(2)}` : '-'}</Td>
+                <Td>
+                  {holding.averageCost != null
+                    ? `$${holding.averageCost.toFixed(2)}`
+                    : '-'}
+                </Td>
                 <Td>
                   <TagContainer>
                     {tags.map((tag) => (

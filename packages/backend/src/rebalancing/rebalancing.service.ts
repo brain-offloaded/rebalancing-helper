@@ -46,7 +46,9 @@ export class RebalancingService {
     const group = await this.prisma.rebalancingGroup.create({
       data: {
         name: input.name,
-        description: input.description,
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
         tags: {
           create: uniqueTagIds.map((tagId) => ({
             tag: {

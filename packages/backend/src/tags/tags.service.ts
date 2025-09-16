@@ -12,7 +12,9 @@ export class TagsService {
     return this.prisma.tag.create({
       data: {
         name: input.name,
-        description: input.description,
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
         color: input.color,
       },
     });

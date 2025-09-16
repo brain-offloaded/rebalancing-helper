@@ -13,7 +13,7 @@ export class HoldingsResolver {
 
   @Query(() => [HoldingTag])
   holdingTags(
-    @Args('holdingSymbol', { nullable: true }) holdingSymbol?: string,
+    @Args('holdingSymbol', { nullable: true }) holdingSymbol?: string | null,
   ): Promise<HoldingTag[]> {
     return this.holdingsService.getHoldingTags(holdingSymbol);
   }

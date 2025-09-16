@@ -22,7 +22,7 @@ export class BrokerageResolver {
 
   @Query(() => [BrokerageHolding])
   brokerageHoldings(
-    @Args('accountId', { nullable: true }) accountId?: string,
+    @Args('accountId', { nullable: true }) accountId?: string | null,
   ): Promise<BrokerageHolding[]> {
     return this.brokerageService.getHoldings(accountId);
   }

@@ -119,7 +119,7 @@ const TagDescription = styled.p`
 interface Tag {
   id: string;
   name: string;
-  description?: string;
+  description: string | null;
   color: string;
   createdAt: string;
   updatedAt: string;
