@@ -1,7 +1,16 @@
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import { RebalancingService } from './rebalancing.service';
-import { RebalancingGroup, RebalancingAnalysis, InvestmentRecommendation } from './rebalancing.entities';
-import { CreateRebalancingGroupInput, UpdateRebalancingGroupInput, SetTargetAllocationsInput, CalculateInvestmentInput } from './rebalancing.dto';
+import {
+  RebalancingGroup,
+  RebalancingAnalysis,
+  InvestmentRecommendation,
+} from './rebalancing.entities';
+import {
+  CreateRebalancingGroupInput,
+  UpdateRebalancingGroupInput,
+  SetTargetAllocationsInput,
+  CalculateInvestmentInput,
+} from './rebalancing.dto';
 
 @Resolver(() => RebalancingGroup)
 export class RebalancingResolver {
@@ -13,12 +22,16 @@ export class RebalancingResolver {
   }
 
   @Query(() => RebalancingGroup, { nullable: true })
-  async rebalancingGroup(@Args('id') id: string): Promise<RebalancingGroup | null> {
+  async rebalancingGroup(
+    @Args('id') id: string,
+  ): Promise<RebalancingGroup | null> {
     return this.rebalancingService.getGroup(id);
   }
 
   @Query(() => RebalancingAnalysis)
-  async rebalancingAnalysis(@Args('groupId') groupId: string): Promise<RebalancingAnalysis> {
+  async rebalancingAnalysis(
+    @Args('groupId') groupId: string,
+  ): Promise<RebalancingAnalysis> {
     return this.rebalancingService.getRebalancingAnalysis(groupId);
   }
 
@@ -42,7 +55,9 @@ export class RebalancingResolver {
   }
 
   @Mutation(() => Boolean)
-  async setTargetAllocations(@Args('input') input: SetTargetAllocationsInput): Promise<boolean> {
+  async setTargetAllocations(
+    @Args('input') input: SetTargetAllocationsInput,
+  ): Promise<boolean> {
     return this.rebalancingService.setTargetAllocations(input);
   }
 

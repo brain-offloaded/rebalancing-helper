@@ -1,81 +1,104 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 import { BrokerageAccount, BrokerageHolding } from './brokerage.entities';
-import { CreateBrokerageAccountInput, UpdateBrokerageAccountInput } from './brokerage.dto';
+import {
+  CreateBrokerageAccountInput,
+  UpdateBrokerageAccountInput,
+} from './brokerage.dto';
 
 @Injectable()
 export class BrokerageService {
-  private accounts: BrokerageAccount[] = [];
-  private holdings: BrokerageHolding[] = [];
+  constructor(private readonly prisma: PrismaService) {}
 
-  async createAccount(input: CreateBrokerageAccountInput): Promise<BrokerageAccount> {
-    const account: BrokerageAccount = {
-      id: Date.now().toString(),
-      name: input.name,
-      brokerName: input.brokerName,
-      description: input.description,
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    this.accounts.push(account);
-    return account;
+  async createAccount(
+    input: CreateBrokerageAccountInput,
+  ): Promise<BrokerageAccount> {
+    return this.prisma.brokerageAccount.create({
+      data: {
+        name: input.name,
+        brokerName: input.brokerName,
+        description: input.description,
+        apiKey: input.apiKey,
+        apiSecret: input.apiSecret,
+        apiBaseUrl: input.apiBaseUrl,
+      },
+    });
   }
 
-  async updateAccount(input: UpdateBrokerageAccountInput): Promise<BrokerageAccount> {
-    const accountIndex = this.accounts.findIndex(acc => acc.id === input.id);
-    if (accountIndex === -1) {
-      throw new Error('Account not found');
-    }
-
-    const account = this.accounts[accountIndex];
-    this.accounts[accountIndex] = {
-      ...account,
-      ...input,
-      updatedAt: new Date(),
+  async updateAccount(
+    input: UpdateBrokerageAccountInput,
+  ): Promise<BrokerageAccount> {
+    const { id, ...updates } = input;
+    const data: Prisma.BrokerageAccountUpdateInput = {
+      ...(updates.name !== undefined ? { name: updates.name } : {}),
+      ...(updates.apiKey !== undefined ? { apiKey: updates.apiKey } : {}),
+      ...(updates.apiSecret !== undefined
+        ? { apiSecret: updates.apiSecret }
+        : {}),
+      ...(updates.apiBaseUrl !== undefined
+        ? { apiBaseUrl: updates.apiBaseUrl }
+        : {}),
+      ...(updates.description !== undefined
+        ? { description: updates.description }
+        : {}),
     };
 
-    return this.accounts[accountIndex];
+    return this.prisma.brokerageAccount.update({
+      where: { id },
+      data,
+    });
   }
 
   async deleteAccount(id: string): Promise<boolean> {
-    const accountIndex = this.accounts.findIndex(acc => acc.id === id);
-    if (accountIndex === -1) {
-      return false;
+    try {
+      await this.prisma.brokerageAccount.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        return false;
+      }
+      throw error;
     }
-
-    this.accounts.splice(accountIndex, 1);
-    // Also remove related holdings
-    this.holdings = this.holdings.filter(holding => holding.accountId !== id);
-    return true;
   }
 
   async getAccounts(): Promise<BrokerageAccount[]> {
-    return this.accounts;
+    return this.prisma.brokerageAccount.findMany({
+      orderBy: { createdAt: 'asc' },
+    });
   }
 
   async getAccount(id: string): Promise<BrokerageAccount | null> {
-    return this.accounts.find(acc => acc.id === id) || null;
+    return this.prisma.brokerageAccount.findUnique({ where: { id } });
   }
 
   async getHoldings(accountId?: string): Promise<BrokerageHolding[]> {
-    if (accountId) {
-      return this.holdings.filter(holding => holding.accountId === accountId);
-    }
-    return this.holdings;
+    return this.prisma.brokerageHolding.findMany({
+      where: accountId ? { accountId } : undefined,
+      orderBy: { symbol: 'asc' },
+    });
   }
 
   async refreshHoldings(accountId: string): Promise<BrokerageHolding[]> {
-    // Mock data for demonstration - in real implementation, this would call the brokerage API
+    const account = await this.prisma.brokerageAccount.findUnique({
+      where: { id: accountId },
+    });
+    if (!account) {
+      throw new Error('Account not found');
+    }
+
     const mockHoldings: BrokerageHolding[] = [
       {
         id: `${accountId}-holding-1`,
         symbol: 'SPY',
         name: 'SPDR S&P 500 ETF Trust',
         quantity: 10,
-        currentPrice: 425.50,
-        marketValue: 4255.00,
-        averageCost: 420.00,
+        currentPrice: 425.5,
+        marketValue: 4255.0,
+        averageCost: 420.0,
         currency: 'USD',
         accountId,
         lastUpdated: new Date(),
@@ -85,19 +108,33 @@ export class BrokerageService {
         symbol: 'VTI',
         name: 'Vanguard Total Stock Market ETF',
         quantity: 5,
-        currentPrice: 248.30,
-        marketValue: 1241.50,
-        averageCost: 245.00,
+        currentPrice: 248.3,
+        marketValue: 1241.5,
+        averageCost: 245.0,
         currency: 'USD',
         accountId,
         lastUpdated: new Date(),
       },
     ];
 
-    // Remove existing holdings for this account and add new ones
-    this.holdings = this.holdings.filter(holding => holding.accountId !== accountId);
-    this.holdings.push(...mockHoldings);
+    await this.prisma.$transaction([
+      this.prisma.brokerageHolding.deleteMany({ where: { accountId } }),
+      this.prisma.brokerageHolding.createMany({
+        data: mockHoldings.map((holding) => ({
+          id: holding.id,
+          symbol: holding.symbol,
+          name: holding.name,
+          quantity: holding.quantity,
+          currentPrice: holding.currentPrice,
+          marketValue: holding.marketValue,
+          averageCost: holding.averageCost ?? null,
+          currency: holding.currency,
+          accountId: holding.accountId,
+          lastUpdated: holding.lastUpdated,
+        })),
+      }),
+    ]);
 
-    return mockHoldings;
+    return this.getHoldings(accountId);
   }
 }
