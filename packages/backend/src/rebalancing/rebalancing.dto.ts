@@ -14,7 +14,7 @@ export class CreateRebalancingGroupInput {
   @Field()
   @IsString()
   @IsNotEmpty()
-  name!: string;
+  name: string;
 
   @Field({ nullable: true })
   @IsOptional()
@@ -24,7 +24,7 @@ export class CreateRebalancingGroupInput {
   @Field(() => [String])
   @IsArray()
   @IsString({ each: true })
-  tagIds!: string[];
+  tagIds: string[];
 }
 
 @InputType()
@@ -32,7 +32,7 @@ export class UpdateRebalancingGroupInput {
   @Field()
   @IsString()
   @IsNotEmpty()
-  id!: string;
+  id: string;
 
   @Field({ nullable: true })
   @IsOptional()
@@ -56,13 +56,13 @@ export class TagTargetInput {
   @Field()
   @IsString()
   @IsNotEmpty()
-  tagId!: string;
+  tagId: string;
 
   @Field(() => Float)
   @IsNumber()
   @Min(0)
   @Max(100)
-  targetPercentage!: number;
+  targetPercentage: number;
 }
 
 @InputType()
@@ -70,11 +70,11 @@ export class SetTargetAllocationsInput {
   @Field()
   @IsString()
   @IsNotEmpty()
-  groupId!: string;
+  groupId: string;
 
   @Field(() => [TagTargetInput])
   @IsArray()
-  targets!: TagTargetInput[];
+  targets: TagTargetInput[];
 }
 
 @InputType()
@@ -82,10 +82,10 @@ export class CalculateInvestmentInput {
   @Field()
   @IsString()
   @IsNotEmpty()
-  groupId!: string;
+  groupId: string;
 
   @Field(() => Float)
   @IsNumber()
   @Min(0)
-  investmentAmount!: number;
+  investmentAmount: number;
 }

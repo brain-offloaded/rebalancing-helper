@@ -6,17 +6,17 @@ export class CreateBrokerageAccountInput {
   @Field()
   @IsString()
   @IsNotEmpty()
-  name!: string;
+  name: string;
 
   @Field()
   @IsString()
   @IsNotEmpty()
-  brokerName!: string;
+  brokerName: string;
 
   @Field()
   @IsString()
   @IsNotEmpty()
-  apiKey!: string;
+  apiKey: string;
 
   @Field({ nullable: true })
   @IsOptional()
@@ -39,7 +39,7 @@ export class UpdateBrokerageAccountInput {
   @Field()
   @IsString()
   @IsNotEmpty()
-  id!: string;
+  id: string;
 
   @Field({ nullable: true })
   @IsOptional()
