@@ -47,7 +47,7 @@ export class RebalancingService {
       data: {
         name: input.name,
         ...(input.description !== undefined
-          ? { description: input.description }
+          ? { description: input.description ?? null }
           : {}),
         tags: {
           create: uniqueTagIds.map((tagId) => ({
@@ -75,7 +75,7 @@ export class RebalancingService {
       data: {
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.description !== undefined
-          ? { description: input.description }
+          ? { description: input.description ?? null }
           : {}),
         ...(uniqueTagIds
           ? {

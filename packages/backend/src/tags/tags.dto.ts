@@ -11,7 +11,7 @@ export class CreateTagInput {
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  description?: string | null;
+  description?: string;
 
   @Field()
   @IsString()
@@ -34,7 +34,7 @@ export class UpdateTagInput {
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  description?: string | null;
+  description?: string;
 
   @Field({ nullable: true })
   @IsOptional()

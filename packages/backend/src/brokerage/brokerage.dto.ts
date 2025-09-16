@@ -21,17 +21,17 @@ export class CreateBrokerageAccountInput {
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  apiSecret?: string | null;
+  apiSecret?: string;
 
   @Field({ nullable: true })
   @IsOptional()
   @IsUrl()
-  apiBaseUrl?: string | null;
+  apiBaseUrl?: string;
 
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  description?: string | null;
+  description?: string;
 }
 
 @InputType()
@@ -54,15 +54,15 @@ export class UpdateBrokerageAccountInput {
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  apiSecret?: string | null;
+  apiSecret?: string;
 
   @Field({ nullable: true })
   @IsOptional()
   @IsUrl()
-  apiBaseUrl?: string | null;
+  apiBaseUrl?: string;
 
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  description?: string | null;
+  description?: string;
 }

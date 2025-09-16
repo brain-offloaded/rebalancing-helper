@@ -71,9 +71,11 @@ export class HoldingsService {
     });
   }
 
-  getHoldingTags(holdingSymbol?: string | null): Promise<HoldingTag[]> {
+  getHoldingTags(holdingSymbol?: string): Promise<HoldingTag[]> {
+    const normalizedSymbol = holdingSymbol ?? undefined;
+
     return this.prisma.holdingTag.findMany({
-      where: holdingSymbol ? { holdingSymbol } : undefined,
+      where: normalizedSymbol ? { holdingSymbol: normalizedSymbol } : undefined,
       orderBy: { createdAt: 'asc' },
     });
   }

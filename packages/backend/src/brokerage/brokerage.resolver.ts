@@ -22,9 +22,11 @@ export class BrokerageResolver {
 
   @Query(() => [BrokerageHolding])
   brokerageHoldings(
-    @Args('accountId', { nullable: true }) accountId?: string | null,
+    @Args('accountId', { nullable: true }) accountId?: string,
   ): Promise<BrokerageHolding[]> {
-    return this.brokerageService.getHoldings(accountId);
+    const normalizedAccountId = accountId ?? undefined;
+
+    return this.brokerageService.getHoldings(normalizedAccountId);
   }
 
   @Mutation(() => BrokerageAccount)

@@ -13,7 +13,7 @@ export class TagsService {
       data: {
         name: input.name,
         ...(input.description !== undefined
-          ? { description: input.description }
+          ? { description: input.description ?? null }
           : {}),
         color: input.color,
       },
@@ -28,7 +28,7 @@ export class TagsService {
       data: {
         ...(updates.name !== undefined ? { name: updates.name } : {}),
         ...(updates.description !== undefined
-          ? { description: updates.description }
+          ? { description: updates.description ?? null }
           : {}),
         ...(updates.color !== undefined ? { color: updates.color } : {}),
       },

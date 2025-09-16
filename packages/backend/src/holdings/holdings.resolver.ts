@@ -13,9 +13,11 @@ export class HoldingsResolver {
 
   @Query(() => [HoldingTag])
   holdingTags(
-    @Args('holdingSymbol', { nullable: true }) holdingSymbol?: string | null,
+    @Args('holdingSymbol', { nullable: true }) holdingSymbol?: string,
   ): Promise<HoldingTag[]> {
-    return this.holdingsService.getHoldingTags(holdingSymbol);
+    const normalizedSymbol = holdingSymbol ?? undefined;
+
+    return this.holdingsService.getHoldingTags(normalizedSymbol);
   }
 
   @Query(() => [String])

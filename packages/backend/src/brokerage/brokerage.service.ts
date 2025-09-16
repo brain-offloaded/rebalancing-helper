@@ -17,11 +17,13 @@ export class BrokerageService {
       brokerName: input.brokerName,
       apiKey: input.apiKey,
       ...(input.description !== undefined
-        ? { description: input.description }
+        ? { description: input.description ?? null }
         : {}),
-      ...(input.apiSecret !== undefined ? { apiSecret: input.apiSecret } : {}),
+      ...(input.apiSecret !== undefined
+        ? { apiSecret: input.apiSecret ?? null }
+        : {}),
       ...(input.apiBaseUrl !== undefined
-        ? { apiBaseUrl: input.apiBaseUrl }
+        ? { apiBaseUrl: input.apiBaseUrl ?? null }
         : {}),
     };
 
@@ -36,13 +38,13 @@ export class BrokerageService {
       ...(updates.name !== undefined ? { name: updates.name } : {}),
       ...(updates.apiKey !== undefined ? { apiKey: updates.apiKey } : {}),
       ...(updates.apiSecret !== undefined
-        ? { apiSecret: updates.apiSecret }
+        ? { apiSecret: updates.apiSecret ?? null }
         : {}),
       ...(updates.apiBaseUrl !== undefined
-        ? { apiBaseUrl: updates.apiBaseUrl }
+        ? { apiBaseUrl: updates.apiBaseUrl ?? null }
         : {}),
       ...(updates.description !== undefined
-        ? { description: updates.description }
+        ? { description: updates.description ?? null }
         : {}),
     };
 
@@ -77,9 +79,13 @@ export class BrokerageService {
     return this.prisma.brokerageAccount.findUnique({ where: { id } });
   }
 
-  getHoldings(accountId?: string | null): Promise<BrokerageHolding[]> {
+  getHoldings(accountId?: string): Promise<BrokerageHolding[]> {
+    const normalizedAccountId = accountId ?? undefined;
+
     return this.prisma.brokerageHolding.findMany({
-      where: accountId ? { accountId } : undefined,
+      where: normalizedAccountId
+        ? { accountId: normalizedAccountId }
+        : undefined,
       orderBy: { symbol: 'asc' },
     });
   }
