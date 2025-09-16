@@ -1,7 +1,10 @@
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import { BrokerageService } from './brokerage.service';
 import { BrokerageAccount, BrokerageHolding } from './brokerage.entities';
-import { CreateBrokerageAccountInput, UpdateBrokerageAccountInput } from './brokerage.dto';
+import {
+  CreateBrokerageAccountInput,
+  UpdateBrokerageAccountInput,
+} from './brokerage.dto';
 
 @Resolver(() => BrokerageAccount)
 export class BrokerageResolver {
@@ -13,7 +16,9 @@ export class BrokerageResolver {
   }
 
   @Query(() => BrokerageAccount, { nullable: true })
-  async brokerageAccount(@Args('id') id: string): Promise<BrokerageAccount | null> {
+  async brokerageAccount(
+    @Args('id') id: string,
+  ): Promise<BrokerageAccount | null> {
     return this.brokerageService.getAccount(id);
   }
 
@@ -44,7 +49,9 @@ export class BrokerageResolver {
   }
 
   @Mutation(() => [BrokerageHolding])
-  async refreshBrokerageHoldings(@Args('accountId') accountId: string): Promise<BrokerageHolding[]> {
+  async refreshBrokerageHoldings(
+    @Args('accountId') accountId: string,
+  ): Promise<BrokerageHolding[]> {
     return this.brokerageService.refreshHoldings(accountId);
   }
 }

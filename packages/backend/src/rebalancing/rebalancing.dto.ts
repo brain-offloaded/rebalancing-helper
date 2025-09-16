@@ -1,5 +1,13 @@
 import { InputType, Field, Float } from '@nestjs/graphql';
-import { IsString, IsNotEmpty, IsArray, IsNumber, IsOptional, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsArray,
+  IsNumber,
+  IsOptional,
+  Min,
+  Max,
+} from 'class-validator';
 
 @InputType()
 export class CreateRebalancingGroupInput {

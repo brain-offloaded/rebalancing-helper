@@ -8,6 +8,7 @@ import { BrokerageModule } from './brokerage/brokerage.module';
 import { HoldingsModule } from './holdings/holdings.module';
 import { TagsModule } from './tags/tags.module';
 import { RebalancingModule } from './rebalancing/rebalancing.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { RebalancingModule } from './rebalancing/rebalancing.module';
       playground: true,
       introspection: true,
     }),
+    PrismaModule,
     BrokerageModule,
     HoldingsModule,
     TagsModule,

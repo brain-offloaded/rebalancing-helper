@@ -1,137 +1,248 @@
 import { Injectable } from '@nestjs/common';
-import { RebalancingGroup, RebalancingAnalysis, TagAllocation, InvestmentRecommendation } from './rebalancing.entities';
-import { CreateRebalancingGroupInput, UpdateRebalancingGroupInput, SetTargetAllocationsInput, CalculateInvestmentInput } from './rebalancing.dto';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import {
+  RebalancingGroup,
+  RebalancingAnalysis,
+  TagAllocation,
+  InvestmentRecommendation,
+} from './rebalancing.entities';
+import {
+  CreateRebalancingGroupInput,
+  UpdateRebalancingGroupInput,
+  SetTargetAllocationsInput,
+  CalculateInvestmentInput,
+} from './rebalancing.dto';
 import { BrokerageService } from '../brokerage/brokerage.service';
 import { HoldingsService } from '../holdings/holdings.service';
-import { TagsService } from '../tags/tags.service';
+
+type GroupWithTags = Prisma.RebalancingGroupGetPayload<{
+  include: { tags: true };
+}>;
 
 @Injectable()
 export class RebalancingService {
-  private groups: RebalancingGroup[] = [];
-  private targetAllocations: Map<string, Map<string, number>> = new Map(); // groupId -> tagId -> percentage
-
   constructor(
+    private readonly prisma: PrismaService,
     private readonly brokerageService: BrokerageService,
     private readonly holdingsService: HoldingsService,
-    private readonly tagsService: TagsService,
   ) {}
 
-  async createGroup(input: CreateRebalancingGroupInput): Promise<RebalancingGroup> {
-    const group: RebalancingGroup = {
-      id: Date.now().toString(),
-      name: input.name,
-      description: input.description,
-      tagIds: input.tagIds,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+  private mapGroup(group: GroupWithTags): RebalancingGroup {
+    return {
+      id: group.id,
+      name: group.name,
+      description: group.description ?? undefined,
+      tagIds: group.tags.map((tag) => tag.tagId),
+      createdAt: group.createdAt,
+      updatedAt: group.updatedAt,
     };
-
-    this.groups.push(group);
-    return group;
   }
 
-  async updateGroup(input: UpdateRebalancingGroupInput): Promise<RebalancingGroup> {
-    const groupIndex = this.groups.findIndex(group => group.id === input.id);
-    if (groupIndex === -1) {
-      throw new Error('Rebalancing group not found');
-    }
+  async createGroup(
+    input: CreateRebalancingGroupInput,
+  ): Promise<RebalancingGroup> {
+    const uniqueTagIds = Array.from(new Set(input.tagIds));
+    const group = await this.prisma.rebalancingGroup.create({
+      data: {
+        name: input.name,
+        description: input.description,
+        tags: {
+          create: uniqueTagIds.map((tagId) => ({
+            tag: {
+              connect: { id: tagId },
+            },
+          })),
+        },
+      },
+      include: { tags: true },
+    });
 
-    const group = this.groups[groupIndex];
-    this.groups[groupIndex] = {
-      ...group,
-      ...input,
-      updatedAt: new Date(),
-    };
+    return this.mapGroup(group);
+  }
 
-    return this.groups[groupIndex];
+  async updateGroup(
+    input: UpdateRebalancingGroupInput,
+  ): Promise<RebalancingGroup> {
+    const uniqueTagIds = input.tagIds
+      ? Array.from(new Set(input.tagIds))
+      : undefined;
+
+    const group = await this.prisma.rebalancingGroup.update({
+      where: { id: input.id },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
+        ...(uniqueTagIds
+          ? {
+              tags: {
+                deleteMany: {},
+                create: uniqueTagIds.map((tagId) => ({
+                  tag: {
+                    connect: { id: tagId },
+                  },
+                })),
+              },
+            }
+          : {}),
+      },
+      include: { tags: true },
+    });
+
+    return this.mapGroup(group);
   }
 
   async deleteGroup(id: string): Promise<boolean> {
-    const groupIndex = this.groups.findIndex(group => group.id === id);
-    if (groupIndex === -1) {
-      return false;
+    try {
+      await this.prisma.rebalancingGroup.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        return false;
+      }
+      throw error;
     }
-
-    this.groups.splice(groupIndex, 1);
-    this.targetAllocations.delete(id);
-    return true;
   }
 
   async getGroups(): Promise<RebalancingGroup[]> {
-    return this.groups;
+    const groups = await this.prisma.rebalancingGroup.findMany({
+      include: { tags: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return groups.map((group) => this.mapGroup(group));
   }
 
   async getGroup(id: string): Promise<RebalancingGroup | null> {
-    return this.groups.find(group => group.id === id) || null;
+    const group = await this.prisma.rebalancingGroup.findUnique({
+      where: { id },
+      include: { tags: true },
+    });
+
+    return group ? this.mapGroup(group) : null;
   }
 
-  async setTargetAllocations(input: SetTargetAllocationsInput): Promise<boolean> {
-    const group = await this.getGroup(input.groupId);
+  async setTargetAllocations(
+    input: SetTargetAllocationsInput,
+  ): Promise<boolean> {
+    const group = await this.prisma.rebalancingGroup.findUnique({
+      where: { id: input.groupId },
+      include: { tags: true },
+    });
+
     if (!group) {
       throw new Error('Rebalancing group not found');
     }
 
-    // Validate that percentages sum to 100
-    const totalPercentage = input.targets.reduce((sum, target) => sum + target.targetPercentage, 0);
+    const groupTagIds = group.tags.map((tag) => tag.tagId);
+    const totalPercentage = input.targets.reduce(
+      (sum, target) => sum + target.targetPercentage,
+      0,
+    );
     if (Math.abs(totalPercentage - 100) > 0.01) {
       throw new Error('Target percentages must sum to 100');
     }
 
-    // Validate that all tags belong to the group
-    const invalidTags = input.targets.filter(target => !group.tagIds.includes(target.tagId));
+    const invalidTags = input.targets.filter(
+      (target) => !groupTagIds.includes(target.tagId),
+    );
     if (invalidTags.length > 0) {
-      throw new Error(`Invalid tags: ${invalidTags.map(t => t.tagId).join(', ')}`);
+      throw new Error(
+        `Invalid tags: ${invalidTags.map((t) => t.tagId).join(', ')}`,
+      );
     }
 
-    const targetsMap = new Map<string, number>();
-    input.targets.forEach(target => {
-      targetsMap.set(target.tagId, target.targetPercentage);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.targetAllocation.deleteMany({
+        where: { groupId: input.groupId },
+      });
+      if (input.targets.length > 0) {
+        await tx.targetAllocation.createMany({
+          data: input.targets.map((target) => ({
+            groupId: input.groupId,
+            tagId: target.tagId,
+            targetPercentage: target.targetPercentage,
+          })),
+        });
+      }
     });
 
-    this.targetAllocations.set(input.groupId, targetsMap);
     return true;
   }
 
   async getRebalancingAnalysis(groupId: string): Promise<RebalancingAnalysis> {
-    const group = await this.getGroup(groupId);
+    const group = await this.prisma.rebalancingGroup.findUnique({
+      where: { id: groupId },
+      include: { tags: true },
+    });
+
     if (!group) {
       throw new Error('Rebalancing group not found');
     }
 
-    const allHoldings = await this.brokerageService.getHoldings();
-    const tags = await this.tagsService.getTags();
-    const tagMap = new Map(tags.map(tag => [tag.id, tag]));
+    const groupTagIds = group.tags.map((tag) => tag.tagId);
+    const tags = await this.prisma.tag.findMany({
+      where: { id: { in: groupTagIds } },
+    });
+    const tagMap = new Map(tags.map((tag) => [tag.id, tag]));
 
-    // Calculate current allocations
+    const allHoldings = await this.brokerageService.getHoldings();
+    const targetAllocations = await this.prisma.targetAllocation.findMany({
+      where: { groupId },
+    });
+    const targetMap = new Map(
+      targetAllocations.map((target) => [
+        target.tagId,
+        target.targetPercentage,
+      ]),
+    );
+
     const allocations: TagAllocation[] = [];
     let totalValue = 0;
+    const holdingsByTag = new Map<string, string[]>();
+    const marketValueBySymbol = new Map<string, number>();
+    const tagValueByTag = new Map<string, number>();
 
-    for (const tagId of group.tagIds) {
-      const tag = tagMap.get(tagId);
-      if (!tag) continue;
+    for (const holding of allHoldings) {
+      const currentValue = marketValueBySymbol.get(holding.symbol) ?? 0;
+      marketValueBySymbol.set(
+        holding.symbol,
+        currentValue + holding.marketValue,
+      );
+    }
 
-      const holdingsForTag = await this.holdingsService.getHoldingsForTag(tagId);
+    for (const tagId of groupTagIds) {
+      const holdingsForTag =
+        await this.holdingsService.getHoldingsForTag(tagId);
+      holdingsByTag.set(tagId, holdingsForTag);
       const tagValue = holdingsForTag.reduce((sum, symbol) => {
-        const holding = allHoldings.find(h => h.symbol === symbol);
-        return sum + (holding?.marketValue || 0);
+        return sum + (marketValueBySymbol.get(symbol) ?? 0);
       }, 0);
-
+      tagValueByTag.set(tagId, tagValue);
       totalValue += tagValue;
     }
 
-    // Create allocations with current and target percentages
-    for (const tagId of group.tagIds) {
+    for (const tagId of groupTagIds) {
       const tag = tagMap.get(tagId);
-      if (!tag) continue;
+      if (!tag) {
+        continue;
+      }
 
-      const holdingsForTag = await this.holdingsService.getHoldingsForTag(tagId);
-      const tagValue = holdingsForTag.reduce((sum, symbol) => {
-        const holding = allHoldings.find(h => h.symbol === symbol);
-        return sum + (holding?.marketValue || 0);
-      }, 0);
+      const holdingsForTag = holdingsByTag.get(tagId) ?? [];
+      const tagValue =
+        tagValueByTag.get(tagId) ??
+        holdingsForTag.reduce((sum, symbol) => {
+          return sum + (marketValueBySymbol.get(symbol) ?? 0);
+        }, 0);
 
-      const currentPercentage = totalValue > 0 ? (tagValue / totalValue) * 100 : 0;
-      const targetPercentage = this.targetAllocations.get(groupId)?.get(tagId) || 0;
+      const currentPercentage =
+        totalValue > 0 ? (tagValue / totalValue) * 100 : 0;
+      const targetPercentage = targetMap.get(tagId) ?? 0;
       const difference = targetPercentage - currentPercentage;
 
       allocations.push({
@@ -154,7 +265,9 @@ export class RebalancingService {
     };
   }
 
-  async calculateInvestmentRecommendation(input: CalculateInvestmentInput): Promise<InvestmentRecommendation[]> {
+  async calculateInvestmentRecommendation(
+    input: CalculateInvestmentInput,
+  ): Promise<InvestmentRecommendation[]> {
     const analysis = await this.getRebalancingAnalysis(input.groupId);
     const newTotalValue = analysis.totalValue + input.investmentAmount;
 
@@ -164,10 +277,13 @@ export class RebalancingService {
       const targetValue = (allocation.targetPercentage / 100) * newTotalValue;
       const neededValue = targetValue - allocation.currentValue;
       const recommendedAmount = Math.max(0, neededValue);
-      const recommendedPercentage = input.investmentAmount > 0 ? (recommendedAmount / input.investmentAmount) * 100 : 0;
-
-      // Get suggested symbols for this tag
-      const suggestedSymbols = await this.holdingsService.getHoldingsForTag(allocation.tagId);
+      const recommendedPercentage =
+        input.investmentAmount > 0
+          ? (recommendedAmount / input.investmentAmount) * 100
+          : 0;
+      const suggestedSymbols = await this.holdingsService.getHoldingsForTag(
+        allocation.tagId,
+      );
 
       recommendations.push({
         tagId: allocation.tagId,

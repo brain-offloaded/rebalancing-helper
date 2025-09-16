@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model BrokerageAccount {
+  id          String             @id @default(cuid())
+  name        String
+  brokerName  String
+  description String?
+  apiKey      String
+  apiSecret   String?
+  apiBaseUrl  String?
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  holdings    BrokerageHolding[]
+}
+
+model BrokerageHolding {
+  id           String           @id @default(cuid())
+  symbol       String
+  name         String
+  quantity     Float
+  currentPrice Float
+  marketValue  Float
+  averageCost  Float?
+  currency     String
+  lastUpdated  DateTime         @default(now())
+  accountId    String
+  account      BrokerageAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@unique([accountId, symbol])
+}
+
+model Tag {
+  id                String                 @id @default(cuid())
+  name              String                 @unique
+  description       String?
+  color             String
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  holdingTags       HoldingTag[]
+  groupLinks        RebalancingGroupTag[]
+  targetAllocations TargetAllocation[]
+}
+
+model HoldingTag {
+  id            String   @id @default(cuid())
+  holdingSymbol String
+  tagId         String
+  createdAt     DateTime @default(now())
+  tag           Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@index([holdingSymbol])
+  @@unique([holdingSymbol, tagId], name: "holdingSymbol_tagId")
+}
+
+model RebalancingGroup {
+  id                String                 @id @default(cuid())
+  name              String
+  description       String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  tags              RebalancingGroupTag[]
+  targetAllocations TargetAllocation[]
+}
+
+model RebalancingGroupTag {
+  groupId   String
+  tagId     String
+  createdAt DateTime          @default(now())
+  group     RebalancingGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  tag       Tag               @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, tagId])
+}
+
+model TargetAllocation {
+  id               String            @id @default(cuid())
+  groupId          String
+  tagId            String
+  targetPercentage Float
+  group            RebalancingGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  tag              Tag              @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, tagId])
+}
