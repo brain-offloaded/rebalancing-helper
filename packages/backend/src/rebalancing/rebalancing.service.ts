@@ -205,15 +205,25 @@ export class RebalancingService {
     const allocations: TagAllocation[] = [];
     let totalValue = 0;
     const holdingsByTag = new Map<string, string[]>();
+    const marketValueBySymbol = new Map<string, number>();
+    const tagValueByTag = new Map<string, number>();
+
+    for (const holding of allHoldings) {
+      const currentValue = marketValueBySymbol.get(holding.symbol) ?? 0;
+      marketValueBySymbol.set(
+        holding.symbol,
+        currentValue + holding.marketValue,
+      );
+    }
 
     for (const tagId of groupTagIds) {
       const holdingsForTag =
         await this.holdingsService.getHoldingsForTag(tagId);
       holdingsByTag.set(tagId, holdingsForTag);
       const tagValue = holdingsForTag.reduce((sum, symbol) => {
-        const holding = allHoldings.find((h) => h.symbol === symbol);
-        return sum + (holding?.marketValue || 0);
+        return sum + (marketValueBySymbol.get(symbol) ?? 0);
       }, 0);
+      tagValueByTag.set(tagId, tagValue);
       totalValue += tagValue;
     }
 
@@ -224,10 +234,11 @@ export class RebalancingService {
       }
 
       const holdingsForTag = holdingsByTag.get(tagId) ?? [];
-      const tagValue = holdingsForTag.reduce((sum, symbol) => {
-        const holding = allHoldings.find((h) => h.symbol === symbol);
-        return sum + (holding?.marketValue || 0);
-      }, 0);
+      const tagValue =
+        tagValueByTag.get(tagId) ??
+        holdingsForTag.reduce((sum, symbol) => {
+          return sum + (marketValueBySymbol.get(symbol) ?? 0);
+        }, 0);
 
       const currentPercentage =
         totalValue > 0 ? (tagValue / totalValue) * 100 : 0;
