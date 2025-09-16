@@ -12,40 +12,40 @@ export class HoldingsResolver {
   constructor(private readonly holdingsService: HoldingsService) {}
 
   @Query(() => [HoldingTag])
-  async holdingTags(
+  holdingTags(
     @Args('holdingSymbol', { nullable: true }) holdingSymbol?: string,
   ): Promise<HoldingTag[]> {
-    return this.holdingsService.getHoldingTags(holdingSymbol);
+    const normalizedSymbol = holdingSymbol ?? undefined;
+
+    return this.holdingsService.getHoldingTags(normalizedSymbol);
   }
 
   @Query(() => [String])
-  async tagsForHolding(
+  tagsForHolding(
     @Args('holdingSymbol') holdingSymbol: string,
   ): Promise<string[]> {
     return this.holdingsService.getTagsForHolding(holdingSymbol);
   }
 
   @Query(() => [String])
-  async holdingsForTag(@Args('tagId') tagId: string): Promise<string[]> {
+  holdingsForTag(@Args('tagId') tagId: string): Promise<string[]> {
     return this.holdingsService.getHoldingsForTag(tagId);
   }
 
   @Mutation(() => HoldingTag)
-  async addHoldingTag(
-    @Args('input') input: AddHoldingTagInput,
-  ): Promise<HoldingTag> {
+  addHoldingTag(@Args('input') input: AddHoldingTagInput): Promise<HoldingTag> {
     return this.holdingsService.addTag(input);
   }
 
   @Mutation(() => Boolean)
-  async removeHoldingTag(
+  removeHoldingTag(
     @Args('input') input: RemoveHoldingTagInput,
   ): Promise<boolean> {
     return this.holdingsService.removeTag(input);
   }
 
   @Mutation(() => [HoldingTag])
-  async setHoldingTags(
+  setHoldingTags(
     @Args('input') input: SetHoldingTagsInput,
   ): Promise<HoldingTag[]> {
     return this.holdingsService.setTags(input);

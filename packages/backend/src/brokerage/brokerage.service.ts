@@ -11,38 +11,44 @@ import {
 export class BrokerageService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createAccount(
-    input: CreateBrokerageAccountInput,
-  ): Promise<BrokerageAccount> {
+  createAccount(input: CreateBrokerageAccountInput): Promise<BrokerageAccount> {
+    const data: Prisma.BrokerageAccountCreateInput = {
+      name: input.name,
+      brokerName: input.brokerName,
+      apiKey: input.apiKey,
+      description: input.description ?? null,
+      apiSecret: input.apiSecret ?? null,
+      apiBaseUrl: input.apiBaseUrl ?? null,
+    };
+
     return this.prisma.brokerageAccount.create({
-      data: {
-        name: input.name,
-        brokerName: input.brokerName,
-        description: input.description,
-        apiKey: input.apiKey,
-        apiSecret: input.apiSecret,
-        apiBaseUrl: input.apiBaseUrl,
-      },
+      data,
     });
   }
 
-  async updateAccount(
-    input: UpdateBrokerageAccountInput,
-  ): Promise<BrokerageAccount> {
+  updateAccount(input: UpdateBrokerageAccountInput): Promise<BrokerageAccount> {
     const { id, ...updates } = input;
-    const data: Prisma.BrokerageAccountUpdateInput = {
-      ...(updates.name !== undefined ? { name: updates.name } : {}),
-      ...(updates.apiKey !== undefined ? { apiKey: updates.apiKey } : {}),
-      ...(updates.apiSecret !== undefined
-        ? { apiSecret: updates.apiSecret }
-        : {}),
-      ...(updates.apiBaseUrl !== undefined
-        ? { apiBaseUrl: updates.apiBaseUrl }
-        : {}),
-      ...(updates.description !== undefined
-        ? { description: updates.description }
-        : {}),
-    };
+    const data: Prisma.BrokerageAccountUpdateInput = {};
+
+    if (updates.name !== undefined) {
+      data.name = updates.name;
+    }
+
+    if (updates.apiKey !== undefined) {
+      data.apiKey = updates.apiKey;
+    }
+
+    if (updates.apiSecret !== undefined) {
+      data.apiSecret = updates.apiSecret ?? null;
+    }
+
+    if (updates.apiBaseUrl !== undefined) {
+      data.apiBaseUrl = updates.apiBaseUrl ?? null;
+    }
+
+    if (updates.description !== undefined) {
+      data.description = updates.description ?? null;
+    }
 
     return this.prisma.brokerageAccount.update({
       where: { id },
@@ -54,7 +60,7 @@ export class BrokerageService {
     try {
       await this.prisma.brokerageAccount.delete({ where: { id } });
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2025'
@@ -65,19 +71,23 @@ export class BrokerageService {
     }
   }
 
-  async getAccounts(): Promise<BrokerageAccount[]> {
+  getAccounts(): Promise<BrokerageAccount[]> {
     return this.prisma.brokerageAccount.findMany({
       orderBy: { createdAt: 'asc' },
     });
   }
 
-  async getAccount(id: string): Promise<BrokerageAccount | null> {
+  getAccount(id: string): Promise<BrokerageAccount | null> {
     return this.prisma.brokerageAccount.findUnique({ where: { id } });
   }
 
-  async getHoldings(accountId?: string): Promise<BrokerageHolding[]> {
+  getHoldings(accountId?: string): Promise<BrokerageHolding[]> {
+    const normalizedAccountId = accountId ?? undefined;
+
     return this.prisma.brokerageHolding.findMany({
-      where: accountId ? { accountId } : undefined,
+      where: normalizedAccountId
+        ? { accountId: normalizedAccountId }
+        : undefined,
       orderBy: { symbol: 'asc' },
     });
   }

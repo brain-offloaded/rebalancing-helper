@@ -135,7 +135,7 @@ const TagColor = styled.div<{ color: string }>`
 interface RebalancingGroup {
   id: string;
   name: string;
-  description?: string;
+  description: string | null;
   tagIds: string[];
   createdAt: string;
   updatedAt: string;
@@ -157,6 +157,14 @@ interface TagAllocation {
   difference: number;
 }
 
+interface InvestmentRecommendation {
+  tagId: string;
+  tagName: string;
+  recommendedAmount: number;
+  recommendedPercentage: number;
+  suggestedSymbols: string[];
+}
+
 export const RebalancingGroups: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
@@ -169,13 +177,16 @@ export const RebalancingGroups: React.FC = () => {
   });
   const [targetAllocations, setTargetAllocations] = useState<{ [key: string]: number }>({});
 
-  const { data: groupsData, loading: groupsLoading, refetch: refetchGroups } = useQuery(GET_REBALANCING_GROUPS);
-  const { data: tagsData } = useQuery(GET_TAGS);
+  const { data: groupsData, loading: groupsLoading, refetch: refetchGroups } =
+    useQuery(GET_REBALANCING_GROUPS);
+  const { data: tagsData } = useQuery<{ tags: Tag[] }>(GET_TAGS);
   const { data: analysisData, refetch: refetchAnalysis } = useQuery(GET_REBALANCING_ANALYSIS, {
     variables: { groupId: selectedGroup },
     skip: !selectedGroup,
   });
-  const { data: recommendationData } = useQuery(GET_INVESTMENT_RECOMMENDATION, {
+  const { data: recommendationData } = useQuery<{
+    investmentRecommendation: InvestmentRecommendation[];
+  }>(GET_INVESTMENT_RECOMMENDATION, {
     variables: { input: { groupId: selectedGroup, investmentAmount } },
     skip: !selectedGroup,
   });
@@ -442,7 +453,8 @@ export const RebalancingGroups: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {recommendationData.investmentRecommendation.map((rec: any) => (
+                  {recommendationData.investmentRecommendation.map(
+                    (rec: InvestmentRecommendation) => (
                     <tr key={rec.tagId}>
                       <Td>
                         <TagColor color={tagsData?.tags?.find((t: Tag) => t.id === rec.tagId)?.color || '#ccc'} />
@@ -452,7 +464,8 @@ export const RebalancingGroups: React.FC = () => {
                       <Td>{rec.recommendedPercentage.toFixed(1)}%</Td>
                       <Td>{rec.suggestedSymbols.join(', ') || '-'}</Td>
                     </tr>
-                  ))}
+                    ),
+                  )}
                 </tbody>
               </AllocationTable>
             )}

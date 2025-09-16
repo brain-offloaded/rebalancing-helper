@@ -8,28 +8,38 @@ import { CreateTagInput, UpdateTagInput } from './tags.dto';
 export class TagsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createTag(input: CreateTagInput): Promise<Tag> {
+  createTag(input: CreateTagInput): Promise<Tag> {
+    const data: Prisma.TagCreateInput = {
+      name: input.name,
+      description: input.description ?? null,
+      color: input.color,
+    };
+
     return this.prisma.tag.create({
-      data: {
-        name: input.name,
-        description: input.description,
-        color: input.color,
-      },
+      data,
     });
   }
 
-  async updateTag(input: UpdateTagInput): Promise<Tag> {
+  updateTag(input: UpdateTagInput): Promise<Tag> {
     const { id, ...updates } = input;
+
+    const data: Prisma.TagUpdateInput = {};
+
+    if (updates.name !== undefined) {
+      data.name = updates.name;
+    }
+
+    if (updates.description !== undefined) {
+      data.description = updates.description ?? null;
+    }
+
+    if (updates.color !== undefined) {
+      data.color = updates.color;
+    }
 
     return this.prisma.tag.update({
       where: { id },
-      data: {
-        ...(updates.name !== undefined ? { name: updates.name } : {}),
-        ...(updates.description !== undefined
-          ? { description: updates.description }
-          : {}),
-        ...(updates.color !== undefined ? { color: updates.color } : {}),
-      },
+      data,
     });
   }
 
@@ -37,7 +47,7 @@ export class TagsService {
     try {
       await this.prisma.tag.delete({ where: { id } });
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2025'
@@ -48,13 +58,13 @@ export class TagsService {
     }
   }
 
-  async getTags(): Promise<Tag[]> {
+  getTags(): Promise<Tag[]> {
     return this.prisma.tag.findMany({
       orderBy: { name: 'asc' },
     });
   }
 
-  async getTag(id: string): Promise<Tag | null> {
+  getTag(id: string): Promise<Tag | null> {
     return this.prisma.tag.findUnique({ where: { id } });
   }
 }

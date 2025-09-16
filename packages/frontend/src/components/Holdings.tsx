@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import styled from 'styled-components';
 import { GET_BROKERAGE_HOLDINGS } from '../graphql/brokerage';
@@ -106,7 +106,7 @@ interface Holding {
   quantity: number;
   currentPrice: number;
   marketValue: number;
-  averageCost?: number;
+  averageCost: number | null;
   currency: string;
   accountId: string;
   lastUpdated: string;
@@ -115,7 +115,7 @@ interface Holding {
 interface Tag {
   id: string;
   name: string;
-  description?: string;
+  description: string | null;
   color: string;
 }
 
@@ -124,8 +124,14 @@ export const Holdings: React.FC = () => {
   const [showTagModal, setShowTagModal] = useState(false);
 
   const { data: holdingsData, loading: holdingsLoading } = useQuery(GET_BROKERAGE_HOLDINGS);
-  const { data: tagsData } = useQuery(GET_TAGS);
-  const { data: holdingTagsData, refetch: refetchHoldingTags } = useQuery(GET_TAGS_FOR_HOLDING, {
+  const { data: tagsData } = useQuery<{ tags: Tag[] }>(GET_TAGS);
+  const {
+    data: holdingTagsData,
+    loading: holdingTagsLoading,
+    refetch: refetchHoldingTags,
+  } = useQuery<{
+    tagsForHolding: string[];
+  }>(GET_TAGS_FOR_HOLDING, {
     variables: { holdingSymbol: selectedHolding },
     skip: !selectedHolding,
   });
@@ -157,8 +163,22 @@ export const Holdings: React.FC = () => {
   };
 
   const getTagsForHolding = (symbol: string): Tag[] => {
-    // This is a simplified approach - in a real app, you'd want to fetch this data properly
-    return [];
+    if (symbol !== selectedHolding || holdingTagsLoading) {
+      return [];
+    }
+
+    const tagIds = holdingTagsData?.tagsForHolding ?? [];
+    if (tagIds.length === 0) {
+      return [];
+    }
+
+    const tagsById = new Map<string, Tag>(
+      (tagsData?.tags ?? []).map((tag) => [tag.id, tag]),
+    );
+
+    return tagIds
+      .map((tagId) => tagsById.get(tagId))
+      .filter((tag): tag is Tag => Boolean(tag));
   };
 
   if (holdingsLoading) return <div>로딩 중...</div>;
@@ -191,7 +211,11 @@ export const Holdings: React.FC = () => {
                 <Td>{holding.quantity.toLocaleString()}</Td>
                 <Td>${holding.currentPrice.toFixed(2)}</Td>
                 <Td>${holding.marketValue.toFixed(2)}</Td>
-                <Td>{holding.averageCost ? `$${holding.averageCost.toFixed(2)}` : '-'}</Td>
+                <Td>
+                  {holding.averageCost != null
+                    ? `$${holding.averageCost.toFixed(2)}`
+                    : '-'}
+                </Td>
                 <Td>
                   <TagContainer>
                     {tags.map((tag) => (
@@ -219,7 +243,10 @@ export const Holdings: React.FC = () => {
         <TagModal
           holding={selectedHolding}
           tags={tagsData?.tags || []}
-          currentTags={holdingTagsData?.tagsForHolding || []}
+          currentTags={
+            holdingTagsLoading ? null : holdingTagsData?.tagsForHolding || []
+          }
+          isLoading={holdingTagsLoading}
           onUpdate={handleTagUpdate}
           onClose={() => setShowTagModal(false)}
         />
@@ -231,13 +258,25 @@ export const Holdings: React.FC = () => {
 interface TagModalProps {
   holding: string;
   tags: Tag[];
-  currentTags: string[];
+  currentTags: string[] | null;
+  isLoading: boolean;
   onUpdate: (tagIds: string[]) => void;
   onClose: () => void;
 }
 
-const TagModal: React.FC<TagModalProps> = ({ holding, tags, currentTags, onUpdate, onClose }) => {
-  const [selectedTags, setSelectedTags] = useState<string[]>(currentTags);
+const TagModal: React.FC<TagModalProps> = ({
+  holding,
+  tags,
+  currentTags,
+  isLoading,
+  onUpdate,
+  onClose,
+}) => {
+  const [selectedTags, setSelectedTags] = useState<string[]>(currentTags ?? []);
+
+  useEffect(() => {
+    setSelectedTags(currentTags ?? []);
+  }, [currentTags, holding]);
 
   const handleTagToggle = (tagId: string) => {
     setSelectedTags(prev =>
@@ -255,26 +294,37 @@ const TagModal: React.FC<TagModalProps> = ({ holding, tags, currentTags, onUpdat
     <Modal onClick={onClose}>
       <ModalContent onClick={(e) => e.stopPropagation()}>
         <h3>{holding} 태그 관리</h3>
-        
+
         <div style={{ marginBottom: '20px' }}>
-          {tags.map((tag) => (
-            <CheckboxContainer key={tag.id}>
-              <Checkbox
-                type="checkbox"
-                checked={selectedTags.includes(tag.id)}
-                onChange={() => handleTagToggle(tag.id)}
-              />
-              <Tag color={tag.color}>{tag.name}</Tag>
-              {tag.description && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#666' }}>
-                {tag.description}
-              </span>}
-            </CheckboxContainer>
-          ))}
+          {isLoading ? (
+            <span>태그를 불러오는 중...</span>
+          ) : (
+            tags.map((tag) => (
+              <CheckboxContainer key={tag.id}>
+                <Checkbox
+                  type="checkbox"
+                  checked={selectedTags.includes(tag.id)}
+                  onChange={() => handleTagToggle(tag.id)}
+                  disabled={isLoading}
+                />
+                <Tag color={tag.color}>{tag.name}</Tag>
+                {tag.description && (
+                  <span style={{ marginLeft: '8px', fontSize: '12px', color: '#666' }}>
+                    {tag.description}
+                  </span>
+                )}
+              </CheckboxContainer>
+            ))
+          )}
         </div>
 
         <div>
-          <Button variant="primary" onClick={handleSubmit}>적용</Button>
-          <Button onClick={onClose}>취소</Button>
+          <Button variant="primary" onClick={handleSubmit} disabled={isLoading}>
+            적용
+          </Button>
+          <Button onClick={onClose} disabled={isLoading}>
+            취소
+          </Button>
         </div>
       </ModalContent>
     </Modal>

@@ -9,7 +9,7 @@ export class Tag {
   name: string;
 
   @Field({ nullable: true })
-  description?: string;
+  description: string | null;
 
   @Field()
   color: string;

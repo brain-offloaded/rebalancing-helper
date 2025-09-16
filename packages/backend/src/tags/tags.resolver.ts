@@ -8,27 +8,27 @@ export class TagsResolver {
   constructor(private readonly tagsService: TagsService) {}
 
   @Query(() => [Tag])
-  async tags(): Promise<Tag[]> {
+  tags(): Promise<Tag[]> {
     return this.tagsService.getTags();
   }
 
   @Query(() => Tag, { nullable: true })
-  async tag(@Args('id') id: string): Promise<Tag | null> {
+  tag(@Args('id') id: string): Promise<Tag | null> {
     return this.tagsService.getTag(id);
   }
 
   @Mutation(() => Tag)
-  async createTag(@Args('input') input: CreateTagInput): Promise<Tag> {
+  createTag(@Args('input') input: CreateTagInput): Promise<Tag> {
     return this.tagsService.createTag(input);
   }
 
   @Mutation(() => Tag)
-  async updateTag(@Args('input') input: UpdateTagInput): Promise<Tag> {
+  updateTag(@Args('input') input: UpdateTagInput): Promise<Tag> {
     return this.tagsService.updateTag(input);
   }
 
   @Mutation(() => Boolean)
-  async deleteTag(@Args('id') id: string): Promise<boolean> {
+  deleteTag(@Args('id') id: string): Promise<boolean> {
     return this.tagsService.deleteTag(id);
   }
 }

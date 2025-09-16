@@ -12,7 +12,7 @@ import {
 export class HoldingsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async addTag(input: AddHoldingTagInput): Promise<HoldingTag> {
+  addTag(input: AddHoldingTagInput): Promise<HoldingTag> {
     return this.prisma.holdingTag.upsert({
       where: {
         holdingSymbol_tagId: {
@@ -39,7 +39,7 @@ export class HoldingsService {
         },
       });
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2025'
@@ -50,7 +50,7 @@ export class HoldingsService {
     }
   }
 
-  async setTags(input: SetHoldingTagsInput): Promise<HoldingTag[]> {
+  setTags(input: SetHoldingTagsInput): Promise<HoldingTag[]> {
     return this.prisma.$transaction(async (tx) => {
       await tx.holdingTag.deleteMany({
         where: { holdingSymbol: input.holdingSymbol },
@@ -71,9 +71,11 @@ export class HoldingsService {
     });
   }
 
-  async getHoldingTags(holdingSymbol?: string): Promise<HoldingTag[]> {
+  getHoldingTags(holdingSymbol?: string): Promise<HoldingTag[]> {
+    const normalizedSymbol = holdingSymbol ?? undefined;
+
     return this.prisma.holdingTag.findMany({
-      where: holdingSymbol ? { holdingSymbol } : undefined,
+      where: normalizedSymbol ? { holdingSymbol: normalizedSymbol } : undefined,
       orderBy: { createdAt: 'asc' },
     });
   }

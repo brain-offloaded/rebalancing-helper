@@ -32,7 +32,7 @@ export class RebalancingService {
     return {
       id: group.id,
       name: group.name,
-      description: group.description ?? undefined,
+      description: group.description,
       tagIds: group.tags.map((tag) => tag.tagId),
       createdAt: group.createdAt,
       updatedAt: group.updatedAt,
@@ -43,18 +43,20 @@ export class RebalancingService {
     input: CreateRebalancingGroupInput,
   ): Promise<RebalancingGroup> {
     const uniqueTagIds = Array.from(new Set(input.tagIds));
-    const group = await this.prisma.rebalancingGroup.create({
-      data: {
-        name: input.name,
-        description: input.description,
-        tags: {
-          create: uniqueTagIds.map((tagId) => ({
-            tag: {
-              connect: { id: tagId },
-            },
-          })),
-        },
+    const data: Prisma.RebalancingGroupCreateInput = {
+      name: input.name,
+      description: input.description ?? null,
+      tags: {
+        create: uniqueTagIds.map((tagId) => ({
+          tag: {
+            connect: { id: tagId },
+          },
+        })),
       },
+    };
+
+    const group = await this.prisma.rebalancingGroup.create({
+      data,
       include: { tags: true },
     });
 
@@ -68,26 +70,30 @@ export class RebalancingService {
       ? Array.from(new Set(input.tagIds))
       : undefined;
 
+    const data: Prisma.RebalancingGroupUpdateInput = {};
+
+    if (input.name !== undefined) {
+      data.name = input.name;
+    }
+
+    if (input.description !== undefined) {
+      data.description = input.description ?? null;
+    }
+
+    if (uniqueTagIds) {
+      data.tags = {
+        deleteMany: {},
+        create: uniqueTagIds.map((tagId) => ({
+          tag: {
+            connect: { id: tagId },
+          },
+        })),
+      };
+    }
+
     const group = await this.prisma.rebalancingGroup.update({
       where: { id: input.id },
-      data: {
-        ...(input.name !== undefined ? { name: input.name } : {}),
-        ...(input.description !== undefined
-          ? { description: input.description }
-          : {}),
-        ...(uniqueTagIds
-          ? {
-              tags: {
-                deleteMany: {},
-                create: uniqueTagIds.map((tagId) => ({
-                  tag: {
-                    connect: { id: tagId },
-                  },
-                })),
-              },
-            }
-          : {}),
-      },
+      data,
       include: { tags: true },
     });
 
@@ -98,7 +104,7 @@ export class RebalancingService {
     try {
       await this.prisma.rebalancingGroup.delete({ where: { id } });
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2025'

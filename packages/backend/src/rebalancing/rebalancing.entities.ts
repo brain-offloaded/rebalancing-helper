@@ -9,7 +9,7 @@ export class RebalancingGroup {
   name: string;
 
   @Field({ nullable: true })
-  description?: string;
+  description: string | null;
 
   @Field(() => [String])
   tagIds: string[];

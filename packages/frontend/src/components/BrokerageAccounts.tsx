@@ -126,7 +126,7 @@ interface BrokerageAccount {
   id: string;
   name: string;
   brokerName: string;
-  description?: string;
+  description: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

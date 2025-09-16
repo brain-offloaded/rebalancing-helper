@@ -12,7 +12,7 @@ export class BrokerageAccount {
   brokerName: string;
 
   @Field({ nullable: true })
-  description?: string;
+  description: string | null;
 
   @Field()
   isActive: boolean;
@@ -45,7 +45,7 @@ export class BrokerageHolding {
   marketValue: number;
 
   @Field(() => Number, { nullable: true })
-  averageCost?: number;
+  averageCost: number | null;
 
   @Field()
   currency: string;
