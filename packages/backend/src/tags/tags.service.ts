@@ -9,29 +9,37 @@ export class TagsService {
   constructor(private readonly prisma: PrismaService) {}
 
   createTag(input: CreateTagInput): Promise<Tag> {
+    const data: Prisma.TagCreateInput = {
+      name: input.name,
+      description: input.description ?? null,
+      color: input.color,
+    };
+
     return this.prisma.tag.create({
-      data: {
-        name: input.name,
-        ...(input.description !== undefined
-          ? { description: input.description ?? null }
-          : {}),
-        color: input.color,
-      },
+      data,
     });
   }
 
   updateTag(input: UpdateTagInput): Promise<Tag> {
     const { id, ...updates } = input;
 
+    const data: Prisma.TagUpdateInput = {};
+
+    if (updates.name !== undefined) {
+      data.name = updates.name;
+    }
+
+    if (updates.description !== undefined) {
+      data.description = updates.description ?? null;
+    }
+
+    if (updates.color !== undefined) {
+      data.color = updates.color;
+    }
+
     return this.prisma.tag.update({
       where: { id },
-      data: {
-        ...(updates.name !== undefined ? { name: updates.name } : {}),
-        ...(updates.description !== undefined
-          ? { description: updates.description ?? null }
-          : {}),
-        ...(updates.color !== undefined ? { color: updates.color } : {}),
-      },
+      data,
     });
   }
 

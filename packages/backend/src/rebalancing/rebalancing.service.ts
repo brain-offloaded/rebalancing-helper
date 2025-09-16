@@ -43,20 +43,20 @@ export class RebalancingService {
     input: CreateRebalancingGroupInput,
   ): Promise<RebalancingGroup> {
     const uniqueTagIds = Array.from(new Set(input.tagIds));
-    const group = await this.prisma.rebalancingGroup.create({
-      data: {
-        name: input.name,
-        ...(input.description !== undefined
-          ? { description: input.description ?? null }
-          : {}),
-        tags: {
-          create: uniqueTagIds.map((tagId) => ({
-            tag: {
-              connect: { id: tagId },
-            },
-          })),
-        },
+    const data: Prisma.RebalancingGroupCreateInput = {
+      name: input.name,
+      description: input.description ?? null,
+      tags: {
+        create: uniqueTagIds.map((tagId) => ({
+          tag: {
+            connect: { id: tagId },
+          },
+        })),
       },
+    };
+
+    const group = await this.prisma.rebalancingGroup.create({
+      data,
       include: { tags: true },
     });
 
@@ -70,26 +70,30 @@ export class RebalancingService {
       ? Array.from(new Set(input.tagIds))
       : undefined;
 
+    const data: Prisma.RebalancingGroupUpdateInput = {};
+
+    if (input.name !== undefined) {
+      data.name = input.name;
+    }
+
+    if (input.description !== undefined) {
+      data.description = input.description ?? null;
+    }
+
+    if (uniqueTagIds) {
+      data.tags = {
+        deleteMany: {},
+        create: uniqueTagIds.map((tagId) => ({
+          tag: {
+            connect: { id: tagId },
+          },
+        })),
+      };
+    }
+
     const group = await this.prisma.rebalancingGroup.update({
       where: { id: input.id },
-      data: {
-        ...(input.name !== undefined ? { name: input.name } : {}),
-        ...(input.description !== undefined
-          ? { description: input.description ?? null }
-          : {}),
-        ...(uniqueTagIds
-          ? {
-              tags: {
-                deleteMany: {},
-                create: uniqueTagIds.map((tagId) => ({
-                  tag: {
-                    connect: { id: tagId },
-                  },
-                })),
-              },
-            }
-          : {}),
-      },
+      data,
       include: { tags: true },
     });
 

@@ -16,15 +16,9 @@ export class BrokerageService {
       name: input.name,
       brokerName: input.brokerName,
       apiKey: input.apiKey,
-      ...(input.description !== undefined
-        ? { description: input.description ?? null }
-        : {}),
-      ...(input.apiSecret !== undefined
-        ? { apiSecret: input.apiSecret ?? null }
-        : {}),
-      ...(input.apiBaseUrl !== undefined
-        ? { apiBaseUrl: input.apiBaseUrl ?? null }
-        : {}),
+      description: input.description ?? null,
+      apiSecret: input.apiSecret ?? null,
+      apiBaseUrl: input.apiBaseUrl ?? null,
     };
 
     return this.prisma.brokerageAccount.create({
@@ -34,19 +28,27 @@ export class BrokerageService {
 
   updateAccount(input: UpdateBrokerageAccountInput): Promise<BrokerageAccount> {
     const { id, ...updates } = input;
-    const data: Prisma.BrokerageAccountUpdateInput = {
-      ...(updates.name !== undefined ? { name: updates.name } : {}),
-      ...(updates.apiKey !== undefined ? { apiKey: updates.apiKey } : {}),
-      ...(updates.apiSecret !== undefined
-        ? { apiSecret: updates.apiSecret ?? null }
-        : {}),
-      ...(updates.apiBaseUrl !== undefined
-        ? { apiBaseUrl: updates.apiBaseUrl ?? null }
-        : {}),
-      ...(updates.description !== undefined
-        ? { description: updates.description ?? null }
-        : {}),
-    };
+    const data: Prisma.BrokerageAccountUpdateInput = {};
+
+    if (updates.name !== undefined) {
+      data.name = updates.name;
+    }
+
+    if (updates.apiKey !== undefined) {
+      data.apiKey = updates.apiKey;
+    }
+
+    if (updates.apiSecret !== undefined) {
+      data.apiSecret = updates.apiSecret ?? null;
+    }
+
+    if (updates.apiBaseUrl !== undefined) {
+      data.apiBaseUrl = updates.apiBaseUrl ?? null;
+    }
+
+    if (updates.description !== undefined) {
+      data.description = updates.description ?? null;
+    }
 
     return this.prisma.brokerageAccount.update({
       where: { id },
