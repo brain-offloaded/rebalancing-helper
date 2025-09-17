@@ -53,23 +53,29 @@ rebalancing-helper/
 
 ### 전체 애플리케이션 실행
 ```bash
-npm install
-npm run dev
+yarn install
+yarn dev
 ```
 
 ### 개별 실행
 ```bash
 # 백엔드만 실행
-npm run dev:backend
+yarn dev:backend
 
 # 프론트엔드만 실행
-npm run dev:frontend
+yarn dev:frontend
 ```
 
 ### 빌드
 ```bash
-npm run build
+yarn build
 ```
+
+### 모노레포 작업 흐름
+
+- **Turbo**를 사용해 공통 스크립트를 실행합니다.
+- `yarn dev`는 `turbo run dev --parallel`을 통해 백엔드와 프론트엔드를 동시에 실행합니다.
+- `yarn lint`, `yarn build`, `yarn test`는 각 패키지의 스크립트를 Turbo 파이프라인에서 일괄 실행합니다.
 
 ## 📡 API 엔드포인트
 
