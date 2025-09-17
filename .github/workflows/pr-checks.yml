@@ -50,7 +50,19 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
+      - name: Restore Prisma Client cache
+        id: prisma-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules/.prisma
+            node_modules/@prisma/client
+          key: ${{ runner.os }}-prisma-${{ hashFiles('packages/backend/prisma/schema.prisma', 'packages/backend/package.json', 'yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-prisma-
+
       - name: Generate Prisma Client
+        if: steps.prisma-cache.outputs.cache-hit != 'true'
         run: yarn workspace backend prisma generate
 
       - name: Lint
