@@ -95,11 +95,16 @@ describe('PrismaService', () => {
 
     const service = new PrismaService(config);
     const internal = service as unknown as { $on: jest.Mock };
-    const app = { close: jest.fn().mockResolvedValue(undefined) } as unknown as INestApplication;
+    const app = {
+      close: jest.fn().mockResolvedValue(undefined),
+    } as unknown as INestApplication;
 
     service.enableShutdownHooks(app);
 
-    expect(internal.$on).toHaveBeenCalledWith('beforeExit', expect.any(Function));
+    expect(internal.$on).toHaveBeenCalledWith(
+      'beforeExit',
+      expect.any(Function),
+    );
     const handler = internal.$on.mock.calls[0][1] as () => void;
     handler();
 

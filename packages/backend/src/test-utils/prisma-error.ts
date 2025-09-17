@@ -25,7 +25,10 @@ const ensureConstructor = (): KnownErrorConstructor => {
     code: string;
     clientVersion: string;
 
-    constructor(message: string, options: { code: string; clientVersion: string }) {
+    constructor(
+      message: string,
+      options: { code: string; clientVersion: string },
+    ) {
       super(message);
       this.code = options.code;
       this.clientVersion = options.clientVersion;

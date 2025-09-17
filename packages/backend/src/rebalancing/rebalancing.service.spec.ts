@@ -192,9 +192,7 @@ describe('RebalancingService', () => {
       buildGroup({
         id: 'group-2',
         name: '배당 포트폴리오',
-        tags: [
-          { groupId: 'group-2', tagId: 'tag-3', createdAt: baseDate },
-        ],
+        tags: [{ groupId: 'group-2', tagId: 'tag-3', createdAt: baseDate }],
       }),
     ];
     prismaMock.rebalancingGroup.findMany.mockResolvedValue(groups);
@@ -393,15 +391,27 @@ describe('RebalancingService', () => {
     ];
     brokerageServiceMock.getHoldings.mockResolvedValue(holdings);
     prismaMock.targetAllocation.findMany.mockResolvedValue([
-      { id: 'alloc-1', groupId: 'group-1', tagId: 'tag-1', targetPercentage: 60 },
-      { id: 'alloc-2', groupId: 'group-1', tagId: 'tag-2', targetPercentage: 40 },
+      {
+        id: 'alloc-1',
+        groupId: 'group-1',
+        tagId: 'tag-1',
+        targetPercentage: 60,
+      },
+      {
+        id: 'alloc-2',
+        groupId: 'group-1',
+        tagId: 'tag-2',
+        targetPercentage: 40,
+      },
     ]);
-    holdingsServiceMock.getHoldingsForTag.mockImplementation(async (tagId: string) => {
-      if (tagId === 'tag-1') {
-        return ['SPY'];
-      }
-      return ['QQQ', 'IWM'];
-    });
+    holdingsServiceMock.getHoldingsForTag.mockImplementation(
+      async (tagId: string) => {
+        if (tagId === 'tag-1') {
+          return ['SPY'];
+        }
+        return ['QQQ', 'IWM'];
+      },
+    );
 
     const result = await service.getRebalancingAnalysis('group-1');
 
@@ -472,8 +482,18 @@ describe('RebalancingService', () => {
     ];
     brokerageServiceMock.getHoldings.mockResolvedValue(holdings);
     prismaMock.targetAllocation.findMany.mockResolvedValue([
-      { id: 'alloc-1', groupId: 'group-1', tagId: 'tag-1', targetPercentage: 60 },
-      { id: 'alloc-2', groupId: 'group-1', tagId: 'tag-2', targetPercentage: 40 },
+      {
+        id: 'alloc-1',
+        groupId: 'group-1',
+        tagId: 'tag-1',
+        targetPercentage: 60,
+      },
+      {
+        id: 'alloc-2',
+        groupId: 'group-1',
+        tagId: 'tag-2',
+        targetPercentage: 40,
+      },
     ]);
     holdingsServiceMock.getHoldingsForTag.mockImplementation(async (tagId) => {
       if (tagId === 'tag-1') {
@@ -493,7 +513,7 @@ describe('RebalancingService', () => {
         currentValue: 5000,
         currentPercentage: (5000 / 7000) * 100,
         targetPercentage: 60,
-        difference: 60 - ((5000 / 7000) * 100),
+        difference: 60 - (5000 / 7000) * 100,
       },
     ]);
   });
@@ -525,15 +545,15 @@ describe('RebalancingService', () => {
       ],
       lastUpdated: new Date('2024-01-05T00:00:00Z'),
     };
-    jest
-      .spyOn(service, 'getRebalancingAnalysis')
-      .mockResolvedValue(analysis);
-    holdingsServiceMock.getHoldingsForTag.mockImplementation(async (tagId: string) => {
-      if (tagId === 'tag-1') {
-        return ['SPY'];
-      }
-      return ['QQQ'];
-    });
+    jest.spyOn(service, 'getRebalancingAnalysis').mockResolvedValue(analysis);
+    holdingsServiceMock.getHoldingsForTag.mockImplementation(
+      async (tagId: string) => {
+        if (tagId === 'tag-1') {
+          return ['SPY'];
+        }
+        return ['QQQ'];
+      },
+    );
 
     const input: CalculateInvestmentInput = {
       groupId: 'group-1',
@@ -589,7 +609,7 @@ describe('RebalancingService', () => {
     };
     jest.spyOn(service, 'getRebalancingAnalysis').mockResolvedValue(analysis);
     holdingsServiceMock.getHoldingsForTag.mockImplementation(async (tagId) =>
-      (tagId === 'tag-1' ? ['SPY'] : ['QQQ']),
+      tagId === 'tag-1' ? ['SPY'] : ['QQQ'],
     );
 
     const recommendations = await service.calculateInvestmentRecommendation({

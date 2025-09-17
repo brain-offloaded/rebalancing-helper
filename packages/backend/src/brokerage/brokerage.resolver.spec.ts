@@ -6,7 +6,9 @@ import {
 } from './brokerage.dto';
 import { BrokerageAccount, BrokerageHolding } from './brokerage.entities';
 
-const createAccount = (overrides: Partial<BrokerageAccount> = {}): BrokerageAccount => ({
+const createAccount = (
+  overrides: Partial<BrokerageAccount> = {},
+): BrokerageAccount => ({
   id: overrides.id ?? 'account-1',
   name: overrides.name ?? '기본 계좌',
   brokerName: overrides.brokerName ?? '브로커',
@@ -61,7 +63,9 @@ describe('BrokerageResolver', () => {
     const account = createAccount({ id: 'account-42' });
     service.getAccount.mockResolvedValue(account);
 
-    await expect(resolver.brokerageAccount('account-42')).resolves.toBe(account);
+    await expect(resolver.brokerageAccount('account-42')).resolves.toBe(
+      account,
+    );
     expect(service.getAccount).toHaveBeenCalledWith('account-42');
   });
 
@@ -77,7 +81,9 @@ describe('BrokerageResolver', () => {
     const holdings = [createHolding({ accountId: 'account-7' })];
     service.getHoldings.mockResolvedValue(holdings);
 
-    await expect(resolver.brokerageHoldings('account-7')).resolves.toBe(holdings);
+    await expect(resolver.brokerageHoldings('account-7')).resolves.toBe(
+      holdings,
+    );
     expect(service.getHoldings).toHaveBeenCalledWith('account-7');
   });
 
@@ -87,7 +93,10 @@ describe('BrokerageResolver', () => {
       brokerName: '새 브로커',
       apiKey: 'api-key',
     };
-    const account = createAccount({ name: input.name, brokerName: input.brokerName });
+    const account = createAccount({
+      name: input.name,
+      brokerName: input.brokerName,
+    });
     service.createAccount.mockResolvedValue(account);
 
     await expect(resolver.createBrokerageAccount(input)).resolves.toBe(account);
@@ -109,7 +118,9 @@ describe('BrokerageResolver', () => {
   it('deleteBrokerageAccount는 삭제 여부를 반환한다', async () => {
     service.deleteAccount.mockResolvedValue(true);
 
-    await expect(resolver.deleteBrokerageAccount('account-1')).resolves.toBe(true);
+    await expect(resolver.deleteBrokerageAccount('account-1')).resolves.toBe(
+      true,
+    );
     expect(service.deleteAccount).toHaveBeenCalledWith('account-1');
   });
 

@@ -141,9 +141,7 @@ describe('HoldingsService', () => {
         createdAt: new Date('2024-01-02T00:00:10Z'),
       },
     ];
-    const deleteManyMock = jest
-      .fn()
-      .mockResolvedValue({ count: 2 });
+    const deleteManyMock = jest.fn().mockResolvedValue({ count: 2 });
     const createMock = jest
       .fn()
       .mockResolvedValueOnce(createdTags[0])

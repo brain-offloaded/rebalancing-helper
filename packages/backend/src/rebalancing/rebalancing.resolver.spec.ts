@@ -13,7 +13,9 @@ import {
   TagAllocation,
 } from './rebalancing.entities';
 
-const createGroup = (overrides: Partial<RebalancingGroup> = {}): RebalancingGroup => ({
+const createGroup = (
+  overrides: Partial<RebalancingGroup> = {},
+): RebalancingGroup => ({
   id: overrides.id ?? 'group-1',
   name: overrides.name ?? '테스트 그룹',
   description: overrides.description ?? null,
@@ -93,7 +95,9 @@ describe('RebalancingResolver', () => {
     const analysis = createAnalysis({ groupId: 'group-1' });
     service.getRebalancingAnalysis.mockResolvedValue(analysis);
 
-    await expect(resolver.rebalancingAnalysis('group-1')).resolves.toBe(analysis);
+    await expect(resolver.rebalancingAnalysis('group-1')).resolves.toBe(
+      analysis,
+    );
     expect(service.getRebalancingAnalysis).toHaveBeenCalledWith('group-1');
   });
 
@@ -103,7 +107,10 @@ describe('RebalancingResolver', () => {
       description: '설명',
       tagIds: ['tag-1'],
     };
-    const group = createGroup({ name: input.name, description: input.description });
+    const group = createGroup({
+      name: input.name,
+      description: input.description,
+    });
     service.createGroup.mockResolvedValue(group);
 
     await expect(resolver.createRebalancingGroup(input)).resolves.toBe(group);
@@ -125,7 +132,9 @@ describe('RebalancingResolver', () => {
   it('deleteRebalancingGroup은 Boolean 값을 반환한다', async () => {
     service.deleteGroup.mockResolvedValue(true);
 
-    await expect(resolver.deleteRebalancingGroup('group-1')).resolves.toBe(true);
+    await expect(resolver.deleteRebalancingGroup('group-1')).resolves.toBe(
+      true,
+    );
     expect(service.deleteGroup).toHaveBeenCalledWith('group-1');
   });
 
@@ -146,11 +155,15 @@ describe('RebalancingResolver', () => {
       investmentAmount: 1000,
     };
     const recommendations = [createRecommendation({ recommendedAmount: 500 })];
-    service.calculateInvestmentRecommendation.mockResolvedValue(recommendations);
+    service.calculateInvestmentRecommendation.mockResolvedValue(
+      recommendations,
+    );
 
     await expect(resolver.investmentRecommendation(input)).resolves.toBe(
       recommendations,
     );
-    expect(service.calculateInvestmentRecommendation).toHaveBeenCalledWith(input);
+    expect(service.calculateInvestmentRecommendation).toHaveBeenCalledWith(
+      input,
+    );
   });
 });

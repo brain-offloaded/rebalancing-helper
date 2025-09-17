@@ -187,7 +187,9 @@ describe('GraphQL API (e2e)', () => {
         brokerName: '브로커',
       },
     });
-    expect(brokerageServiceMock.createAccount).toHaveBeenCalledWith(variables.input);
+    expect(brokerageServiceMock.createAccount).toHaveBeenCalledWith(
+      variables.input,
+    );
   });
 
   it('holdingTags 쿼리는 보유 종목 태그를 반환한다', async () => {
@@ -334,7 +336,9 @@ describe('GraphQL API (e2e)', () => {
         lastUpdated: '2024-01-04T00:00:00.000Z',
       },
     });
-    expect(rebalancingServiceMock.getRebalancingAnalysis).toHaveBeenCalledWith('group-1');
+    expect(rebalancingServiceMock.getRebalancingAnalysis).toHaveBeenCalledWith(
+      'group-1',
+    );
   });
 
   it('updateTag 뮤테이션은 태그 정보를 갱신한다', async () => {
@@ -430,7 +434,9 @@ describe('GraphQL API (e2e)', () => {
         },
       ],
     });
-    expect(rebalancingServiceMock.calculateInvestmentRecommendation).toHaveBeenCalledWith({
+    expect(
+      rebalancingServiceMock.calculateInvestmentRecommendation,
+    ).toHaveBeenCalledWith({
       groupId: 'group-1',
       investmentAmount: 1000,
     });

@@ -68,7 +68,10 @@ describe('HoldingsResolver', () => {
       holdingSymbol: 'SPY',
       tagId: 'tag-1',
     };
-    const tag = createHoldingTag({ holdingSymbol: input.holdingSymbol, tagId: input.tagId });
+    const tag = createHoldingTag({
+      holdingSymbol: input.holdingSymbol,
+      tagId: input.tagId,
+    });
     service.addTag.mockResolvedValue(tag);
 
     await expect(resolver.addHoldingTag(input)).resolves.toBe(tag);
@@ -91,7 +94,9 @@ describe('HoldingsResolver', () => {
       holdingSymbol: 'SPY',
       tagIds: ['tag-1', 'tag-2'],
     };
-    const tags = [createHoldingTag({ holdingSymbol: input.holdingSymbol, tagId: 'tag-1' })];
+    const tags = [
+      createHoldingTag({ holdingSymbol: input.holdingSymbol, tagId: 'tag-1' }),
+    ];
     service.setTags.mockResolvedValue(tags);
 
     await expect(resolver.setHoldingTags(input)).resolves.toBe(tags);
