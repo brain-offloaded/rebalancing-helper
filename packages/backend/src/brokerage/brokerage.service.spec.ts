@@ -198,6 +198,15 @@ describe('BrokerageService', () => {
     await expect(service.deleteAccount('account-1')).resolves.toBe(false);
   });
 
+  it('deleteAccount는 예상치 못한 Prisma 오류를 다시 던진다', async () => {
+    const unexpectedError = createPrismaKnownRequestError('P5000');
+    prismaMock.brokerageAccount.delete.mockRejectedValue(unexpectedError);
+
+    await expect(service.deleteAccount('account-1')).rejects.toBe(
+      unexpectedError,
+    );
+  });
+
   it('getAccounts는 모든 계좌를 정렬하여 반환한다', async () => {
     const accounts: BrokerageAccount[] = [
       {

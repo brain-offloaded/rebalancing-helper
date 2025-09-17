@@ -160,6 +160,13 @@ describe('TagsService', () => {
     await expect(service.deleteTag('tag-1')).resolves.toBe(false);
   });
 
+  it('deleteTag는 Prisma 오류가 P2025가 아니면 다시 던진다', async () => {
+    const unexpectedError = createPrismaKnownRequestError('P5000');
+    prismaMock.tag.delete.mockRejectedValue(unexpectedError);
+
+    await expect(service.deleteTag('tag-1')).rejects.toBe(unexpectedError);
+  });
+
   it('getTags는 이름 기준으로 정렬하여 반환한다', async () => {
     const tags: Tag[] = [];
     prismaMock.tag.findMany.mockResolvedValue(tags);

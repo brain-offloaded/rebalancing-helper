@@ -270,6 +270,29 @@ describe('RebalancingService', () => {
     });
   });
 
+  it('setTargetAllocations는 목표가 비어 있으면 createMany를 호출하지 않는다', async () => {
+    prismaMock.rebalancingGroup.findUnique.mockResolvedValue(buildGroup());
+    const deleteManyMock = jest.fn().mockResolvedValue({ count: 0 });
+    const createManyMock = jest.fn();
+    prismaMock.$transaction.mockImplementation(async (callback) =>
+      callback({
+        targetAllocation: {
+          deleteMany: deleteManyMock,
+          createMany: createManyMock,
+        },
+      }),
+    );
+
+    await expect(
+      service.setTargetAllocations({ groupId: 'group-1', targets: [] }),
+    ).resolves.toBe(true);
+
+    expect(deleteManyMock).toHaveBeenCalledWith({
+      where: { groupId: 'group-1' },
+    });
+    expect(createManyMock).not.toHaveBeenCalled();
+  });
+
   it('setTargetAllocations는 그룹이 없으면 예외를 던진다', async () => {
     prismaMock.rebalancingGroup.findUnique.mockResolvedValue(null);
 
@@ -408,6 +431,73 @@ describe('RebalancingService', () => {
     expect(result.lastUpdated).toBeInstanceOf(Date);
   });
 
+  it('getRebalancingAnalysis는 태그 정보가 없으면 해당 항목을 건너뛴다', async () => {
+    const group = buildGroup();
+    prismaMock.rebalancingGroup.findUnique.mockResolvedValue(group);
+    prismaMock.tag.findMany.mockResolvedValue([
+      {
+        id: 'tag-1',
+        name: '성장주',
+        description: null,
+        color: '#ff0000',
+        createdAt: baseDate,
+        updatedAt: baseDate,
+      },
+    ]);
+    const holdings: BrokerageHolding[] = [
+      {
+        id: 'h1',
+        symbol: 'SPY',
+        name: 'SPDR S&P 500 ETF',
+        quantity: 10,
+        currentPrice: 500,
+        marketValue: 5000,
+        averageCost: 450,
+        currency: 'USD',
+        accountId: 'account-1',
+        lastUpdated: baseDate,
+      },
+      {
+        id: 'h2',
+        symbol: 'QQQ',
+        name: 'Invesco QQQ Trust',
+        quantity: 5,
+        currentPrice: 400,
+        marketValue: 2000,
+        averageCost: 350,
+        currency: 'USD',
+        accountId: 'account-1',
+        lastUpdated: baseDate,
+      },
+    ];
+    brokerageServiceMock.getHoldings.mockResolvedValue(holdings);
+    prismaMock.targetAllocation.findMany.mockResolvedValue([
+      { id: 'alloc-1', groupId: 'group-1', tagId: 'tag-1', targetPercentage: 60 },
+      { id: 'alloc-2', groupId: 'group-1', tagId: 'tag-2', targetPercentage: 40 },
+    ]);
+    holdingsServiceMock.getHoldingsForTag.mockImplementation(async (tagId) => {
+      if (tagId === 'tag-1') {
+        return ['SPY'];
+      }
+      return ['QQQ'];
+    });
+
+    const analysis = await service.getRebalancingAnalysis('group-1');
+
+    expect(analysis.totalValue).toBe(7000);
+    expect(analysis.allocations).toEqual([
+      {
+        tagId: 'tag-1',
+        tagName: '성장주',
+        tagColor: '#ff0000',
+        currentValue: 5000,
+        currentPercentage: (5000 / 7000) * 100,
+        targetPercentage: 60,
+        difference: 60 - ((5000 / 7000) * 100),
+      },
+    ]);
+  });
+
   it('calculateInvestmentRecommendation은 추가 투자금에 대한 권장 금액을 계산한다', async () => {
     const analysis: RebalancingAnalysis = {
       groupId: 'group-1',
@@ -468,5 +558,54 @@ describe('RebalancingService', () => {
       suggestedSymbols: ['QQQ'],
     });
     expect(result[1].recommendedPercentage).toBeCloseTo(0, 5);
+  });
+
+  it('calculateInvestmentRecommendation은 투자금이 0이면 비율을 0으로 유지한다', async () => {
+    const analysis: RebalancingAnalysis = {
+      groupId: 'group-1',
+      groupName: '성장 포트폴리오',
+      totalValue: 10000,
+      allocations: [
+        {
+          tagId: 'tag-1',
+          tagName: '성장주',
+          tagColor: '#ff0000',
+          currentValue: 5000,
+          currentPercentage: 50,
+          targetPercentage: 60,
+          difference: 10,
+        },
+        {
+          tagId: 'tag-2',
+          tagName: '배당주',
+          tagColor: '#00ff00',
+          currentValue: 5000,
+          currentPercentage: 50,
+          targetPercentage: 40,
+          difference: -10,
+        },
+      ],
+      lastUpdated: new Date('2024-01-05T00:00:00Z'),
+    };
+    jest.spyOn(service, 'getRebalancingAnalysis').mockResolvedValue(analysis);
+    holdingsServiceMock.getHoldingsForTag.mockImplementation(async (tagId) =>
+      (tagId === 'tag-1' ? ['SPY'] : ['QQQ']),
+    );
+
+    const recommendations = await service.calculateInvestmentRecommendation({
+      groupId: 'group-1',
+      investmentAmount: 0,
+    });
+
+    expect(recommendations[0]).toMatchObject({
+      tagId: 'tag-1',
+      recommendedAmount: 1000,
+      recommendedPercentage: 0,
+    });
+    expect(recommendations[1]).toMatchObject({
+      tagId: 'tag-2',
+      recommendedAmount: 0,
+      recommendedPercentage: 0,
+    });
   });
 });

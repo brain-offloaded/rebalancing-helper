@@ -111,6 +111,17 @@ describe('HoldingsService', () => {
     await expect(service.removeTag(input)).rejects.toThrow('database failure');
   });
 
+  it('removeTag는 Prisma 오류가 P2025가 아니면 그대로 전달한다', async () => {
+    const input: RemoveHoldingTagInput = {
+      holdingSymbol: 'AAPL',
+      tagId: 'growth',
+    };
+    const prismaError = createPrismaKnownRequestError('P5000');
+    prismaMock.holdingTag.delete.mockRejectedValue(prismaError);
+
+    await expect(service.removeTag(input)).rejects.toBe(prismaError);
+  });
+
   it('setTags는 기존 태그를 삭제하고 새 태그를 생성한다', async () => {
     const input: SetHoldingTagsInput = {
       holdingSymbol: 'AAPL',

@@ -150,7 +150,10 @@ export class RebalancingService {
       (sum, target) => sum + target.targetPercentage,
       0,
     );
-    if (Math.abs(totalPercentage - 100) > 0.01) {
+    if (
+      input.targets.length > 0 &&
+      Math.abs(totalPercentage - 100) > 0.01
+    ) {
       throw new Error('Target percentages must sum to 100');
     }
 
