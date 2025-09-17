@@ -5,31 +5,31 @@ export class RebalancingGroup {
   @Field(() => ID)
   id: string;
 
-  @Field()
+  @Field(() => String)
   name: string;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   description: string | null;
 
   @Field(() => [String])
   tagIds: string[];
 
-  @Field()
+  @Field(() => Date)
   createdAt: Date;
 
-  @Field()
+  @Field(() => Date)
   updatedAt: Date;
 }
 
 @ObjectType()
 export class TagAllocation {
-  @Field()
+  @Field(() => String)
   tagId: string;
 
-  @Field()
+  @Field(() => String)
   tagName: string;
 
-  @Field()
+  @Field(() => String)
   tagColor: string;
 
   @Field(() => Float)
@@ -50,7 +50,7 @@ export class RebalancingAnalysis {
   @Field(() => ID)
   groupId: string;
 
-  @Field()
+  @Field(() => String)
   groupName: string;
 
   @Field(() => Float)
@@ -59,16 +59,16 @@ export class RebalancingAnalysis {
   @Field(() => [TagAllocation])
   allocations: TagAllocation[];
 
-  @Field()
+  @Field(() => Date)
   lastUpdated: Date;
 }
 
 @ObjectType()
 export class InvestmentRecommendation {
-  @Field()
+  @Field(() => String)
   tagId: string;
 
-  @Field()
+  @Field(() => String)
   tagName: string;
 
   @Field(() => Float)

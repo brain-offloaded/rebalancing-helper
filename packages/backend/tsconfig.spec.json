@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": false,
+    "types": ["node", "jest"],
+    "esModuleInterop": true
+  }
+}

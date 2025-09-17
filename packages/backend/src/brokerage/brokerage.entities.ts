@@ -5,22 +5,22 @@ export class BrokerageAccount {
   @Field(() => ID)
   id: string;
 
-  @Field()
+  @Field(() => String)
   name: string;
 
-  @Field()
+  @Field(() => String)
   brokerName: string;
 
-  @Field({ nullable: true })
+  @Field(() => String, { nullable: true })
   description: string | null;
 
-  @Field()
+  @Field(() => Boolean)
   isActive: boolean;
 
-  @Field()
+  @Field(() => Date)
   createdAt: Date;
 
-  @Field()
+  @Field(() => Date)
   updatedAt: Date;
 }
 
@@ -29,10 +29,10 @@ export class BrokerageHolding {
   @Field(() => ID)
   id: string;
 
-  @Field()
+  @Field(() => String)
   symbol: string;
 
-  @Field()
+  @Field(() => String)
   name: string;
 
   @Field(() => Number)
@@ -47,12 +47,12 @@ export class BrokerageHolding {
   @Field(() => Number, { nullable: true })
   averageCost: number | null;
 
-  @Field()
+  @Field(() => String)
   currency: string;
 
-  @Field()
+  @Field(() => String)
   accountId: string;
 
-  @Field()
+  @Field(() => Date)
   lastUpdated: Date;
 }
