@@ -21,7 +21,9 @@ const TabList = styled.div`
   margin-bottom: ${props => props.theme.spacing.lg};
 `;
 
-const Tab = styled.button<{ active: boolean }>`
+const Tab = styled.button.withConfig({
+  shouldForwardProp: (prop) => prop !== 'active',
+})<{ active: boolean }>`
   padding: ${props => props.theme.spacing.md} ${props => props.theme.spacing.lg};
   font-size: ${props => props.theme.typography.fontSize.md};
   font-weight: ${props => props.theme.typography.fontWeight.medium};

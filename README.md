@@ -77,6 +77,15 @@ yarn build
 yarn test
 
 # 백엔드 단위 테스트 커버리지 리포트 생성
+yarn workspace backend test:cov
+
+# 프론트엔드 단위 테스트 실행
+yarn workspace frontend test
+
+# 프론트엔드 단위 테스트 커버리지 리포트 생성
+yarn workspace frontend test:cov
+
+# 모든 워크스페이스 커버리지 리포트 실행
 yarn test:cov
 ```
 
