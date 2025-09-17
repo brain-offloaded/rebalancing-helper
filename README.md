@@ -71,6 +71,24 @@ yarn dev:frontend
 yarn build
 ```
 
+### 테스트 및 커버리지
+```bash
+# 단위 테스트 실행
+yarn test
+
+# 백엔드 단위 테스트 커버리지 리포트 생성
+yarn workspace backend test:cov
+
+# 프론트엔드 단위 테스트 실행
+yarn workspace frontend test
+
+# 프론트엔드 단위 테스트 커버리지 리포트 생성
+yarn workspace frontend test:cov
+
+# 모든 워크스페이스 커버리지 리포트 실행
+yarn test:cov
+```
+
 ### 모노레포 작업 흐름
 
 - **Turbo**를 사용해 공통 스크립트를 실행합니다.

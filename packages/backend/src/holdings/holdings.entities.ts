@@ -5,13 +5,13 @@ export class HoldingTag {
   @Field(() => ID)
   id: string;
 
-  @Field()
+  @Field(() => String)
   holdingSymbol: string;
 
-  @Field()
+  @Field(() => String)
   tagId: string;
 
-  @Field()
+  @Field(() => Date)
   createdAt: Date;
 }
 
@@ -20,10 +20,10 @@ export class EnrichedHolding {
   @Field(() => ID)
   id: string;
 
-  @Field()
+  @Field(() => String)
   symbol: string;
 
-  @Field()
+  @Field(() => String)
   name: string;
 
   @Field(() => Number)
@@ -38,13 +38,13 @@ export class EnrichedHolding {
   @Field(() => Number, { nullable: true })
   averageCost: number | null;
 
-  @Field()
+  @Field(() => String)
   currency: string;
 
-  @Field()
+  @Field(() => String)
   accountId: string;
 
-  @Field()
+  @Field(() => Date)
   lastUpdated: Date;
 
   @Field(() => [String])

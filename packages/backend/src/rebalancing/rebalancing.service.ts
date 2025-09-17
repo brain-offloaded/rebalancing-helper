@@ -16,6 +16,8 @@ import {
 import { BrokerageService } from '../brokerage/brokerage.service';
 import { HoldingsService } from '../holdings/holdings.service';
 
+const PERCENTAGE_TOLERANCE = 0.01;
+
 type GroupWithTags = Prisma.RebalancingGroupGetPayload<{
   include: { tags: true };
 }>;
@@ -150,7 +152,10 @@ export class RebalancingService {
       (sum, target) => sum + target.targetPercentage,
       0,
     );
-    if (Math.abs(totalPercentage - 100) > 0.01) {
+    if (
+      input.targets.length > 0 &&
+      Math.abs(totalPercentage - 100) > PERCENTAGE_TOLERANCE
+    ) {
       throw new Error('Target percentages must sum to 100');
     }
 
