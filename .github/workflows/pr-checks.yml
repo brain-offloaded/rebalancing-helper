@@ -1,0 +1,75 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+      DATABASE_URL: file:${{ github.workspace }}/packages/backend/prisma/dev.db
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Prepare Yarn 4
+        run: corepack prepare yarn@4.9.4 --activate
+
+      - name: Detect Yarn cache directory
+        id: yarn-cache-dir
+        run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Yarn cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.yarn-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Restore Turborepo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('turbo.json', 'yarn.lock') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ hashFiles('turbo.json', 'yarn.lock') }}-
+            ${{ runner.os }}-turbo-
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Restore Prisma Client cache
+        id: prisma-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules/.prisma
+            node_modules/@prisma/client
+          key: ${{ runner.os }}-prisma-${{ hashFiles('packages/backend/prisma/schema.prisma', 'packages/backend/package.json', 'yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-prisma-
+
+      - name: Generate Prisma Client
+        if: steps.prisma-cache.outputs.cache-hit != 'true'
+        run: yarn workspace backend prisma generate
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Build
+        run: yarn build
+
+      - name: Test
+        run: yarn test
