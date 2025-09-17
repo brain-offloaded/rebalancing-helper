@@ -71,7 +71,7 @@ describe('Holdings', () => {
       },
     ]
 
-    mockUseQuery.mockImplementation((query, options) => {
+    mockUseQuery.mockImplementation((query) => {
       if (query === GET_BROKERAGE_HOLDINGS) {
         return { data: { brokerageHoldings: holdings }, loading: false }
       }
