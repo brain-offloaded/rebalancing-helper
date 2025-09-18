@@ -13,6 +13,8 @@ import { TagsModule } from './tags/tags.module';
 import { RebalancingModule } from './rebalancing/rebalancing.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { GraphqlContext } from './common/graphql/graphql-context.type';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 
 type GraphqlContextFactoryArgs = {
   req: Request;
@@ -40,10 +42,12 @@ type GraphqlContextFactoryArgs = {
             ? requestIdCandidate
             : randomUUID();
 
-        return { req, res, requestId };
+        return { req, res, requestId, user: null };
       },
     }),
     PrismaModule,
+    AuthModule,
+    UsersModule,
     BrokerageModule,
     HoldingsModule,
     TagsModule,

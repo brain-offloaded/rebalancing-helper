@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { Tag } from './tags.entities';
@@ -8,11 +8,14 @@ import { CreateTagInput, UpdateTagInput } from './tags.dto';
 export class TagsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  createTag(input: CreateTagInput): Promise<Tag> {
+  createTag(userId: string, input: CreateTagInput): Promise<Tag> {
     const data: Prisma.TagCreateInput = {
       name: input.name,
       description: input.description ?? null,
       color: input.color,
+      user: {
+        connect: { id: userId },
+      },
     };
 
     return this.prisma.tag.create({
@@ -20,8 +23,17 @@ export class TagsService {
     });
   }
 
-  updateTag(input: UpdateTagInput): Promise<Tag> {
+  async updateTag(userId: string, input: UpdateTagInput): Promise<Tag> {
     const { id, ...updates } = input;
+
+    const existing = await this.prisma.tag.findFirst({
+      where: { id, userId },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Tag not found');
+    }
 
     const data: Prisma.TagUpdateInput = {};
 
@@ -43,8 +55,17 @@ export class TagsService {
     });
   }
 
-  async deleteTag(id: string): Promise<boolean> {
+  async deleteTag(userId: string, id: string): Promise<boolean> {
     try {
+      const existing = await this.prisma.tag.findFirst({
+        where: { id, userId },
+        select: { id: true },
+      });
+
+      if (!existing) {
+        return false;
+      }
+
       await this.prisma.tag.delete({ where: { id } });
       return true;
     } catch (error: unknown) {
@@ -58,13 +79,18 @@ export class TagsService {
     }
   }
 
-  getTags(): Promise<Tag[]> {
+  getTags(userId: string): Promise<Tag[]> {
     return this.prisma.tag.findMany({
+      where: { userId },
       orderBy: { name: 'asc' },
     });
   }
 
-  getTag(id: string): Promise<Tag | null> {
-    return this.prisma.tag.findUnique({ where: { id } });
+  async getTag(userId: string, id: string): Promise<Tag | null> {
+    const tag = await this.prisma.tag.findFirst({
+      where: { id, userId },
+    });
+
+    return tag;
   }
 }

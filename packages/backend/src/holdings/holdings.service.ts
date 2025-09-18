@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { HoldingTag } from './holdings.entities';
@@ -12,10 +12,27 @@ import {
 export class HoldingsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  addTag(input: AddHoldingTagInput): Promise<HoldingTag> {
+  private async assertTagBelongsToUser(
+    userId: string,
+    tagId: string,
+  ): Promise<void> {
+    const tag = await this.prisma.tag.findFirst({
+      where: { id: tagId, userId },
+      select: { id: true },
+    });
+
+    if (!tag) {
+      throw new NotFoundException('Tag not found');
+    }
+  }
+
+  async addTag(userId: string, input: AddHoldingTagInput): Promise<HoldingTag> {
+    await this.assertTagBelongsToUser(userId, input.tagId);
+
     return this.prisma.holdingTag.upsert({
       where: {
-        holdingSymbol_tagId: {
+        user_holdingSymbol_tagId: {
+          userId,
           holdingSymbol: input.holdingSymbol,
           tagId: input.tagId,
         },
@@ -24,15 +41,17 @@ export class HoldingsService {
       create: {
         holdingSymbol: input.holdingSymbol,
         tagId: input.tagId,
+        userId,
       },
     });
   }
 
-  async removeTag(input: RemoveHoldingTagInput): Promise<boolean> {
+  async removeTag(userId: string, input: RemoveHoldingTagInput): Promise<boolean> {
     try {
       await this.prisma.holdingTag.delete({
         where: {
-          holdingSymbol_tagId: {
+          user_holdingSymbol_tagId: {
+            userId,
             holdingSymbol: input.holdingSymbol,
             tagId: input.tagId,
           },
@@ -50,10 +69,20 @@ export class HoldingsService {
     }
   }
 
-  setTags(input: SetHoldingTagsInput): Promise<HoldingTag[]> {
+  async setTags(
+    userId: string,
+    input: SetHoldingTagsInput,
+  ): Promise<HoldingTag[]> {
+    const ownershipChecks = input.tagIds.map((tagId) =>
+      this.assertTagBelongsToUser(userId, tagId),
+    );
+
+    await Promise.all(ownershipChecks);
+
     return this.prisma.$transaction(async (tx) => {
+
       await tx.holdingTag.deleteMany({
-        where: { holdingSymbol: input.holdingSymbol },
+        where: { holdingSymbol: input.holdingSymbol, userId },
       });
 
       const newTags = await Promise.all(
@@ -62,6 +91,7 @@ export class HoldingsService {
             data: {
               holdingSymbol: input.holdingSymbol,
               tagId,
+              userId,
             },
           }),
         ),
@@ -71,26 +101,31 @@ export class HoldingsService {
     });
   }
 
-  getHoldingTags(holdingSymbol?: string): Promise<HoldingTag[]> {
+  getHoldingTags(userId: string, holdingSymbol?: string): Promise<HoldingTag[]> {
     const normalizedSymbol = holdingSymbol ?? undefined;
 
     return this.prisma.holdingTag.findMany({
-      where: normalizedSymbol ? { holdingSymbol: normalizedSymbol } : undefined,
+      where: {
+        userId,
+        ...(normalizedSymbol ? { holdingSymbol: normalizedSymbol } : {}),
+      },
       orderBy: { createdAt: 'asc' },
     });
   }
 
-  async getTagsForHolding(holdingSymbol: string): Promise<string[]> {
+  async getTagsForHolding(userId: string, holdingSymbol: string): Promise<string[]> {
     const tags = await this.prisma.holdingTag.findMany({
-      where: { holdingSymbol },
+      where: { holdingSymbol, userId },
       select: { tagId: true },
     });
     return tags.map((tag) => tag.tagId);
   }
 
-  async getHoldingsForTag(tagId: string): Promise<string[]> {
+  async getHoldingsForTag(userId: string, tagId: string): Promise<string[]> {
+    await this.assertTagBelongsToUser(userId, tagId);
+
     const holdings = await this.prisma.holdingTag.findMany({
-      where: { tagId },
+      where: { tagId, userId },
       select: { holdingSymbol: true },
     });
     return holdings.map((holding) => holding.holdingSymbol);
