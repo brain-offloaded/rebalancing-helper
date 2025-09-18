@@ -1,7 +1,10 @@
+import { randomUUID } from 'node:crypto';
+import type { Request, Response } from 'express';
+
 import { Module } from '@nestjs/common';
-import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { ConfigModule } from '@nestjs/config';
+import { GraphQLModule } from '@nestjs/graphql';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { BrokerageModule } from './brokerage/brokerage.module';
@@ -9,6 +12,12 @@ import { HoldingsModule } from './holdings/holdings.module';
 import { TagsModule } from './tags/tags.module';
 import { RebalancingModule } from './rebalancing/rebalancing.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { GraphqlContext } from './common/graphql/graphql-context.type';
+
+type GraphqlContextFactoryArgs = {
+  req: Request;
+  res: Response;
+};
 
 @Module({
   imports: [
@@ -21,6 +30,18 @@ import { PrismaModule } from './prisma/prisma.module';
       sortSchema: true,
       playground: true,
       introspection: true,
+      context: ({ req, res }: GraphqlContextFactoryArgs): GraphqlContext => {
+        const requestIdHeader = req.headers['x-request-id'];
+        const requestIdCandidate = Array.isArray(requestIdHeader)
+          ? requestIdHeader[0]
+          : requestIdHeader;
+        const requestId =
+          typeof requestIdCandidate === 'string' && requestIdCandidate.length > 0
+            ? requestIdCandidate
+            : randomUUID();
+
+        return { req, res, requestId };
+      },
     }),
     PrismaModule,
     BrokerageModule,
