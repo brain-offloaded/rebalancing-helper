@@ -10,7 +10,6 @@
     "allowSyntheticDefaultImports": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "./src",
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
@@ -18,5 +17,4 @@
     "strictPropertyInitialization": false,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*"],
 }

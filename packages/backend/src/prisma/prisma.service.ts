@@ -32,7 +32,7 @@ export class PrismaService
   }
 
   enableShutdownHooks(app: INestApplication): void {
-    this.$on('beforeExit', () => {
+    process.on('beforeExit', () => {
       void app.close();
     });
   }
