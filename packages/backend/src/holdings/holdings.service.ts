@@ -46,7 +46,10 @@ export class HoldingsService {
     });
   }
 
-  async removeTag(userId: string, input: RemoveHoldingTagInput): Promise<boolean> {
+  async removeTag(
+    userId: string,
+    input: RemoveHoldingTagInput,
+  ): Promise<boolean> {
     try {
       await this.prisma.holdingTag.delete({
         where: {
@@ -80,7 +83,6 @@ export class HoldingsService {
     await Promise.all(ownershipChecks);
 
     return this.prisma.$transaction(async (tx) => {
-
       await tx.holdingTag.deleteMany({
         where: { holdingSymbol: input.holdingSymbol, userId },
       });
@@ -101,7 +103,10 @@ export class HoldingsService {
     });
   }
 
-  getHoldingTags(userId: string, holdingSymbol?: string): Promise<HoldingTag[]> {
+  getHoldingTags(
+    userId: string,
+    holdingSymbol?: string,
+  ): Promise<HoldingTag[]> {
     const normalizedSymbol = holdingSymbol ?? undefined;
 
     return this.prisma.holdingTag.findMany({
@@ -113,7 +118,10 @@ export class HoldingsService {
     });
   }
 
-  async getTagsForHolding(userId: string, holdingSymbol: string): Promise<string[]> {
+  async getTagsForHolding(
+    userId: string,
+    holdingSymbol: string,
+  ): Promise<string[]> {
     const tags = await this.prisma.holdingTag.findMany({
       where: { holdingSymbol, userId },
       select: { tagId: true },

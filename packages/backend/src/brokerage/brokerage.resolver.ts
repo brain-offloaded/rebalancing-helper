@@ -16,7 +16,9 @@ export class BrokerageResolver {
   constructor(private readonly brokerageService: BrokerageService) {}
 
   @Query(() => [BrokerageAccount])
-  brokerageAccounts(@CurrentUser() user: ActiveUserData): Promise<BrokerageAccount[]> {
+  brokerageAccounts(
+    @CurrentUser() user: ActiveUserData,
+  ): Promise<BrokerageAccount[]> {
     return this.brokerageService.getAccounts(user.userId);
   }
 

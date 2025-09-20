@@ -182,10 +182,7 @@ export class RebalancingService {
     return groups.map((group) => this.mapGroup(group));
   }
 
-  async getGroup(
-    userId: string,
-    id: string,
-  ): Promise<RebalancingGroup | null> {
+  async getGroup(userId: string, id: string): Promise<RebalancingGroup | null> {
     const group = await this.prisma.rebalancingGroup.findFirst({
       where: { id, userId },
       include: { tags: true },
@@ -277,8 +274,10 @@ export class RebalancingService {
     }
 
     for (const tagId of groupTagIds) {
-      const holdingsForTag =
-        await this.holdingsService.getHoldingsForTag(userId, tagId);
+      const holdingsForTag = await this.holdingsService.getHoldingsForTag(
+        userId,
+        tagId,
+      );
       holdingsByTag.set(tagId, holdingsForTag);
       const tagValue = holdingsForTag.reduce((sum, symbol) => {
         return sum + (marketValueBySymbol.get(symbol) ?? 0);

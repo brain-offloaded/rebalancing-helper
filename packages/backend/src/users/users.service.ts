@@ -6,7 +6,9 @@ import { PrismaService } from '../prisma/prisma.service';
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(data: Pick<Prisma.UserCreateInput, 'email' | 'passwordHash'>): Promise<PrismaUser> {
+  create(
+    data: Pick<Prisma.UserCreateInput, 'email' | 'passwordHash'>,
+  ): Promise<PrismaUser> {
     return this.prisma.user.create({
       data,
     });

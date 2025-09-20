@@ -1,34 +1,53 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import styled from 'styled-components';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { GET_REBALANCING_GROUPS, GET_REBALANCING_ANALYSIS, GET_INVESTMENT_RECOMMENDATION, CREATE_REBALANCING_GROUP, SET_TARGET_ALLOCATIONS } from '../graphql/rebalancing';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from 'recharts';
+import {
+  GET_REBALANCING_GROUPS,
+  GET_REBALANCING_ANALYSIS,
+  GET_INVESTMENT_RECOMMENDATION,
+  CREATE_REBALANCING_GROUP,
+  SET_TARGET_ALLOCATIONS,
+} from '../graphql/rebalancing';
 import { GET_TAGS } from '../graphql/tags';
 
 const Container = styled.div`
-  padding: ${props => props.theme.spacing.lg};
+  padding: ${(props) => props.theme.spacing.lg};
 `;
 
 const Card = styled.div`
   background: white;
-  border: 1px solid ${props => props.theme.colors.border};
-  border-radius: ${props => props.theme.borderRadius.md};
-  padding: ${props => props.theme.spacing.lg};
-  margin-bottom: ${props => props.theme.spacing.md};
-  box-shadow: ${props => props.theme.shadows.sm};
+  border: 1px solid ${(props) => props.theme.colors.border};
+  border-radius: ${(props) => props.theme.borderRadius.md};
+  padding: ${(props) => props.theme.spacing.lg};
+  margin-bottom: ${(props) => props.theme.spacing.md};
+  box-shadow: ${(props) => props.theme.shadows.sm};
 `;
 
 const Button = styled.button<{ variant?: 'primary' | 'danger' | 'secondary' }>`
-  padding: ${props => props.theme.spacing.sm} ${props => props.theme.spacing.md};
-  font-size: ${props => props.theme.typography.fontSize.sm};
-  font-weight: ${props => props.theme.typography.fontWeight.medium};
+  padding: ${(props) => props.theme.spacing.sm}
+    ${(props) => props.theme.spacing.md};
+  font-size: ${(props) => props.theme.typography.fontSize.sm};
+  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
   border: none;
-  border-radius: ${props => props.theme.borderRadius.sm};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-right: ${props => props.theme.spacing.sm};
+  margin-right: ${(props) => props.theme.spacing.sm};
 
-  ${props => {
+  ${(props) => {
     switch (props.variant) {
       case 'primary':
         return `
@@ -56,8 +75,8 @@ const Button = styled.button<{ variant?: 'primary' | 'danger' | 'secondary' }>`
 
 const Form = styled.form`
   display: grid;
-  gap: ${props => props.theme.spacing.md};
-  margin-bottom: ${props => props.theme.spacing.lg};
+  gap: ${(props) => props.theme.spacing.md};
+  margin-bottom: ${(props) => props.theme.spacing.lg};
 `;
 
 const FormGroup = styled.div`
@@ -66,19 +85,20 @@ const FormGroup = styled.div`
 `;
 
 const Label = styled.label`
-  font-weight: ${props => props.theme.typography.fontWeight.medium};
-  margin-bottom: ${props => props.theme.spacing.xs};
+  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
+  margin-bottom: ${(props) => props.theme.spacing.xs};
 `;
 
 const Input = styled.input`
-  padding: ${props => props.theme.spacing.sm} ${props => props.theme.spacing.md};
-  border: 1px solid ${props => props.theme.colors.border};
-  border-radius: ${props => props.theme.borderRadius.sm};
-  font-size: ${props => props.theme.typography.fontSize.md};
+  padding: ${(props) => props.theme.spacing.sm}
+    ${(props) => props.theme.spacing.md};
+  border: 1px solid ${(props) => props.theme.colors.border};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
+  font-size: ${(props) => props.theme.typography.fontSize.md};
 
   &:focus {
     outline: none;
-    border-color: ${props => props.theme.colors.primary};
+    border-color: ${(props) => props.theme.colors.primary};
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
   }
 `;
@@ -86,7 +106,7 @@ const Input = styled.input`
 const GroupGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: ${props => props.theme.spacing.md};
+  gap: ${(props) => props.theme.spacing.md};
 `;
 
 const GroupCard = styled(Card)`
@@ -96,40 +116,40 @@ const GroupCard = styled(Card)`
 const AllocationGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: ${props => props.theme.spacing.lg};
-  margin-top: ${props => props.theme.spacing.lg};
+  gap: ${(props) => props.theme.spacing.lg};
+  margin-top: ${(props) => props.theme.spacing.lg};
 `;
 
 const ChartContainer = styled.div`
   height: 300px;
-  margin: ${props => props.theme.spacing.lg} 0;
+  margin: ${(props) => props.theme.spacing.lg} 0;
 `;
 
 const AllocationTable = styled.table`
   width: 100%;
   border-collapse: collapse;
-  margin-top: ${props => props.theme.spacing.md};
+  margin-top: ${(props) => props.theme.spacing.md};
 `;
 
 const Th = styled.th`
-  background-color: ${props => props.theme.colors.light};
-  padding: ${props => props.theme.spacing.sm};
+  background-color: ${(props) => props.theme.colors.light};
+  padding: ${(props) => props.theme.spacing.sm};
   text-align: left;
-  border: 1px solid ${props => props.theme.colors.border};
+  border: 1px solid ${(props) => props.theme.colors.border};
 `;
 
 const Td = styled.td`
-  padding: ${props => props.theme.spacing.sm};
-  border: 1px solid ${props => props.theme.colors.border};
+  padding: ${(props) => props.theme.spacing.sm};
+  border: 1px solid ${(props) => props.theme.colors.border};
 `;
 
 const TagColor = styled.div<{ color: string }>`
   width: 16px;
   height: 16px;
-  background-color: ${props => props.color};
+  background-color: ${(props) => props.color};
   border-radius: 50%;
   display: inline-block;
-  margin-right: ${props => props.theme.spacing.xs};
+  margin-right: ${(props) => props.theme.spacing.xs};
 `;
 
 interface RebalancingGroup {
@@ -175,15 +195,23 @@ export const RebalancingGroups: React.FC = () => {
     description: '',
     tagIds: [] as string[],
   });
-  const [targetAllocations, setTargetAllocations] = useState<{ [key: string]: number }>({});
+  const [targetAllocations, setTargetAllocations] = useState<{
+    [key: string]: number;
+  }>({});
 
-  const { data: groupsData, loading: groupsLoading, refetch: refetchGroups } =
-    useQuery(GET_REBALANCING_GROUPS);
+  const {
+    data: groupsData,
+    loading: groupsLoading,
+    refetch: refetchGroups,
+  } = useQuery(GET_REBALANCING_GROUPS);
   const { data: tagsData } = useQuery<{ tags: Tag[] }>(GET_TAGS);
-  const { data: analysisData, refetch: refetchAnalysis } = useQuery(GET_REBALANCING_ANALYSIS, {
-    variables: { groupId: selectedGroup },
-    skip: !selectedGroup,
-  });
+  const { data: analysisData, refetch: refetchAnalysis } = useQuery(
+    GET_REBALANCING_ANALYSIS,
+    {
+      variables: { groupId: selectedGroup },
+      skip: !selectedGroup,
+    },
+  );
   const { data: recommendationData } = useQuery<{
     investmentRecommendation: InvestmentRecommendation[];
   }>(GET_INVESTMENT_RECOMMENDATION, {
@@ -212,12 +240,17 @@ export const RebalancingGroups: React.FC = () => {
     e.preventDefault();
     if (!selectedGroup) return;
 
-    const targets = Object.entries(targetAllocations).map(([tagId, percentage]) => ({
-      tagId,
-      targetPercentage: percentage,
-    }));
+    const targets = Object.entries(targetAllocations).map(
+      ([tagId, percentage]) => ({
+        tagId,
+        targetPercentage: percentage,
+      }),
+    );
 
-    const totalPercentage = targets.reduce((sum, target) => sum + target.targetPercentage, 0);
+    const totalPercentage = targets.reduce(
+      (sum, target) => sum + target.targetPercentage,
+      0,
+    );
     if (Math.abs(totalPercentage - 100) > 0.01) {
       alert('목표 비율의 합이 100%가 되어야 합니다.');
       return;
@@ -240,15 +273,17 @@ export const RebalancingGroups: React.FC = () => {
   };
 
   const handleTagToggle = (tagId: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       tagIds: prev.tagIds.includes(tagId)
-        ? prev.tagIds.filter(id => id !== tagId)
+        ? prev.tagIds.filter((id) => id !== tagId)
         : [...prev.tagIds, tagId],
     }));
   };
 
-  const selectedGroupData = groupsData?.rebalancingGroups?.find((g: RebalancingGroup) => g.id === selectedGroup);
+  const selectedGroupData = groupsData?.rebalancingGroups?.find(
+    (g: RebalancingGroup) => g.id === selectedGroup,
+  );
 
   if (groupsLoading) return <div>로딩 중...</div>;
 
@@ -256,7 +291,7 @@ export const RebalancingGroups: React.FC = () => {
     <Container>
       <h2>리밸런싱 그룹</h2>
       <p>태그별로 자산을 그룹화하여 리밸런싱 전략을 관리합니다.</p>
-      
+
       <Button variant="primary" onClick={() => setShowForm(!showForm)}>
         {showForm ? '취소' : '그룹 추가'}
       </Button>
@@ -270,7 +305,9 @@ export const RebalancingGroups: React.FC = () => {
               <Input
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 required
               />
             </FormGroup>
@@ -280,7 +317,9 @@ export const RebalancingGroups: React.FC = () => {
               <Input
                 type="text"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
               />
             </FormGroup>
 
@@ -288,7 +327,14 @@ export const RebalancingGroups: React.FC = () => {
               <Label>포함할 태그</Label>
               <div>
                 {tagsData?.tags?.map((tag: Tag) => (
-                  <div key={tag.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                  <div
+                    key={tag.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      marginBottom: '8px',
+                    }}
+                  >
                     <input
                       type="checkbox"
                       checked={formData.tagIds.includes(tag.id)}
@@ -303,8 +349,12 @@ export const RebalancingGroups: React.FC = () => {
             </FormGroup>
 
             <div>
-              <Button type="submit" variant="primary">그룹 추가</Button>
-              <Button type="button" onClick={() => setShowForm(false)}>취소</Button>
+              <Button type="submit" variant="primary">
+                그룹 추가
+              </Button>
+              <Button type="button" onClick={() => setShowForm(false)}>
+                취소
+              </Button>
             </div>
           </Form>
         </Card>
@@ -315,14 +365,24 @@ export const RebalancingGroups: React.FC = () => {
           <GroupCard key={group.id}>
             <h3>{group.name}</h3>
             {group.description && <p>{group.description}</p>}
-            
+
             <div style={{ marginBottom: '16px' }}>
               <strong>포함 태그:</strong>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                  marginTop: '4px',
+                }}
+              >
                 {group.tagIds.map((tagId) => {
                   const tag = tagsData?.tags?.find((t: Tag) => t.id === tagId);
                   return tag ? (
-                    <div key={tagId} style={{ display: 'flex', alignItems: 'center' }}>
+                    <div
+                      key={tagId}
+                      style={{ display: 'flex', alignItems: 'center' }}
+                    >
                       <TagColor color={tag.color} />
                       <span style={{ fontSize: '14px' }}>{tag.name}</span>
                     </div>
@@ -332,7 +392,9 @@ export const RebalancingGroups: React.FC = () => {
             </div>
 
             <div>
-              <Button onClick={() => setSelectedGroup(group.id)}>분석 보기</Button>
+              <Button onClick={() => setSelectedGroup(group.id)}>
+                분석 보기
+              </Button>
             </div>
           </GroupCard>
         ))}
@@ -341,7 +403,7 @@ export const RebalancingGroups: React.FC = () => {
       {selectedGroup && selectedGroupData && (
         <Card>
           <h3>{selectedGroupData.name} 분석</h3>
-          
+
           <div>
             <Button onClick={() => setShowTargetForm(!showTargetForm)}>
               목표 비율 설정
@@ -366,18 +428,27 @@ export const RebalancingGroups: React.FC = () => {
                         max="100"
                         step="0.1"
                         value={targetAllocations[tagId] || 0}
-                        onChange={(e) => setTargetAllocations(prev => ({
-                          ...prev,
-                          [tagId]: parseFloat(e.target.value) || 0,
-                        }))}
+                        onChange={(e) =>
+                          setTargetAllocations((prev) => ({
+                            ...prev,
+                            [tagId]: parseFloat(e.target.value) || 0,
+                          }))
+                        }
                       />
                     </FormGroup>
                   ) : null;
                 })}
-                
+
                 <div>
-                  <Button type="submit" variant="primary">목표 비율 적용</Button>
-                  <Button type="button" onClick={() => setShowTargetForm(false)}>취소</Button>
+                  <Button type="submit" variant="primary">
+                    목표 비율 적용
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => setShowTargetForm(false)}
+                  >
+                    취소
+                  </Button>
                 </div>
               </Form>
             </Card>
@@ -389,14 +460,24 @@ export const RebalancingGroups: React.FC = () => {
                 <h4>현재 vs 목표 자산 배분</h4>
                 <ChartContainer>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={analysisData.rebalancingAnalysis.allocations}>
+                    <BarChart
+                      data={analysisData.rebalancingAnalysis.allocations}
+                    >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="tagName" />
                       <YAxis />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="currentPercentage" fill="#8884d8" name="현재 비율" />
-                      <Bar dataKey="targetPercentage" fill="#82ca9d" name="목표 비율" />
+                      <Bar
+                        dataKey="currentPercentage"
+                        fill="#8884d8"
+                        name="현재 비율"
+                      />
+                      <Bar
+                        dataKey="targetPercentage"
+                        fill="#82ca9d"
+                        name="목표 비율"
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartContainer>
@@ -412,14 +493,18 @@ export const RebalancingGroups: React.FC = () => {
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ tagName, currentPercentage }) => `${tagName} ${currentPercentage.toFixed(1)}%`}
+                        label={({ tagName, currentPercentage }) =>
+                          `${tagName} ${currentPercentage.toFixed(1)}%`
+                        }
                         outerRadius={80}
                         fill="#8884d8"
                         dataKey="currentValue"
                       >
-                        {analysisData.rebalancingAnalysis.allocations.map((entry: TagAllocation, index: number) => (
-                          <Cell key={`cell-${index}`} fill={entry.tagColor} />
-                        ))}
+                        {analysisData.rebalancingAnalysis.allocations.map(
+                          (entry: TagAllocation, index: number) => (
+                            <Cell key={`cell-${index}`} fill={entry.tagColor} />
+                          ),
+                        )}
                       </Pie>
                       <Tooltip />
                     </PieChart>
@@ -436,7 +521,9 @@ export const RebalancingGroups: React.FC = () => {
               <Input
                 type="number"
                 value={investmentAmount}
-                onChange={(e) => setInvestmentAmount(parseFloat(e.target.value) || 0)}
+                onChange={(e) =>
+                  setInvestmentAmount(parseFloat(e.target.value) || 0)
+                }
                 min="0"
                 step="100"
               />
@@ -455,15 +542,21 @@ export const RebalancingGroups: React.FC = () => {
                 <tbody>
                   {recommendationData.investmentRecommendation.map(
                     (rec: InvestmentRecommendation) => (
-                    <tr key={rec.tagId}>
-                      <Td>
-                        <TagColor color={tagsData?.tags?.find((t: Tag) => t.id === rec.tagId)?.color || '#ccc'} />
-                        {rec.tagName}
-                      </Td>
-                      <Td>${rec.recommendedAmount.toFixed(2)}</Td>
-                      <Td>{rec.recommendedPercentage.toFixed(1)}%</Td>
-                      <Td>{rec.suggestedSymbols.join(', ') || '-'}</Td>
-                    </tr>
+                      <tr key={rec.tagId}>
+                        <Td>
+                          <TagColor
+                            color={
+                              tagsData?.tags?.find(
+                                (t: Tag) => t.id === rec.tagId,
+                              )?.color || '#ccc'
+                            }
+                          />
+                          {rec.tagName}
+                        </Td>
+                        <Td>${rec.recommendedAmount.toFixed(2)}</Td>
+                        <Td>{rec.recommendedPercentage.toFixed(1)}%</Td>
+                        <Td>{rec.suggestedSymbols.join(', ') || '-'}</Td>
+                      </tr>
                     ),
                   )}
                 </tbody>

@@ -1,36 +1,42 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import styled from 'styled-components';
-import { GET_BROKERAGE_ACCOUNTS, CREATE_BROKERAGE_ACCOUNT, DELETE_BROKERAGE_ACCOUNT, REFRESH_BROKERAGE_HOLDINGS } from '../graphql/brokerage';
+import {
+  GET_BROKERAGE_ACCOUNTS,
+  CREATE_BROKERAGE_ACCOUNT,
+  DELETE_BROKERAGE_ACCOUNT,
+  REFRESH_BROKERAGE_HOLDINGS,
+} from '../graphql/brokerage';
 
 const Container = styled.div`
-  padding: ${props => props.theme.spacing.lg};
+  padding: ${(props) => props.theme.spacing.lg};
 `;
 
 const Section = styled.div`
-  margin-bottom: ${props => props.theme.spacing.xl};
+  margin-bottom: ${(props) => props.theme.spacing.xl};
 `;
 
 const Card = styled.div`
   background: white;
-  border: 1px solid ${props => props.theme.colors.border};
-  border-radius: ${props => props.theme.borderRadius.md};
-  padding: ${props => props.theme.spacing.lg};
-  margin-bottom: ${props => props.theme.spacing.md};
-  box-shadow: ${props => props.theme.shadows.sm};
+  border: 1px solid ${(props) => props.theme.colors.border};
+  border-radius: ${(props) => props.theme.borderRadius.md};
+  padding: ${(props) => props.theme.spacing.lg};
+  margin-bottom: ${(props) => props.theme.spacing.md};
+  box-shadow: ${(props) => props.theme.shadows.sm};
 `;
 
 const Button = styled.button<{ variant?: 'primary' | 'danger' | 'secondary' }>`
-  padding: ${props => props.theme.spacing.sm} ${props => props.theme.spacing.md};
-  font-size: ${props => props.theme.typography.fontSize.sm};
-  font-weight: ${props => props.theme.typography.fontWeight.medium};
+  padding: ${(props) => props.theme.spacing.sm}
+    ${(props) => props.theme.spacing.md};
+  font-size: ${(props) => props.theme.typography.fontSize.sm};
+  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
   border: none;
-  border-radius: ${props => props.theme.borderRadius.sm};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-right: ${props => props.theme.spacing.sm};
+  margin-right: ${(props) => props.theme.spacing.sm};
 
-  ${props => {
+  ${(props) => {
     switch (props.variant) {
       case 'primary':
         return `
@@ -58,8 +64,8 @@ const Button = styled.button<{ variant?: 'primary' | 'danger' | 'secondary' }>`
 
 const Form = styled.form`
   display: grid;
-  gap: ${props => props.theme.spacing.md};
-  margin-bottom: ${props => props.theme.spacing.lg};
+  gap: ${(props) => props.theme.spacing.md};
+  margin-bottom: ${(props) => props.theme.spacing.lg};
 `;
 
 const FormGroup = styled.div`
@@ -68,19 +74,20 @@ const FormGroup = styled.div`
 `;
 
 const Label = styled.label`
-  font-weight: ${props => props.theme.typography.fontWeight.medium};
-  margin-bottom: ${props => props.theme.spacing.xs};
+  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
+  margin-bottom: ${(props) => props.theme.spacing.xs};
 `;
 
 const Input = styled.input`
-  padding: ${props => props.theme.spacing.sm} ${props => props.theme.spacing.md};
-  border: 1px solid ${props => props.theme.colors.border};
-  border-radius: ${props => props.theme.borderRadius.sm};
-  font-size: ${props => props.theme.typography.fontSize.md};
+  padding: ${(props) => props.theme.spacing.sm}
+    ${(props) => props.theme.spacing.md};
+  border: 1px solid ${(props) => props.theme.colors.border};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
+  font-size: ${(props) => props.theme.typography.fontSize.md};
 
   &:focus {
     outline: none;
-    border-color: ${props => props.theme.colors.primary};
+    border-color: ${(props) => props.theme.colors.primary};
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
   }
 `;
@@ -88,7 +95,7 @@ const Input = styled.input`
 const AccountGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: ${props => props.theme.spacing.md};
+  gap: ${(props) => props.theme.spacing.md};
 `;
 
 const AccountCard = styled(Card)`
@@ -99,27 +106,27 @@ const AccountHeader = styled.div`
   display: flex;
   justify-content: between;
   align-items: center;
-  margin-bottom: ${props => props.theme.spacing.md};
+  margin-bottom: ${(props) => props.theme.spacing.md};
 `;
 
 const AccountTitle = styled.h3`
   margin: 0;
-  color: ${props => props.theme.colors.primary};
+  color: ${(props) => props.theme.colors.primary};
 `;
 
 const AccountInfo = styled.div`
-  margin-bottom: ${props => props.theme.spacing.md};
+  margin-bottom: ${(props) => props.theme.spacing.md};
 `;
 
 const InfoRow = styled.div`
   display: flex;
   justify-content: space-between;
-  margin-bottom: ${props => props.theme.spacing.xs};
+  margin-bottom: ${(props) => props.theme.spacing.xs};
 `;
 
 const Label2 = styled.span`
-  font-weight: ${props => props.theme.typography.fontWeight.medium};
-  color: ${props => props.theme.colors.textLight};
+  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
+  color: ${(props) => props.theme.colors.textLight};
 `;
 
 interface BrokerageAccount {
@@ -197,7 +204,7 @@ export const BrokerageAccounts: React.FC = () => {
       <Section>
         <h2>증권사 계정 관리</h2>
         <p>증권사 API를 통해 보유 종목을 연동합니다.</p>
-        
+
         <Button variant="primary" onClick={() => setShowForm(!showForm)}>
           {showForm ? '취소' : '계정 추가'}
         </Button>
@@ -211,7 +218,9 @@ export const BrokerageAccounts: React.FC = () => {
                 <Input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   required
                 />
               </FormGroup>
@@ -221,7 +230,9 @@ export const BrokerageAccounts: React.FC = () => {
                 <Input
                   type="text"
                   value={formData.brokerName}
-                  onChange={(e) => setFormData({ ...formData, brokerName: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, brokerName: e.target.value })
+                  }
                   required
                 />
               </FormGroup>
@@ -231,7 +242,9 @@ export const BrokerageAccounts: React.FC = () => {
                 <Input
                   type="text"
                   value={formData.apiKey}
-                  onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, apiKey: e.target.value })
+                  }
                   required
                 />
               </FormGroup>
@@ -241,7 +254,9 @@ export const BrokerageAccounts: React.FC = () => {
                 <Input
                   type="password"
                   value={formData.apiSecret}
-                  onChange={(e) => setFormData({ ...formData, apiSecret: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, apiSecret: e.target.value })
+                  }
                 />
               </FormGroup>
 
@@ -250,7 +265,9 @@ export const BrokerageAccounts: React.FC = () => {
                 <Input
                   type="url"
                   value={formData.apiBaseUrl}
-                  onChange={(e) => setFormData({ ...formData, apiBaseUrl: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, apiBaseUrl: e.target.value })
+                  }
                   placeholder="https://api.broker.com"
                 />
               </FormGroup>
@@ -260,13 +277,19 @@ export const BrokerageAccounts: React.FC = () => {
                 <Input
                   type="text"
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
                 />
               </FormGroup>
 
               <div>
-                <Button type="submit" variant="primary">계정 추가</Button>
-                <Button type="button" onClick={() => setShowForm(false)}>취소</Button>
+                <Button type="submit" variant="primary">
+                  계정 추가
+                </Button>
+                <Button type="button" onClick={() => setShowForm(false)}>
+                  취소
+                </Button>
               </div>
             </Form>
           </Card>
@@ -278,7 +301,7 @@ export const BrokerageAccounts: React.FC = () => {
               <AccountHeader>
                 <AccountTitle>{account.name}</AccountTitle>
               </AccountHeader>
-              
+
               <AccountInfo>
                 <InfoRow>
                   <Label2>증권사:</Label2>
@@ -296,13 +319,22 @@ export const BrokerageAccounts: React.FC = () => {
                 )}
                 <InfoRow>
                   <Label2>생성일:</Label2>
-                  <span>{new Date(account.createdAt).toLocaleDateString()}</span>
+                  <span>
+                    {new Date(account.createdAt).toLocaleDateString()}
+                  </span>
                 </InfoRow>
               </AccountInfo>
 
               <div>
-                <Button onClick={() => handleRefresh(account.id)}>보유종목 새로고침</Button>
-                <Button variant="danger" onClick={() => handleDelete(account.id)}>삭제</Button>
+                <Button onClick={() => handleRefresh(account.id)}>
+                  보유종목 새로고침
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={() => handleDelete(account.id)}
+                >
+                  삭제
+                </Button>
               </div>
             </AccountCard>
           ))}

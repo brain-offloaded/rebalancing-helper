@@ -1,25 +1,25 @@
-import userEvent from '@testing-library/user-event'
-import { screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ReactNode } from 'react'
-import { renderWithProviders } from '../../test-utils/render'
-import { RebalancingGroups } from '../RebalancingGroups'
+import userEvent from '@testing-library/user-event';
+import { screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ReactNode } from 'react';
+import { renderWithProviders } from '../../test-utils/render';
+import { RebalancingGroups } from '../RebalancingGroups';
 import {
   CREATE_REBALANCING_GROUP,
   GET_INVESTMENT_RECOMMENDATION,
   GET_REBALANCING_ANALYSIS,
   GET_REBALANCING_GROUPS,
   SET_TARGET_ALLOCATIONS,
-} from '../../graphql/rebalancing'
-import { GET_TAGS } from '../../graphql/tags'
+} from '../../graphql/rebalancing';
+import { GET_TAGS } from '../../graphql/tags';
 
-const mockUseQuery = vi.fn()
-const mockUseMutation = vi.fn()
+const mockUseQuery = vi.fn();
+const mockUseMutation = vi.fn();
 
 vi.mock('recharts', () => {
   const MockComponent = ({ children }: { children?: ReactNode }) => (
     <div>{children}</div>
-  )
+  );
 
   return {
     ResponsiveContainer: MockComponent,
@@ -33,13 +33,12 @@ vi.mock('recharts', () => {
     CartesianGrid: MockComponent,
     Tooltip: MockComponent,
     Legend: MockComponent,
-  }
-})
+  };
+});
 
 vi.mock('@apollo/client', async () => {
-  const actual = await vi.importActual<typeof import('@apollo/client')>(
-    '@apollo/client',
-  )
+  const actual =
+    await vi.importActual<typeof import('@apollo/client')>('@apollo/client');
 
   return {
     ...actual,
@@ -47,20 +46,20 @@ vi.mock('@apollo/client', async () => {
       mockUseQuery(...args),
     useMutation: (...args: Parameters<typeof actual.useMutation>) =>
       mockUseMutation(...args),
-  }
-})
+  };
+});
 
 const getFirstInputAfterLabel = (labelText: string): HTMLInputElement => {
-  const label = screen.getByText(labelText)
-  const container = label.parentElement
-  const input = container?.querySelector('input')
+  const label = screen.getByText(labelText);
+  const container = label.parentElement;
+  const input = container?.querySelector('input');
 
   if (!input) {
-    throw new Error(`${labelText} 레이블과 연결된 입력을 찾을 수 없습니다.`)
+    throw new Error(`${labelText} 레이블과 연결된 입력을 찾을 수 없습니다.`);
   }
 
-  return input as HTMLInputElement
-}
+  return input as HTMLInputElement;
+};
 
 const defaultGroups = [
   {
@@ -71,12 +70,12 @@ const defaultGroups = [
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
-]
+];
 
 const defaultTags = [
   { id: 'tag-1', name: '성장주', color: '#ff0000' },
   { id: 'tag-2', name: '배당주', color: '#00ff00' },
-]
+];
 
 const defaultAnalysis = {
   rebalancingAnalysis: {
@@ -101,7 +100,7 @@ const defaultAnalysis = {
       },
     ],
   },
-}
+};
 
 const defaultRecommendation = {
   investmentRecommendation: [
@@ -120,7 +119,7 @@ const defaultRecommendation = {
       suggestedSymbols: ['KO'],
     },
   ],
-}
+};
 
 const setupMocks = ({
   groups = defaultGroups,
@@ -129,16 +128,16 @@ const setupMocks = ({
   recommendation = defaultRecommendation,
   groupsLoading = false,
 }: {
-  groups?: typeof defaultGroups
-  tags?: typeof defaultTags
-  analysis?: typeof defaultAnalysis
-  recommendation?: typeof defaultRecommendation
-  groupsLoading?: boolean
+  groups?: typeof defaultGroups;
+  tags?: typeof defaultTags;
+  analysis?: typeof defaultAnalysis;
+  recommendation?: typeof defaultRecommendation;
+  groupsLoading?: boolean;
 } = {}) => {
-  const refetchGroups = vi.fn()
-  const refetchAnalysis = vi.fn()
-  const createGroup = vi.fn().mockResolvedValue({})
-  const setTargets = vi.fn().mockResolvedValue({})
+  const refetchGroups = vi.fn();
+  const refetchAnalysis = vi.fn();
+  const createGroup = vi.fn().mockResolvedValue({});
+  const setTargets = vi.fn().mockResolvedValue({});
 
   mockUseQuery.mockImplementation((query, options) => {
     if (query === GET_REBALANCING_GROUPS) {
@@ -146,87 +145,89 @@ const setupMocks = ({
         data: groupsLoading ? undefined : { rebalancingGroups: groups },
         loading: groupsLoading,
         refetch: refetchGroups,
-      }
+      };
     }
     if (query === GET_TAGS) {
-      return { data: { tags }, loading: false }
+      return { data: { tags }, loading: false };
     }
     if (query === GET_REBALANCING_ANALYSIS) {
       if (options?.skip || !options?.variables?.groupId) {
-        return { data: undefined, loading: false, refetch: refetchAnalysis }
+        return { data: undefined, loading: false, refetch: refetchAnalysis };
       }
 
-      return { data: analysis, loading: false, refetch: refetchAnalysis }
+      return { data: analysis, loading: false, refetch: refetchAnalysis };
     }
     if (query === GET_INVESTMENT_RECOMMENDATION) {
       if (options?.skip || !options?.variables?.input?.groupId) {
-        return { data: undefined, loading: false }
+        return { data: undefined, loading: false };
       }
 
-      return { data: recommendation, loading: false }
+      return { data: recommendation, loading: false };
     }
 
-    throw new Error('예상치 못한 쿼리 호출')
-  })
+    throw new Error('예상치 못한 쿼리 호출');
+  });
 
   mockUseMutation.mockImplementation((document) => {
     if (document === CREATE_REBALANCING_GROUP) {
-      return [createGroup, { loading: false }]
+      return [createGroup, { loading: false }];
     }
     if (document === SET_TARGET_ALLOCATIONS) {
-      return [setTargets, { loading: false }]
+      return [setTargets, { loading: false }];
     }
 
-    return [vi.fn(), { loading: false }]
-  })
+    return [vi.fn(), { loading: false }];
+  });
 
-  return { refetchGroups, refetchAnalysis, createGroup, setTargets }
-}
+  return { refetchGroups, refetchAnalysis, createGroup, setTargets };
+};
 
 describe('RebalancingGroups', () => {
   beforeEach(() => {
-    mockUseQuery.mockReset()
-    mockUseMutation.mockReset()
-  })
+    mockUseQuery.mockReset();
+    mockUseMutation.mockReset();
+  });
 
   afterEach(() => {
-    vi.clearAllMocks()
-  })
+    vi.clearAllMocks();
+  });
 
   it('리밸런싱 그룹을 로딩하는 동안 메시지를 노출한다', () => {
-    setupMocks({ groupsLoading: true })
+    setupMocks({ groupsLoading: true });
 
-    renderWithProviders(<RebalancingGroups />, { withApollo: false })
+    renderWithProviders(<RebalancingGroups />, { withApollo: false });
 
-    expect(screen.getByText('로딩 중...')).toBeInTheDocument()
-  })
+    expect(screen.getByText('로딩 중...')).toBeInTheDocument();
+  });
 
   it('리밸런싱 그룹 목록과 태그 정보를 렌더링한다', () => {
-    setupMocks()
+    setupMocks();
 
-    renderWithProviders(<RebalancingGroups />, { withApollo: false })
+    renderWithProviders(<RebalancingGroups />, { withApollo: false });
 
-    expect(screen.getByText('성장 그룹')).toBeInTheDocument()
-    expect(screen.getByText('성장주')).toBeInTheDocument()
-    expect(screen.getByText('배당주')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '분석 보기' })).toBeInTheDocument()
-  })
+    expect(screen.getByText('성장 그룹')).toBeInTheDocument();
+    expect(screen.getByText('성장주')).toBeInTheDocument();
+    expect(screen.getByText('배당주')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: '분석 보기' }),
+    ).toBeInTheDocument();
+  });
 
   it('새 리밸런싱 그룹을 생성한다', async () => {
-    const { refetchGroups, createGroup } = setupMocks({ groups: [] })
-    const user = userEvent.setup()
+    const { refetchGroups, createGroup } = setupMocks({ groups: [] });
+    const user = userEvent.setup();
 
-    renderWithProviders(<RebalancingGroups />, { withApollo: false })
+    renderWithProviders(<RebalancingGroups />, { withApollo: false });
 
-    await user.click(screen.getByRole('button', { name: '그룹 추가' }))
+    await user.click(screen.getByRole('button', { name: '그룹 추가' }));
 
-    await user.type(getFirstInputAfterLabel('그룹 이름'), '배당 그룹')
-    await user.type(getFirstInputAfterLabel('설명'), '배당주 전략')
+    await user.type(getFirstInputAfterLabel('그룹 이름'), '배당 그룹');
+    await user.type(getFirstInputAfterLabel('설명'), '배당주 전략');
 
-    const checkboxes = screen.getAllByRole('checkbox')
-    await user.click(checkboxes[0])
+    const checkboxes = screen.getAllByRole('checkbox');
+    await user.click(checkboxes[0]);
 
-    await user.click(screen.getByRole('button', { name: '그룹 추가' }))
+    await user.click(screen.getByRole('button', { name: '그룹 추가' }));
 
     await waitFor(() => {
       expect(createGroup).toHaveBeenCalledWith({
@@ -237,52 +238,54 @@ describe('RebalancingGroups', () => {
             tagIds: ['tag-1'],
           },
         },
-      })
-    })
+      });
+    });
 
-    expect(refetchGroups).toHaveBeenCalled()
-    expect(screen.queryByText('새 리밸런싱 그룹 추가')).not.toBeInTheDocument()
-  })
+    expect(refetchGroups).toHaveBeenCalled();
+    expect(screen.queryByText('새 리밸런싱 그룹 추가')).not.toBeInTheDocument();
+  });
 
   it('목표 비율 합이 100이 아니면 경고를 표시한다', async () => {
-    setupMocks()
-    const user = userEvent.setup()
-    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
+    setupMocks();
+    const user = userEvent.setup();
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
 
-    renderWithProviders(<RebalancingGroups />, { withApollo: false })
+    renderWithProviders(<RebalancingGroups />, { withApollo: false });
 
-    await user.click(screen.getByRole('button', { name: '분석 보기' }))
-    await user.click(screen.getByRole('button', { name: '목표 비율 설정' }))
+    await user.click(screen.getByRole('button', { name: '분석 보기' }));
+    await user.click(screen.getByRole('button', { name: '목표 비율 설정' }));
 
-    const inputs = screen.getAllByRole('spinbutton')
-    await user.clear(inputs[0])
-    await user.type(inputs[0], '40')
-    await user.clear(inputs[1])
-    await user.type(inputs[1], '30')
+    const inputs = screen.getAllByRole('spinbutton');
+    await user.clear(inputs[0]);
+    await user.type(inputs[0], '40');
+    await user.clear(inputs[1]);
+    await user.type(inputs[1], '30');
 
-    await user.click(screen.getByRole('button', { name: '목표 비율 적용' }))
+    await user.click(screen.getByRole('button', { name: '목표 비율 적용' }));
 
-    expect(alertSpy).toHaveBeenCalledWith('목표 비율의 합이 100%가 되어야 합니다.')
+    expect(alertSpy).toHaveBeenCalledWith(
+      '목표 비율의 합이 100%가 되어야 합니다.',
+    );
 
-    alertSpy.mockRestore()
-  })
+    alertSpy.mockRestore();
+  });
 
   it('목표 비율을 저장하고 분석을 갱신한다', async () => {
-    const { refetchAnalysis, setTargets } = setupMocks()
-    const user = userEvent.setup()
+    const { refetchAnalysis, setTargets } = setupMocks();
+    const user = userEvent.setup();
 
-    renderWithProviders(<RebalancingGroups />, { withApollo: false })
+    renderWithProviders(<RebalancingGroups />, { withApollo: false });
 
-    await user.click(screen.getByRole('button', { name: '분석 보기' }))
-    await user.click(screen.getByRole('button', { name: '목표 비율 설정' }))
+    await user.click(screen.getByRole('button', { name: '분석 보기' }));
+    await user.click(screen.getByRole('button', { name: '목표 비율 설정' }));
 
-    const inputs = screen.getAllByRole('spinbutton')
-    await user.clear(inputs[0])
-    await user.type(inputs[0], '60')
-    await user.clear(inputs[1])
-    await user.type(inputs[1], '40')
+    const inputs = screen.getAllByRole('spinbutton');
+    await user.clear(inputs[0]);
+    await user.type(inputs[0], '60');
+    await user.clear(inputs[1]);
+    await user.type(inputs[1], '40');
 
-    await user.click(screen.getByRole('button', { name: '목표 비율 적용' }))
+    await user.click(screen.getByRole('button', { name: '목표 비율 적용' }));
 
     await waitFor(() => {
       expect(setTargets).toHaveBeenCalledWith({
@@ -295,11 +298,11 @@ describe('RebalancingGroups', () => {
             ],
           },
         },
-      })
-    })
+      });
+    });
 
-    expect(refetchAnalysis).toHaveBeenCalled()
-    expect(screen.queryByText('목표 비율 설정')).toBeInTheDocument()
-    expect(screen.queryByText('목표 비율 적용')).not.toBeInTheDocument()
-  })
-})
+    expect(refetchAnalysis).toHaveBeenCalled();
+    expect(screen.queryByText('목표 비율 설정')).toBeInTheDocument();
+    expect(screen.queryByText('목표 비율 적용')).not.toBeInTheDocument();
+  });
+});

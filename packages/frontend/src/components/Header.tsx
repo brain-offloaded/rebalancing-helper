@@ -2,22 +2,22 @@ import React from 'react';
 import styled from 'styled-components';
 
 const HeaderContainer = styled.header`
-  background-color: ${props => props.theme.colors.primary};
+  background-color: ${(props) => props.theme.colors.primary};
   color: white;
-  padding: ${props => props.theme.spacing.lg};
-  box-shadow: ${props => props.theme.shadows.sm};
+  padding: ${(props) => props.theme.spacing.lg};
+  box-shadow: ${(props) => props.theme.shadows.sm};
 `;
 
 const Title = styled.h1`
   margin: 0;
-  font-size: ${props => props.theme.typography.fontSize.xl};
-  font-weight: ${props => props.theme.typography.fontWeight.bold};
+  font-size: ${(props) => props.theme.typography.fontSize.xl};
+  font-weight: ${(props) => props.theme.typography.fontWeight.bold};
 `;
 
 const Subtitle = styled.p`
-  margin: ${props => props.theme.spacing.xs} 0 0 0;
+  margin: ${(props) => props.theme.spacing.xs} 0 0 0;
   opacity: 0.9;
-  font-size: ${props => props.theme.typography.fontSize.sm};
+  font-size: ${(props) => props.theme.typography.fontSize.sm};
 `;
 
 export const Header: React.FC = () => {

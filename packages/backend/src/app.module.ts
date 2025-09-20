@@ -38,7 +38,8 @@ type GraphqlContextFactoryArgs = {
           ? requestIdHeader[0]
           : requestIdHeader;
         const requestId =
-          typeof requestIdCandidate === 'string' && requestIdCandidate.length > 0
+          typeof requestIdCandidate === 'string' &&
+          requestIdCandidate.length > 0
             ? requestIdCandidate
             : randomUUID();
 
