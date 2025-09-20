@@ -6324,6 +6324,8 @@ __metadata:
     "@vitejs/plugin-react": "npm:^5.0.0"
     "@vitest/coverage-v8": "npm:^3.2.4"
     eslint: "npm:^9.33.0"
+    eslint-config-prettier: "npm:^10.0.1"
+    eslint-plugin-prettier: "npm:^5.2.2"
     eslint-plugin-react-hooks: "npm:^5.2.0"
     eslint-plugin-react-refresh: "npm:^0.4.20"
     globals: "npm:^16.3.0"

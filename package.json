@@ -15,8 +15,7 @@
     "build:frontend": "yarn workspace frontend build",
     "test": "turbo run test",
     "test:cov": "turbo run test:cov",
-    "lint": "turbo run lint",
-    "prettier": "turbo run prettier"
+    "lint": "turbo run lint"
   },
   "devDependencies": {
     "turbo": "^2.4.4"

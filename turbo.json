@@ -2,8 +2,13 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**", "build/**"],
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**",
+        "build/**"
+      ],
       "outputLogs": "new-only"
     },
     "dev": {
@@ -13,16 +18,21 @@
     "lint": {
       "outputs": []
     },
-    "prettier": {
-      "outputs": []
-    },
     "test": {
-      "dependsOn": ["^test"],
-      "outputs": ["coverage/**"]
+      "dependsOn": [
+        "^test"
+      ],
+      "outputs": [
+        "coverage/**"
+      ]
     },
     "test:cov": {
-      "dependsOn": ["^test:cov"],
-      "outputs": ["coverage/**"]
+      "dependsOn": [
+        "^test:cov"
+      ],
+      "outputs": [
+        "coverage/**"
+      ]
     }
   }
 }
