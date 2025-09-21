@@ -136,7 +136,9 @@ export const AuthForm = ({ mode, onSubmit, onToggleMode }: AuthFormProps) => {
           textDecoration: 'underline',
         }}
       >
-        {isRegister ? '이미 계정이 있으신가요? 로그인' : '처음이신가요? 회원가입'}
+        {isRegister
+          ? '이미 계정이 있으신가요? 로그인'
+          : '처음이신가요? 회원가입'}
       </button>
     </div>
   );

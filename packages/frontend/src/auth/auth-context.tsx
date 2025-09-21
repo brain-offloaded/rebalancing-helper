@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { ApolloError } from '@apollo/client';
+import { ApolloError } from '@apollo/client';
 import { apolloClient, AUTH_TOKEN_STORAGE_KEY } from '../apollo-client';
 import { LOGIN_MUTATION, ME_QUERY, REGISTER_MUTATION } from '../graphql/auth';
 
@@ -73,7 +73,9 @@ const getErrorMessage = (error: unknown): string => {
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [token, setTokenState] = useState<string | null>(() => readStoredToken());
+  const [token, setTokenState] = useState<string | null>(() =>
+    readStoredToken(),
+  );
   const [user, setUser] = useState<User | null>(null);
   const [initializing, setInitializing] = useState<boolean>(true);
 

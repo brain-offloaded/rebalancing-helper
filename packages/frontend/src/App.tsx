@@ -127,7 +127,8 @@ const AppShell = () => {
         >
           <h3 style={{ marginBottom: '12px' }}>GraphQL 연결 테스트</h3>
           <p style={{ marginBottom: '8px', color: '#475569' }}>
-            인증이 적용되었습니다. GraphQL Playground에서 요청 시 헤더에 토큰을 추가하세요.
+            인증이 적용되었습니다. GraphQL Playground에서 요청 시 헤더에 토큰을
+            추가하세요.
           </p>
           <a
             href="http://localhost:3000/graphql"
