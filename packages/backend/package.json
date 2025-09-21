@@ -22,7 +22,7 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register $(yarn bin jest) --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate": "prisma migrate dev --create-only",
     "prisma:seed": "prisma db seed"
   },
   "dependencies": {
@@ -92,7 +92,9 @@
       ]
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)s",
+      "!**/*.(entities|dto|input|entity|module|types|type).ts",
+      "!test-utils/**/*"
     ],
     "coverageDirectory": "../coverage",
     "coverageReporters": [
@@ -102,6 +104,15 @@
       "text",
       "text-summary"
     ],
+    "coverageProvider": "v8",
+    "coverageThreshold": {
+      "global": {
+        "branches": 75,
+        "functions": 85,
+        "lines": 85,
+        "statements": 85
+      }
+    },
     "testEnvironment": "node"
   },
   "prisma": {

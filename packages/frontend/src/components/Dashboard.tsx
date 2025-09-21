@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { BrokerageAccounts } from './BrokerageAccounts';
+import { Brokers } from './Brokers';
 import { Holdings } from './Holdings';
 import { Tags } from './Tags';
 import { RebalancingGroups } from './RebalancingGroups';
@@ -51,7 +52,7 @@ const TabContent = styled.div`
   min-height: 400px;
 `;
 
-type TabType = 'accounts' | 'holdings' | 'tags' | 'rebalancing';
+type TabType = 'accounts' | 'brokers' | 'holdings' | 'tags' | 'rebalancing';
 
 export const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('accounts');
@@ -60,6 +61,8 @@ export const Dashboard: React.FC = () => {
     switch (activeTab) {
       case 'accounts':
         return <BrokerageAccounts />;
+      case 'brokers':
+        return <Brokers />;
       case 'holdings':
         return <Holdings />;
       case 'tags':
@@ -80,6 +83,12 @@ export const Dashboard: React.FC = () => {
             onClick={() => setActiveTab('accounts')}
           >
             증권사 계정
+          </Tab>
+          <Tab
+            active={activeTab === 'brokers'}
+            onClick={() => setActiveTab('brokers')}
+          >
+            증권사 정보
           </Tab>
           <Tab
             active={activeTab === 'holdings'}

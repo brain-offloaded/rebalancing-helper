@@ -12,6 +12,14 @@ vi.mock('./components/AuthForm', () => ({
   AuthForm: AuthFormMock,
 }));
 
+const DashboardMock = vi.hoisted(() =>
+  vi.fn(() => <div data-testid="dashboard" />),
+);
+
+vi.mock('./components/Dashboard', () => ({
+  Dashboard: DashboardMock,
+}));
+
 const useAuthMock = vi.hoisted(() => vi.fn());
 
 vi.mock('./auth/use-auth', () => ({
@@ -26,6 +34,7 @@ describe('AppShell', () => {
   beforeEach(() => {
     useAuthMock.mockReset();
     AuthFormMock.mockClear();
+    DashboardMock.mockClear();
   });
 
   it('초기화 중에는 로딩 메시지를 표시한다', () => {
@@ -73,7 +82,7 @@ describe('AppShell', () => {
     expect(updatedProps?.onSubmit).toBe(register);
   });
 
-  it('인증된 사용자에게 이메일과 로그아웃 버튼을 렌더링한다', async () => {
+  it('인증된 사용자에게 이메일과 로그아웃 버튼, 대시보드를 렌더링한다', async () => {
     const logout = vi.fn();
 
     useAuthMock.mockReturnValue({
@@ -92,6 +101,8 @@ describe('AppShell', () => {
     render(<AppShell />);
 
     expect(screen.getByText('demo@example.com')).toBeInTheDocument();
+    expect(screen.getByTestId('dashboard')).toBeInTheDocument();
+    expect(DashboardMock).toHaveBeenCalledTimes(1);
     await userEvent.click(screen.getByRole('button', { name: '로그아웃' }));
     expect(logout).toHaveBeenCalled();
   });

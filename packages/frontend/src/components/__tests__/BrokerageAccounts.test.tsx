@@ -5,6 +5,8 @@ import { renderWithProviders } from '../../test-utils/render';
 import {
   CREATE_BROKERAGE_ACCOUNT,
   DELETE_BROKERAGE_ACCOUNT,
+  GET_BROKERAGE_ACCOUNTS,
+  GET_BROKERS,
   REFRESH_BROKERAGE_HOLDINGS,
 } from '../../graphql/brokerage';
 
@@ -27,7 +29,9 @@ vi.mock('@apollo/client', async () => {
 // vi.mock 호출 이후에 컴포넌트를 불러와야 한다.
 import { BrokerageAccounts } from '../BrokerageAccounts';
 
-const getInputByLabel = (labelText: string): HTMLInputElement => {
+const getFieldByLabel = (
+  labelText: string,
+): HTMLInputElement | HTMLSelectElement => {
   const label = screen.getByText(labelText);
 
   if (!(label instanceof HTMLLabelElement)) {
@@ -35,13 +39,13 @@ const getInputByLabel = (labelText: string): HTMLInputElement => {
   }
 
   const container = label.parentElement;
-  const input = container?.querySelector('input');
+  const field = container?.querySelector('input, select');
 
-  if (!input) {
-    throw new Error(`${labelText} 레이블과 연결된 input을 찾을 수 없습니다.`);
+  if (!field) {
+    throw new Error(`${labelText} 레이블과 연결된 필드를 찾을 수 없습니다.`);
   }
 
-  return input as HTMLInputElement;
+  return field as HTMLInputElement | HTMLSelectElement;
 };
 
 describe('BrokerageAccounts', () => {
@@ -55,10 +59,14 @@ describe('BrokerageAccounts', () => {
   });
 
   it('브로커리지 계정을 불러오는 동안 로딩 메시지를 출력한다', () => {
-    mockUseQuery.mockReturnValue({
-      data: undefined,
-      loading: true,
-      error: undefined,
+    mockUseQuery.mockImplementation((query) => {
+      if (query === GET_BROKERAGE_ACCOUNTS) {
+        return { data: undefined, loading: true, error: undefined };
+      }
+      if (query === GET_BROKERS) {
+        return { data: undefined, loading: false, error: undefined };
+      }
+      return {};
     });
     mockUseMutation.mockReturnValue([vi.fn(), { loading: false }]);
 
@@ -68,10 +76,18 @@ describe('BrokerageAccounts', () => {
   });
 
   it('쿼리에 실패하면 오류 메시지를 노출한다', () => {
-    mockUseQuery.mockReturnValue({
-      data: undefined,
-      loading: false,
-      error: new Error('network error'),
+    mockUseQuery.mockImplementation((query) => {
+      if (query === GET_BROKERAGE_ACCOUNTS) {
+        return {
+          data: undefined,
+          loading: false,
+          error: new Error('network error'),
+        };
+      }
+      if (query === GET_BROKERS) {
+        return { data: { brokers: [] }, loading: false, error: undefined };
+      }
+      return {};
     });
     mockUseMutation.mockReturnValue([vi.fn(), { loading: false }]);
 
@@ -85,7 +101,11 @@ describe('BrokerageAccounts', () => {
       {
         id: 'acc-1',
         name: '미래에셋 계정',
-        brokerName: '미래에셋',
+        broker: {
+          id: 'broker-1',
+          name: '미래에셋',
+          code: 'MIRA',
+        },
         description: '주식 계좌',
         isActive: true,
         createdAt: new Date('2024-01-10T00:00:00Z').toISOString(),
@@ -93,18 +113,36 @@ describe('BrokerageAccounts', () => {
       },
     ];
 
-    mockUseQuery.mockReturnValue({
-      data: { brokerageAccounts: accounts },
-      loading: false,
-      error: undefined,
-      refetch: vi.fn(),
+    mockUseQuery.mockImplementation((query) => {
+      if (query === GET_BROKERAGE_ACCOUNTS) {
+        return {
+          data: { brokerageAccounts: accounts },
+          loading: false,
+          error: undefined,
+          refetch: vi.fn(),
+        };
+      }
+      if (query === GET_BROKERS) {
+        return {
+          data: {
+            brokers: [
+              { id: 'broker-1', name: '미래에셋', code: 'MIRA' },
+              { id: 'broker-2', name: '키움증권', code: 'KIWOOM' },
+            ],
+          },
+          loading: false,
+          error: undefined,
+        };
+      }
+      return {};
     });
     mockUseMutation.mockReturnValue([vi.fn(), { loading: false }]);
 
     renderWithProviders(<BrokerageAccounts />, { withApollo: false });
 
     expect(screen.getByText('미래에셋 계정')).toBeInTheDocument();
-    expect(screen.getByText('미래에셋')).toBeInTheDocument();
+    const brokerTexts = screen.getAllByText(/미래에셋/);
+    expect(brokerTexts.length).toBeGreaterThan(0);
     expect(screen.getByText('활성')).toBeInTheDocument();
     expect(screen.getByText('주식 계좌')).toBeInTheDocument();
   });
@@ -115,11 +153,28 @@ describe('BrokerageAccounts', () => {
     const deleteAccount = vi.fn();
     const refreshHoldings = vi.fn();
 
-    mockUseQuery.mockReturnValue({
-      data: { brokerageAccounts: [] },
-      loading: false,
-      error: undefined,
-      refetch,
+    mockUseQuery.mockImplementation((query) => {
+      if (query === GET_BROKERAGE_ACCOUNTS) {
+        return {
+          data: { brokerageAccounts: [] },
+          loading: false,
+          error: undefined,
+          refetch,
+        };
+      }
+      if (query === GET_BROKERS) {
+        return {
+          data: {
+            brokers: [
+              { id: 'broker-1', name: '미래에셋', code: 'MIRA' },
+              { id: 'broker-2', name: '키움증권', code: 'KIWOOM' },
+            ],
+          },
+          loading: false,
+          error: undefined,
+        };
+      }
+      return {};
     });
 
     mockUseMutation.mockImplementation((document) => {
@@ -142,15 +197,14 @@ describe('BrokerageAccounts', () => {
 
     await user.click(screen.getByRole('button', { name: '계정 추가' }));
 
-    await user.type(getInputByLabel('계정 이름'), '신규 계정');
-    await user.type(getInputByLabel('증권사 이름'), '키움증권');
-    await user.type(getInputByLabel('API 키'), 'api-key');
-    await user.type(getInputByLabel('API 시크릿'), 'secret');
-    await user.type(
-      getInputByLabel('API 베이스 URL'),
-      'https://api.example.com',
+    await user.type(getFieldByLabel('계정 이름'), '신규 계정');
+    await user.selectOptions(
+      getFieldByLabel('증권사') as HTMLSelectElement,
+      'broker-2',
     );
-    await user.type(getInputByLabel('설명'), '계정 설명');
+    await user.type(getFieldByLabel('API 키'), 'api-key');
+    await user.type(getFieldByLabel('API 시크릿'), 'secret');
+    await user.type(getFieldByLabel('설명'), '계정 설명');
 
     await user.click(screen.getByRole('button', { name: /^계정 추가$/ }));
 
@@ -159,10 +213,9 @@ describe('BrokerageAccounts', () => {
         variables: {
           input: {
             name: '신규 계정',
-            brokerName: '키움증권',
+            brokerId: 'broker-2',
             apiKey: 'api-key',
             apiSecret: 'secret',
-            apiBaseUrl: 'https://api.example.com',
             description: '계정 설명',
           },
         },
@@ -179,23 +232,37 @@ describe('BrokerageAccounts', () => {
     const deleteAccount = vi.fn().mockResolvedValue({});
     const refreshHoldings = vi.fn();
 
-    mockUseQuery.mockReturnValue({
-      data: {
-        brokerageAccounts: [
-          {
-            id: 'acc-1',
-            name: '삭제 대상 계정',
-            brokerName: '테스트 증권',
-            description: null,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+    mockUseQuery.mockImplementation((query) => {
+      if (query === GET_BROKERAGE_ACCOUNTS) {
+        return {
+          data: {
+            brokerageAccounts: [
+              {
+                id: 'acc-1',
+                name: '삭제 대상 계정',
+                broker: { id: 'broker-1', name: '테스트 증권', code: 'TEST' },
+                description: null,
+                isActive: true,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              },
+            ],
           },
-        ],
-      },
-      loading: false,
-      error: undefined,
-      refetch,
+          loading: false,
+          error: undefined,
+          refetch,
+        };
+      }
+      if (query === GET_BROKERS) {
+        return {
+          data: {
+            brokers: [{ id: 'broker-1', name: '테스트 증권', code: 'TEST' }],
+          },
+          loading: false,
+          error: undefined,
+        };
+      }
+      return {};
     });
 
     mockUseMutation.mockImplementation((document) => {
@@ -237,23 +304,37 @@ describe('BrokerageAccounts', () => {
     const deleteAccount = vi.fn();
     const refreshHoldings = vi.fn().mockResolvedValue({});
 
-    mockUseQuery.mockReturnValue({
-      data: {
-        brokerageAccounts: [
-          {
-            id: 'acc-1',
-            name: '새로고침 계정',
-            brokerName: '테스트 증권',
-            description: null,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+    mockUseQuery.mockImplementation((query) => {
+      if (query === GET_BROKERAGE_ACCOUNTS) {
+        return {
+          data: {
+            brokerageAccounts: [
+              {
+                id: 'acc-1',
+                name: '새로고침 계정',
+                broker: { id: 'broker-1', name: '테스트 증권', code: 'TEST' },
+                description: null,
+                isActive: true,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              },
+            ],
           },
-        ],
-      },
-      loading: false,
-      error: undefined,
-      refetch,
+          loading: false,
+          error: undefined,
+          refetch,
+        };
+      }
+      if (query === GET_BROKERS) {
+        return {
+          data: {
+            brokers: [{ id: 'broker-1', name: '테스트 증권', code: 'TEST' }],
+          },
+          loading: false,
+          error: undefined,
+        };
+      }
+      return {};
     });
 
     mockUseMutation.mockImplementation((document) => {
