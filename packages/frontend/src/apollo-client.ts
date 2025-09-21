@@ -12,18 +12,27 @@ const httpLink = createHttpLink({
 
 export const AUTH_TOKEN_STORAGE_KEY = 'rebalancing-helper.authToken';
 
-const authLink = setContext((_, { headers }) => {
-  let token: string | null = null;
-
-  if (typeof window !== 'undefined') {
-    token = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+export const getStoredAuthToken = (): string | null => {
+  if (typeof window === 'undefined') {
+    return null;
   }
 
+  return window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+};
+
+export const applyAuthHeader = (
+  headers: Record<string, string> | undefined,
+  token: string | null,
+): Record<string, string> => ({
+  ...(headers ?? {}),
+  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+});
+
+const authLink = setContext((_, { headers }) => {
+  const token = getStoredAuthToken();
+
   return {
-    headers: {
-      ...headers,
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    headers: applyAuthHeader(headers, token),
   };
 });
 

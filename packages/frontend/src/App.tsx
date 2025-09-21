@@ -5,7 +5,7 @@ import './App.css';
 import { AuthProvider, useAuth } from './auth/auth-context';
 import { AuthForm } from './components/AuthForm';
 
-const AppShell = () => {
+export const AppShell = () => {
   const { user, initializing, login, register, logout } = useAuth();
   const [mode, setMode] = useState<'login' | 'register'>('login');
 

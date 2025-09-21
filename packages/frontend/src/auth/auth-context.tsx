@@ -94,9 +94,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      if (!user) {
-        setInitializing(true);
+      if (user) {
+        setInitializing(false);
+        return;
       }
+
+      setInitializing(true);
 
       try {
         const { data } = await apolloClient.query<{ me: User }>({
