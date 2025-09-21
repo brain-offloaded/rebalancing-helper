@@ -93,7 +93,8 @@
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s",
-      "!**/*.(entities|dto|input|entity).ts",
+      "!**/*.(entities|dto|input|entity|module).ts",
+      "!**/*.resolver.ts",
       "!test-utils/**/*"
     ],
     "coverageDirectory": "../coverage",

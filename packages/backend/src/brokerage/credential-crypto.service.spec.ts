@@ -1,5 +1,8 @@
 import { ConfigService } from '@nestjs/config';
-import { CredentialCryptoService, EncryptedPayload } from './credential-crypto.service';
+import {
+  CredentialCryptoService,
+  EncryptedPayload,
+} from './credential-crypto.service';
 
 const BASE64_KEY = Buffer.alloc(32, 1).toString('base64');
 const HEX_KEY = Buffer.alloc(32, 2).toString('hex');
@@ -63,11 +66,9 @@ describe('CredentialCryptoService', () => {
   });
 
   it('지원되지 않는 키 포맷이면 에러를 던진다', () => {
-    const spy = jest
-      .spyOn(Buffer, 'from')
-      .mockImplementation(() => {
-        throw new Error('invalid base64');
-      });
+    const spy = jest.spyOn(Buffer, 'from').mockImplementation(() => {
+      throw new Error('invalid base64');
+    });
 
     try {
       expect(() => createService('@@@')).toThrow(

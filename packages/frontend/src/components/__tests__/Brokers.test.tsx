@@ -5,7 +5,6 @@ import { renderWithProviders } from '../../test-utils/render';
 import {
   CREATE_BROKER,
   DELETE_BROKER,
-  GET_BROKERS,
   UPDATE_BROKER,
 } from '../../graphql/brokerage';
 

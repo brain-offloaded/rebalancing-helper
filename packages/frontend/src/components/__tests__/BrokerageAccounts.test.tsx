@@ -29,7 +29,9 @@ vi.mock('@apollo/client', async () => {
 // vi.mock 호출 이후에 컴포넌트를 불러와야 한다.
 import { BrokerageAccounts } from '../BrokerageAccounts';
 
-const getFieldByLabel = (labelText: string): HTMLInputElement | HTMLSelectElement => {
+const getFieldByLabel = (
+  labelText: string,
+): HTMLInputElement | HTMLSelectElement => {
   const label = screen.getByText(labelText);
 
   if (!(label instanceof HTMLLabelElement)) {
@@ -76,7 +78,11 @@ describe('BrokerageAccounts', () => {
   it('쿼리에 실패하면 오류 메시지를 노출한다', () => {
     mockUseQuery.mockImplementation((query) => {
       if (query === GET_BROKERAGE_ACCOUNTS) {
-        return { data: undefined, loading: false, error: new Error('network error') };
+        return {
+          data: undefined,
+          loading: false,
+          error: new Error('network error'),
+        };
       }
       if (query === GET_BROKERS) {
         return { data: { brokers: [] }, loading: false, error: undefined };
@@ -192,7 +198,10 @@ describe('BrokerageAccounts', () => {
     await user.click(screen.getByRole('button', { name: '계정 추가' }));
 
     await user.type(getFieldByLabel('계정 이름'), '신규 계정');
-    await user.selectOptions(getFieldByLabel('증권사') as HTMLSelectElement, 'broker-2');
+    await user.selectOptions(
+      getFieldByLabel('증권사') as HTMLSelectElement,
+      'broker-2',
+    );
     await user.type(getFieldByLabel('API 키'), 'api-key');
     await user.type(getFieldByLabel('API 시크릿'), 'secret');
     await user.type(getFieldByLabel('설명'), '계정 설명');
@@ -246,7 +255,9 @@ describe('BrokerageAccounts', () => {
       }
       if (query === GET_BROKERS) {
         return {
-          data: { brokers: [{ id: 'broker-1', name: '테스트 증권', code: 'TEST' }] },
+          data: {
+            brokers: [{ id: 'broker-1', name: '테스트 증권', code: 'TEST' }],
+          },
           loading: false,
           error: undefined,
         };
@@ -316,7 +327,9 @@ describe('BrokerageAccounts', () => {
       }
       if (query === GET_BROKERS) {
         return {
-          data: { brokers: [{ id: 'broker-1', name: '테스트 증권', code: 'TEST' }] },
+          data: {
+            brokers: [{ id: 'broker-1', name: '테스트 증권', code: 'TEST' }],
+          },
           loading: false,
           error: undefined,
         };
