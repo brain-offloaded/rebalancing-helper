@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 
 import { Module } from '@nestjs/common';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 import { ConfigModule } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
 import { AppController } from './app.controller';
@@ -30,8 +31,9 @@ type GraphqlContextFactoryArgs = {
       driver: ApolloDriver,
       autoSchemaFile: true,
       sortSchema: true,
-      playground: true,
+      playground: false,
       introspection: true,
+      plugins: [ApolloServerPluginLandingPageLocalDefault()],
       context: ({ req, res }: GraphqlContextFactoryArgs): GraphqlContext => {
         const requestIdHeader = req.headers['x-request-id'];
         const requestIdCandidate = Array.isArray(requestIdHeader)
