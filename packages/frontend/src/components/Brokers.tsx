@@ -25,7 +25,12 @@ const Card = styled.div`
   box-shadow: ${(props) => props.theme.shadows.sm};
 `;
 
-const Button = styled.button<{ variant?: 'primary' | 'danger' | 'secondary' }>`
+const Button = styled.button.attrs<{
+  variant?: 'primary' | 'danger' | 'secondary';
+  type?: 'button' | 'submit';
+}>((props) => ({
+  type: props.type ?? 'button',
+}))<{ variant?: 'primary' | 'danger' | 'secondary' }>`
   padding: ${(props) => props.theme.spacing.sm}
     ${(props) => props.theme.spacing.md};
   font-size: ${(props) => props.theme.typography.fontSize.sm};
@@ -203,7 +208,11 @@ export const Brokers: React.FC = () => {
         <h2>증권사 관리</h2>
         <p>증권사 API 정보와 활성 상태를 관리합니다.</p>
 
-        <Button variant="primary" onClick={() => setIsFormOpen((prev) => !prev)}>
+        <Button
+          variant="primary"
+          type="button"
+          onClick={() => setIsFormOpen((prev) => !prev)}
+        >
           {isFormOpen ? '취소' : '증권사 추가'}
         </Button>
 
@@ -215,7 +224,9 @@ export const Brokers: React.FC = () => {
                 <Label>증권사 코드</Label>
                 <Input
                   value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, code: e.target.value })
+                  }
                   required
                 />
               </FormGroup>
@@ -224,7 +235,9 @@ export const Brokers: React.FC = () => {
                 <Label>증권사 이름</Label>
                 <Input
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   required
                 />
               </FormGroup>
@@ -309,4 +322,3 @@ export const Brokers: React.FC = () => {
     </Container>
   );
 };
-

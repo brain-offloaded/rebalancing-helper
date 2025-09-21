@@ -26,7 +26,12 @@ const Card = styled.div`
   box-shadow: ${(props) => props.theme.shadows.sm};
 `;
 
-const Button = styled.button<{ variant?: 'primary' | 'danger' | 'secondary' }>`
+const Button = styled.button.attrs<{
+  variant?: 'primary' | 'danger' | 'secondary';
+  type?: 'button' | 'submit';
+}>((props) => ({
+  type: props.type ?? 'button',
+}))<{ variant?: 'primary' | 'danger' | 'secondary' }>`
   padding: ${(props) => props.theme.spacing.sm}
     ${(props) => props.theme.spacing.md};
   font-size: ${(props) => props.theme.typography.fontSize.sm};
@@ -256,7 +261,11 @@ export const BrokerageAccounts: React.FC = () => {
         <h2>증권사 계정 관리</h2>
         <p>증권사 API를 통해 보유 종목을 연동합니다.</p>
 
-        <Button variant="primary" onClick={() => setShowForm(!showForm)}>
+        <Button
+          variant="primary"
+          type="button"
+          onClick={() => setShowForm((prev) => !prev)}
+        >
           {showForm ? '취소' : '계정 추가'}
         </Button>
 
