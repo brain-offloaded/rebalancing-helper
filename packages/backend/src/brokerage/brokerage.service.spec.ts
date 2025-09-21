@@ -154,6 +154,32 @@ describe('BrokerageService', () => {
     });
   });
 
+  it('updateAccount는 brokerId 변경과 비밀키 제거를 처리한다', async () => {
+    prismaMock.brokerageAccount.findFirst.mockResolvedValue({ id: 'acc-1' });
+    const input: UpdateBrokerageAccountInput = {
+      id: 'acc-1',
+      brokerId: 'broker-2',
+      apiSecret: null,
+      isActive: false,
+    };
+    prismaMock.brokerageAccount.update.mockResolvedValue({ id: 'acc-1' });
+
+    await service.updateAccount(USER_ID, input);
+
+    expect(credentialCryptoMock.encrypt).not.toHaveBeenCalled();
+    expect(prismaMock.brokerageAccount.update).toHaveBeenCalledWith({
+      where: { id: input.id },
+      data: {
+        broker: { connect: { id: 'broker-2' } },
+        apiSecretCipher: null,
+        apiSecretIv: null,
+        apiSecretTag: null,
+        isActive: false,
+      },
+      include: { broker: true },
+    });
+  });
+
   it('updateAccount는 타인의 계좌면 NotFoundException을 던진다', async () => {
     prismaMock.brokerageAccount.findFirst.mockResolvedValue(null);
 
@@ -294,9 +320,37 @@ describe('BrokerageService', () => {
     });
   });
 
+  it('updateBroker는 code/description/apiBaseUrl/isActive를 갱신한다', async () => {
+    prismaMock.broker.update.mockResolvedValue({ id: 'broker-1' });
+
+    await service.updateBroker({
+      id: 'broker-1',
+      code: 'NEW-CODE',
+      description: '신규 설명',
+      apiBaseUrl: 'https://new.example.com',
+      isActive: false,
+    });
+
+    expect(prismaMock.broker.update).toHaveBeenCalledWith({
+      where: { id: 'broker-1' },
+      data: {
+        code: 'NEW-CODE',
+        description: '신규 설명',
+        apiBaseUrl: 'https://new.example.com',
+        isActive: false,
+      },
+    });
+  });
+
   it('deleteBroker는 삭제 여부를 boolean으로 반환한다', async () => {
     prismaMock.broker.deleteMany.mockResolvedValue({ count: 1 });
 
     await expect(service.deleteBroker('broker-1')).resolves.toBe(true);
+  });
+
+  it('deleteBroker는 삭제된 항목이 없으면 false를 반환한다', async () => {
+    prismaMock.broker.deleteMany.mockResolvedValue({ count: 0 });
+
+    await expect(service.deleteBroker('broker-1')).resolves.toBe(false);
   });
 });

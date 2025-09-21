@@ -61,4 +61,20 @@ describe('CredentialCryptoService', () => {
       'BROKER_CREDENTIAL_ENCRYPTION_KEY must decode to 32 bytes.',
     );
   });
+
+  it('지원되지 않는 키 포맷이면 에러를 던진다', () => {
+    const spy = jest
+      .spyOn(Buffer, 'from')
+      .mockImplementation(() => {
+        throw new Error('invalid base64');
+      });
+
+    try {
+      expect(() => createService('@@@')).toThrow(
+        'BROKER_CREDENTIAL_ENCRYPTION_KEY must be a 32-byte key encoded in hex or base64.',
+      );
+    } finally {
+      spy.mockRestore();
+    }
+  });
 });
