@@ -16,6 +16,12 @@ export default defineConfig({
       reportsDirectory: './coverage',
       include: ['src/**/*.{ts,tsx}'],
       exclude: [...configDefaults.coverage.exclude, 'src/vite-env.d.ts'],
+      thresholds: {
+        branches: 75,
+        functions: 85,
+        lines: 85,
+        statements: 85,
+      },
     },
   },
 });
