@@ -93,9 +93,8 @@
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s",
-      "!**/*.entities.ts",
-      "!**/*.dto.ts",
-      "!**/*.input.ts"
+      "!**/*.(entities|dto|input).ts",
+      "!src/test-utils/prisma-error.ts"
     ],
     "coverageDirectory": "../coverage",
     "coverageReporters": [

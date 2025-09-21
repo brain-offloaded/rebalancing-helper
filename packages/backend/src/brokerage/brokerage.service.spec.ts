@@ -159,7 +159,6 @@ describe('BrokerageService', () => {
     const input: UpdateBrokerageAccountInput = {
       id: 'acc-1',
       brokerId: 'broker-2',
-      apiSecret: null,
       isActive: false,
     };
     prismaMock.brokerageAccount.update.mockResolvedValue({ id: 'acc-1' });
@@ -171,9 +170,6 @@ describe('BrokerageService', () => {
       where: { id: input.id },
       data: {
         broker: { connect: { id: 'broker-2' } },
-        apiSecretCipher: null,
-        apiSecretIv: null,
-        apiSecretTag: null,
         isActive: false,
       },
       include: { broker: true },
