@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BrokerageAccount, BrokerageHolding } from './brokerage.entities';
@@ -11,7 +11,10 @@ import {
 export class BrokerageService {
   constructor(private readonly prisma: PrismaService) {}
 
-  createAccount(input: CreateBrokerageAccountInput): Promise<BrokerageAccount> {
+  createAccount(
+    userId: string,
+    input: CreateBrokerageAccountInput,
+  ): Promise<BrokerageAccount> {
     const data: Prisma.BrokerageAccountCreateInput = {
       name: input.name,
       brokerName: input.brokerName,
@@ -19,6 +22,9 @@ export class BrokerageService {
       description: input.description ?? null,
       apiSecret: input.apiSecret ?? null,
       apiBaseUrl: input.apiBaseUrl ?? null,
+      user: {
+        connect: { id: userId },
+      },
     };
 
     return this.prisma.brokerageAccount.create({
@@ -26,7 +32,10 @@ export class BrokerageService {
     });
   }
 
-  updateAccount(input: UpdateBrokerageAccountInput): Promise<BrokerageAccount> {
+  async updateAccount(
+    userId: string,
+    input: UpdateBrokerageAccountInput,
+  ): Promise<BrokerageAccount> {
     const { id, ...updates } = input;
     const data: Prisma.BrokerageAccountUpdateInput = {};
 
@@ -50,14 +59,32 @@ export class BrokerageService {
       data.description = updates.description ?? null;
     }
 
+    const existing = await this.prisma.brokerageAccount.findFirst({
+      where: { id, userId },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Brokerage account not found');
+    }
+
     return this.prisma.brokerageAccount.update({
       where: { id },
       data,
     });
   }
 
-  async deleteAccount(id: string): Promise<boolean> {
+  async deleteAccount(userId: string, id: string): Promise<boolean> {
     try {
+      const existing = await this.prisma.brokerageAccount.findFirst({
+        where: { id, userId },
+        select: { id: true },
+      });
+
+      if (!existing) {
+        return false;
+      }
+
       await this.prisma.brokerageAccount.delete({ where: { id } });
       return true;
     } catch (error: unknown) {
@@ -71,33 +98,42 @@ export class BrokerageService {
     }
   }
 
-  getAccounts(): Promise<BrokerageAccount[]> {
+  getAccounts(userId: string): Promise<BrokerageAccount[]> {
     return this.prisma.brokerageAccount.findMany({
+      where: { userId },
       orderBy: { createdAt: 'asc' },
     });
   }
 
-  getAccount(id: string): Promise<BrokerageAccount | null> {
-    return this.prisma.brokerageAccount.findUnique({ where: { id } });
+  getAccount(userId: string, id: string): Promise<BrokerageAccount | null> {
+    return this.prisma.brokerageAccount.findFirst({
+      where: { id, userId },
+    });
   }
 
-  getHoldings(accountId?: string): Promise<BrokerageHolding[]> {
+  getHoldings(userId: string, accountId?: string): Promise<BrokerageHolding[]> {
     const normalizedAccountId = accountId ?? undefined;
 
     return this.prisma.brokerageHolding.findMany({
-      where: normalizedAccountId
-        ? { accountId: normalizedAccountId }
-        : undefined,
+      where: {
+        account: {
+          userId,
+        },
+        ...(normalizedAccountId ? { accountId: normalizedAccountId } : {}),
+      },
       orderBy: { symbol: 'asc' },
     });
   }
 
-  async refreshHoldings(accountId: string): Promise<BrokerageHolding[]> {
+  async refreshHoldings(
+    userId: string,
+    accountId: string,
+  ): Promise<BrokerageHolding[]> {
     const account = await this.prisma.brokerageAccount.findUnique({
       where: { id: accountId },
     });
-    if (!account) {
-      throw new Error('Account not found');
+    if (!account || account.userId !== userId) {
+      throw new NotFoundException('Account not found');
     }
 
     const mockHoldings: BrokerageHolding[] = [
@@ -145,6 +181,6 @@ export class BrokerageService {
       }),
     ]);
 
-    return this.getHoldings(accountId);
+    return this.getHoldings(userId, accountId);
   }
 }

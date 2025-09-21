@@ -2,6 +2,12 @@ import { TagsResolver } from './tags.resolver';
 import { TagsService } from './tags.service';
 import { CreateTagInput, UpdateTagInput } from './tags.dto';
 import { Tag } from './tags.entities';
+import { ActiveUserData } from '../auth/auth.types';
+
+const mockUser: ActiveUserData = {
+  userId: 'user-1',
+  email: 'demo@example.com',
+};
 
 const createTag = (overrides: Partial<Tag> = {}): Tag => ({
   id: overrides.id ?? 'tag-1',
@@ -28,23 +34,23 @@ describe('TagsResolver', () => {
     resolver = new TagsResolver(service);
   });
 
-  it('tags는 전체 태그 목록을 반환한다', async () => {
+  it('tags는 사용자별 태그 목록을 조회한다', async () => {
     const tags = [createTag()];
     service.getTags.mockResolvedValue(tags);
 
-    await expect(resolver.tags()).resolves.toBe(tags);
-    expect(service.getTags).toHaveBeenCalledTimes(1);
+    await expect(resolver.tags(mockUser)).resolves.toBe(tags);
+    expect(service.getTags).toHaveBeenCalledWith(mockUser.userId);
   });
 
-  it('tag는 ID에 해당하는 태그를 조회한다', async () => {
+  it('tag는 사용자 ID와 함께 단일 태그를 조회한다', async () => {
     const tag = createTag({ id: 'tag-9' });
     service.getTag.mockResolvedValue(tag);
 
-    await expect(resolver.tag('tag-9')).resolves.toBe(tag);
-    expect(service.getTag).toHaveBeenCalledWith('tag-9');
+    await expect(resolver.tag(mockUser, 'tag-9')).resolves.toBe(tag);
+    expect(service.getTag).toHaveBeenCalledWith(mockUser.userId, 'tag-9');
   });
 
-  it('createTag는 서비스에 생성을 위임한다', async () => {
+  it('createTag는 사용자 ID와 입력을 서비스에 전달한다', async () => {
     const input: CreateTagInput = {
       name: '가치주',
       color: '#00ff00',
@@ -52,11 +58,11 @@ describe('TagsResolver', () => {
     const tag = createTag({ name: input.name, color: input.color });
     service.createTag.mockResolvedValue(tag);
 
-    await expect(resolver.createTag(input)).resolves.toBe(tag);
-    expect(service.createTag).toHaveBeenCalledWith(input);
+    await expect(resolver.createTag(mockUser, input)).resolves.toBe(tag);
+    expect(service.createTag).toHaveBeenCalledWith(mockUser.userId, input);
   });
 
-  it('updateTag는 서비스 업데이트 결과를 반환한다', async () => {
+  it('updateTag는 사용자 ID를 포함해 서비스를 호출한다', async () => {
     const input: UpdateTagInput = {
       id: 'tag-1',
       description: '수정된 설명',
@@ -64,14 +70,14 @@ describe('TagsResolver', () => {
     const tag = createTag({ description: input.description });
     service.updateTag.mockResolvedValue(tag);
 
-    await expect(resolver.updateTag(input)).resolves.toBe(tag);
-    expect(service.updateTag).toHaveBeenCalledWith(input);
+    await expect(resolver.updateTag(mockUser, input)).resolves.toBe(tag);
+    expect(service.updateTag).toHaveBeenCalledWith(mockUser.userId, input);
   });
 
-  it('deleteTag는 Boolean 결과를 전달한다', async () => {
+  it('deleteTag는 사용자 ID와 함께 Boolean 결과를 반환한다', async () => {
     service.deleteTag.mockResolvedValue(true);
 
-    await expect(resolver.deleteTag('tag-1')).resolves.toBe(true);
-    expect(service.deleteTag).toHaveBeenCalledWith('tag-1');
+    await expect(resolver.deleteTag(mockUser, 'tag-1')).resolves.toBe(true);
+    expect(service.deleteTag).toHaveBeenCalledWith(mockUser.userId, 'tag-1');
   });
 });

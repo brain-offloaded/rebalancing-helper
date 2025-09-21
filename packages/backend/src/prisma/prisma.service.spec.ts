@@ -90,24 +90,23 @@ describe('PrismaService', () => {
     expect(internal.$disconnect).toHaveBeenCalledTimes(1);
   });
 
-  it('enableShutdownHooks는 beforeExit 훅을 등록하고 앱을 종료한다', () => {
+  it('enableShutdownHooks는 beforeExit 이벤트 리스너를 등록한다', () => {
     const config = createConfigService('postgres://example');
-
     const service = new PrismaService(config);
-    const internal = service as unknown as { $on: jest.Mock };
     const app = {
       close: jest.fn().mockResolvedValue(undefined),
     } as unknown as INestApplication;
 
+    const onSpy = jest.spyOn(process, 'on');
+
     service.enableShutdownHooks(app);
 
-    expect(internal.$on).toHaveBeenCalledWith(
-      'beforeExit',
-      expect.any(Function),
-    );
-    const handler = internal.$on.mock.calls[0][1] as () => void;
+    expect(onSpy).toHaveBeenCalledWith('beforeExit', expect.any(Function));
+    const handler = onSpy.mock.calls[0][1] as () => void;
     handler();
 
     expect(app.close).toHaveBeenCalledTimes(1);
+
+    onSpy.mockRestore();
   });
 });

@@ -6,60 +6,65 @@ import { GET_TAGS } from '../graphql/tags';
 import { GET_TAGS_FOR_HOLDING, SET_HOLDING_TAGS } from '../graphql/holdings';
 
 const Container = styled.div`
-  padding: ${props => props.theme.spacing.lg};
+  padding: ${(props) => props.theme.spacing.lg};
 `;
 
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  margin-top: ${props => props.theme.spacing.md};
+  margin-top: ${(props) => props.theme.spacing.md};
   background: white;
-  border-radius: ${props => props.theme.borderRadius.md};
+  border-radius: ${(props) => props.theme.borderRadius.md};
   overflow: hidden;
-  box-shadow: ${props => props.theme.shadows.sm};
+  box-shadow: ${(props) => props.theme.shadows.sm};
 `;
 
 const Th = styled.th`
-  background-color: ${props => props.theme.colors.primary};
+  background-color: ${(props) => props.theme.colors.primary};
   color: white;
-  padding: ${props => props.theme.spacing.md};
+  padding: ${(props) => props.theme.spacing.md};
   text-align: left;
-  font-weight: ${props => props.theme.typography.fontWeight.semibold};
+  font-weight: ${(props) => props.theme.typography.fontWeight.semibold};
 `;
 
 const Td = styled.td`
-  padding: ${props => props.theme.spacing.md};
-  border-bottom: 1px solid ${props => props.theme.colors.border};
+  padding: ${(props) => props.theme.spacing.md};
+  border-bottom: 1px solid ${(props) => props.theme.colors.border};
 `;
 
 const TagContainer = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: ${props => props.theme.spacing.xs};
-  margin-top: ${props => props.theme.spacing.xs};
+  gap: ${(props) => props.theme.spacing.xs};
+  margin-top: ${(props) => props.theme.spacing.xs};
 `;
 
 const Tag = styled.span<{ color: string }>`
-  background-color: ${props => props.color};
+  background-color: ${(props) => props.color};
   color: white;
-  padding: ${props => props.theme.spacing.xs} ${props => props.theme.spacing.sm};
-  border-radius: ${props => props.theme.borderRadius.sm};
-  font-size: ${props => props.theme.typography.fontSize.xs};
-  font-weight: ${props => props.theme.typography.fontWeight.medium};
+  padding: ${(props) => props.theme.spacing.xs}
+    ${(props) => props.theme.spacing.sm};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
+  font-size: ${(props) => props.theme.typography.fontSize.xs};
+  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
 `;
 
 const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
-  padding: ${props => props.theme.spacing.xs} ${props => props.theme.spacing.sm};
-  font-size: ${props => props.theme.typography.fontSize.xs};
+  padding: ${(props) => props.theme.spacing.xs}
+    ${(props) => props.theme.spacing.sm};
+  font-size: ${(props) => props.theme.typography.fontSize.xs};
   border: none;
-  border-radius: ${props => props.theme.borderRadius.sm};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
   cursor: pointer;
-  margin-left: ${props => props.theme.spacing.xs};
+  margin-left: ${(props) => props.theme.spacing.xs};
 
-  ${props => props.variant === 'primary' ? `
+  ${(props) =>
+    props.variant === 'primary'
+      ? `
     background-color: ${props.theme.colors.primary};
     color: white;
-  ` : `
+  `
+      : `
     background-color: ${props.theme.colors.light};
     color: ${props.theme.colors.text};
     border: 1px solid ${props.theme.colors.border};
@@ -81,8 +86,8 @@ const Modal = styled.div`
 
 const ModalContent = styled.div`
   background: white;
-  padding: ${props => props.theme.spacing.xl};
-  border-radius: ${props => props.theme.borderRadius.md};
+  padding: ${(props) => props.theme.spacing.xl};
+  border-radius: ${(props) => props.theme.borderRadius.md};
   max-width: 500px;
   width: 90%;
   max-height: 70vh;
@@ -92,11 +97,11 @@ const ModalContent = styled.div`
 const CheckboxContainer = styled.div`
   display: flex;
   align-items: center;
-  margin-bottom: ${props => props.theme.spacing.sm};
+  margin-bottom: ${(props) => props.theme.spacing.sm};
 `;
 
 const Checkbox = styled.input`
-  margin-right: ${props => props.theme.spacing.sm};
+  margin-right: ${(props) => props.theme.spacing.sm};
 `;
 
 interface Holding {
@@ -123,7 +128,9 @@ export const Holdings: React.FC = () => {
   const [selectedHolding, setSelectedHolding] = useState<string | null>(null);
   const [showTagModal, setShowTagModal] = useState(false);
 
-  const { data: holdingsData, loading: holdingsLoading } = useQuery(GET_BROKERAGE_HOLDINGS);
+  const { data: holdingsData, loading: holdingsLoading } = useQuery(
+    GET_BROKERAGE_HOLDINGS,
+  );
   const { data: tagsData } = useQuery<{ tags: Tag[] }>(GET_TAGS);
   const {
     data: holdingTagsData,
@@ -186,7 +193,10 @@ export const Holdings: React.FC = () => {
   return (
     <Container>
       <h2>보유 종목</h2>
-      <p>증권사에서 가져온 보유 종목 목록입니다. 각 종목에 태그를 설정할 수 있습니다.</p>
+      <p>
+        증권사에서 가져온 보유 종목 목록입니다. 각 종목에 태그를 설정할 수
+        있습니다.
+      </p>
 
       <Table>
         <thead>
@@ -279,10 +289,10 @@ const TagModal: React.FC<TagModalProps> = ({
   }, [currentTags, holding]);
 
   const handleTagToggle = (tagId: string) => {
-    setSelectedTags(prev =>
+    setSelectedTags((prev) =>
       prev.includes(tagId)
-        ? prev.filter(id => id !== tagId)
-        : [...prev, tagId]
+        ? prev.filter((id) => id !== tagId)
+        : [...prev, tagId],
     );
   };
 
@@ -309,7 +319,13 @@ const TagModal: React.FC<TagModalProps> = ({
                 />
                 <Tag color={tag.color}>{tag.name}</Tag>
                 {tag.description && (
-                  <span style={{ marginLeft: '8px', fontSize: '12px', color: '#666' }}>
+                  <span
+                    style={{
+                      marginLeft: '8px',
+                      fontSize: '12px',
+                      color: '#666',
+                    }}
+                  >
                     {tag.description}
                   </span>
                 )}

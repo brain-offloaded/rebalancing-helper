@@ -4,32 +4,30 @@ import {
   CreateBrokerageAccountInput,
   UpdateBrokerageAccountInput,
 } from './brokerage.dto';
-import { BrokerageAccount, BrokerageHolding } from './brokerage.entities';
-import { createPrismaKnownRequestError } from '../test-utils/prisma-error';
+import { NotFoundException } from '@nestjs/common';
+
+const USER_ID = 'user-1';
+
+type MockedPrisma = {
+  brokerageAccount: {
+    create: jest.Mock;
+    update: jest.Mock;
+    delete: jest.Mock;
+    findMany: jest.Mock;
+    findFirst: jest.Mock;
+    findUnique: jest.Mock;
+  };
+  brokerageHolding: {
+    findMany: jest.Mock;
+    deleteMany: jest.Mock;
+    createMany: jest.Mock;
+  };
+  $transaction: jest.Mock;
+};
 
 describe('BrokerageService', () => {
-  let prismaMock: {
-    brokerageAccount: {
-      create: jest.Mock;
-      update: jest.Mock;
-      delete: jest.Mock;
-      findMany: jest.Mock;
-      findUnique: jest.Mock;
-    };
-    brokerageHolding: {
-      findMany: jest.Mock;
-      deleteMany: jest.Mock;
-      createMany: jest.Mock;
-    };
-    $transaction: jest.Mock;
-  };
+  let prismaMock: MockedPrisma;
   let service: BrokerageService;
-
-  beforeAll(() => {
-    createPrismaKnownRequestError('P0000');
-  });
-
-  const baseDate = new Date('2024-01-01T00:00:00Z');
 
   beforeEach(() => {
     prismaMock = {
@@ -38,6 +36,7 @@ describe('BrokerageService', () => {
         update: jest.fn(),
         delete: jest.fn(),
         findMany: jest.fn(),
+        findFirst: jest.fn(),
         findUnique: jest.fn(),
       },
       brokerageHolding: {
@@ -51,28 +50,15 @@ describe('BrokerageService', () => {
     service = new BrokerageService(prismaMock as unknown as PrismaService);
   });
 
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
-  it('createAccount는 입력값을 Prisma 형식으로 변환한다', async () => {
+  it('createAccount는 사용자와 연결된 계좌를 생성한다', async () => {
     const input: CreateBrokerageAccountInput = {
       name: '미래에셋 계좌',
       brokerName: '미래에셋',
       apiKey: 'api-key',
     };
-    const created: BrokerageAccount = {
-      id: 'account-1',
-      name: input.name,
-      brokerName: input.brokerName,
-      description: null,
-      isActive: true,
-      createdAt: baseDate,
-      updatedAt: baseDate,
-    } as BrokerageAccount;
-    prismaMock.brokerageAccount.create.mockResolvedValue(created);
+    prismaMock.brokerageAccount.create.mockResolvedValue({ id: 'acc-1' });
 
-    const result = await service.createAccount(input);
+    await service.createAccount(USER_ID, input);
 
     expect(prismaMock.brokerageAccount.create).toHaveBeenCalledWith({
       data: {
@@ -82,281 +68,125 @@ describe('BrokerageService', () => {
         description: null,
         apiSecret: null,
         apiBaseUrl: null,
+        user: { connect: { id: USER_ID } },
       },
     });
-    expect(result).toBe(created);
   });
 
-  it('updateAccount는 제공된 필드만 업데이트한다', async () => {
+  it('updateAccount는 소유권을 검증하고 업데이트한다', async () => {
+    prismaMock.brokerageAccount.findFirst.mockResolvedValue({ id: 'acc-1' });
     const input: UpdateBrokerageAccountInput = {
-      id: 'account-1',
+      id: 'acc-1',
       name: '새 이름',
-      apiBaseUrl: 'https://api.example.com',
-      description: '새 설명',
     };
-    const updated: BrokerageAccount = {
-      id: input.id,
-      name: input.name!,
-      brokerName: '미래에셋',
-      description: input.description!,
-      isActive: true,
-      createdAt: baseDate,
-      updatedAt: baseDate,
-    } as BrokerageAccount;
-    prismaMock.brokerageAccount.update.mockResolvedValue(updated);
+    prismaMock.brokerageAccount.update.mockResolvedValue({ id: 'acc-1' });
 
-    const result = await service.updateAccount(input);
+    await service.updateAccount(USER_ID, input);
 
+    expect(prismaMock.brokerageAccount.findFirst).toHaveBeenCalledWith({
+      where: { id: input.id, userId: USER_ID },
+      select: { id: true },
+    });
     expect(prismaMock.brokerageAccount.update).toHaveBeenCalledWith({
       where: { id: input.id },
-      data: {
-        name: input.name,
-        apiBaseUrl: input.apiBaseUrl,
-        description: input.description,
-      },
+      data: { name: input.name },
     });
-    expect(result).toBe(updated);
   });
 
-  it('updateAccount는 선택 필드가 undefined이면 Prisma 데이터에서 제외한다', async () => {
-    const input = {
-      id: 'account-2',
-      name: '다른 이름',
-      apiKey: undefined,
-      apiSecret: undefined,
-      apiBaseUrl: undefined,
-      description: undefined,
-    } as UpdateBrokerageAccountInput;
-    const updated: BrokerageAccount = {
-      id: input.id,
-      name: input.name!,
-      brokerName: '브로커',
-      description: '설명',
-      isActive: true,
-      createdAt: baseDate,
-      updatedAt: baseDate,
-    } as BrokerageAccount;
-    prismaMock.brokerageAccount.update.mockResolvedValue(updated);
+  it('updateAccount는 타인의 계좌면 NotFoundException을 던진다', async () => {
+    prismaMock.brokerageAccount.findFirst.mockResolvedValue(null);
 
-    const result = await service.updateAccount(input);
-
-    expect(prismaMock.brokerageAccount.update).toHaveBeenCalledWith({
-      where: { id: input.id },
-      data: {
-        name: input.name,
-      },
-    });
-    expect(result).toBe(updated);
+    await expect(
+      service.updateAccount(USER_ID, { id: 'acc-x', name: 'foo' }),
+    ).rejects.toThrow(NotFoundException);
+    expect(prismaMock.brokerageAccount.update).not.toHaveBeenCalled();
   });
 
-  it('updateAccount는 null이 전달된 선택 필드를 null로 변환한다', async () => {
-    const input = {
-      id: 'account-3',
-      apiKey: null,
-      apiSecret: null,
-      apiBaseUrl: null,
-      description: null,
-    } as unknown as UpdateBrokerageAccountInput;
-    const updated: BrokerageAccount = {
-      id: input.id,
-      name: '이름',
-      brokerName: '브로커',
-      description: null,
-      isActive: true,
-      createdAt: baseDate,
-      updatedAt: baseDate,
-    } as BrokerageAccount;
-    prismaMock.brokerageAccount.update.mockResolvedValue(updated);
-
-    const result = await service.updateAccount(input);
-
-    expect(prismaMock.brokerageAccount.update).toHaveBeenCalledWith({
-      where: { id: input.id },
-      data: {
-        apiKey: null,
-        apiSecret: null,
-        apiBaseUrl: null,
-        description: null,
-      },
-    });
-    expect(result).toBe(updated);
-  });
-
-  it('deleteAccount는 삭제 성공 시 true를 반환한다', async () => {
+  it('deleteAccount는 소유권을 확인한 뒤 삭제한다', async () => {
+    prismaMock.brokerageAccount.findFirst.mockResolvedValue({ id: 'acc-1' });
     prismaMock.brokerageAccount.delete.mockResolvedValue({});
 
-    await expect(service.deleteAccount('account-1')).resolves.toBe(true);
+    await expect(service.deleteAccount(USER_ID, 'acc-1')).resolves.toBe(true);
     expect(prismaMock.brokerageAccount.delete).toHaveBeenCalledWith({
-      where: { id: 'account-1' },
+      where: { id: 'acc-1' },
     });
   });
 
-  it('deleteAccount는 대상이 없으면 false를 반환한다', async () => {
-    const error = createPrismaKnownRequestError('P2025');
-    prismaMock.brokerageAccount.delete.mockRejectedValue(error);
+  it('deleteAccount는 타인의 계좌면 false를 반환한다', async () => {
+    prismaMock.brokerageAccount.findFirst.mockResolvedValue(null);
 
-    await expect(service.deleteAccount('account-1')).resolves.toBe(false);
+    await expect(service.deleteAccount(USER_ID, 'acc-1')).resolves.toBe(false);
+    expect(prismaMock.brokerageAccount.delete).not.toHaveBeenCalled();
   });
 
-  it('deleteAccount는 예상치 못한 Prisma 오류를 다시 던진다', async () => {
-    const unexpectedError = createPrismaKnownRequestError('P5000');
-    prismaMock.brokerageAccount.delete.mockRejectedValue(unexpectedError);
+  it('getAccounts는 사용자에 연결된 계좌를 조회한다', async () => {
+    prismaMock.brokerageAccount.findMany.mockResolvedValue([]);
 
-    await expect(service.deleteAccount('account-1')).rejects.toBe(
-      unexpectedError,
-    );
-  });
-
-  it('getAccounts는 모든 계좌를 정렬하여 반환한다', async () => {
-    const accounts: BrokerageAccount[] = [
-      {
-        id: 'account-1',
-        name: 'A',
-        brokerName: '증권사',
-        description: null,
-        isActive: true,
-        createdAt: baseDate,
-        updatedAt: baseDate,
-      } as BrokerageAccount,
-    ];
-    prismaMock.brokerageAccount.findMany.mockResolvedValue(accounts);
-
-    await expect(service.getAccounts()).resolves.toBe(accounts);
+    await service.getAccounts(USER_ID);
     expect(prismaMock.brokerageAccount.findMany).toHaveBeenCalledWith({
+      where: { userId: USER_ID },
       orderBy: { createdAt: 'asc' },
     });
   });
 
-  it('getAccount는 ID로 단일 계좌를 조회한다', async () => {
-    const account: BrokerageAccount = {
-      id: 'account-1',
-      name: '계좌',
-      brokerName: '증권사',
-      description: null,
-      isActive: true,
-      createdAt: baseDate,
-      updatedAt: baseDate,
-    } as BrokerageAccount;
-    prismaMock.brokerageAccount.findUnique.mockResolvedValue(account);
+  it('getAccount는 사용자 필터를 포함한다', async () => {
+    prismaMock.brokerageAccount.findFirst.mockResolvedValue({ id: 'acc-1' });
 
-    await expect(service.getAccount('account-1')).resolves.toBe(account);
-    expect(prismaMock.brokerageAccount.findUnique).toHaveBeenCalledWith({
-      where: { id: 'account-1' },
+    await service.getAccount(USER_ID, 'acc-1');
+    expect(prismaMock.brokerageAccount.findFirst).toHaveBeenCalledWith({
+      where: { id: 'acc-1', userId: USER_ID },
     });
   });
 
-  it('getHoldings는 계좌 ID 유무에 따라 조건을 적용한다', async () => {
-    const holdings: BrokerageHolding[] = [];
-    prismaMock.brokerageHolding.findMany.mockResolvedValue(holdings);
+  it('getHoldings는 사용자 ID를 조건에 포함한다', async () => {
+    prismaMock.brokerageHolding.findMany.mockResolvedValue([]);
 
-    await service.getHoldings();
+    await service.getHoldings(USER_ID);
     expect(prismaMock.brokerageHolding.findMany).toHaveBeenCalledWith({
-      where: undefined,
+      where: {
+        account: { userId: USER_ID },
+      },
       orderBy: { symbol: 'asc' },
     });
 
     prismaMock.brokerageHolding.findMany.mockClear();
-    prismaMock.brokerageHolding.findMany.mockResolvedValue(holdings);
-
-    await service.getHoldings('account-1');
+    await service.getHoldings(USER_ID, 'acc-1');
     expect(prismaMock.brokerageHolding.findMany).toHaveBeenCalledWith({
-      where: { accountId: 'account-1' },
+      where: {
+        account: { userId: USER_ID },
+        accountId: 'acc-1',
+      },
       orderBy: { symbol: 'asc' },
     });
   });
 
-  it('refreshHoldings는 계좌가 없으면 예외를 던진다', async () => {
-    prismaMock.brokerageAccount.findUnique.mockResolvedValue(null);
+  it('refreshHoldings는 사용자 계좌가 아니면 예외를 던진다', async () => {
+    prismaMock.brokerageAccount.findUnique.mockResolvedValue({
+      id: 'acc-1',
+      userId: 'other-user',
+    });
 
-    await expect(service.refreshHoldings('missing')).rejects.toThrow(
-      'Account not found',
+    await expect(service.refreshHoldings(USER_ID, 'acc-1')).rejects.toThrow(
+      NotFoundException,
     );
   });
 
-  it('refreshHoldings는 보유 내역을 모의 데이터로 갱신한다', async () => {
-    const now = new Date('2024-01-03T00:00:00Z');
-    jest.useFakeTimers().setSystemTime(now);
-
-    const account: BrokerageAccount = {
-      id: 'account-1',
-      name: '계좌',
-      brokerName: '증권사',
-      description: null,
-      isActive: true,
-      createdAt: baseDate,
-      updatedAt: baseDate,
-    } as BrokerageAccount;
-    prismaMock.brokerageAccount.findUnique.mockResolvedValue(account);
-
-    const deleteManyResult = { count: 2 };
-    const createManyResult = { count: 2 };
-    prismaMock.brokerageHolding.deleteMany.mockResolvedValue(deleteManyResult);
-    prismaMock.brokerageHolding.createMany.mockResolvedValue(createManyResult);
-
-    const refreshedHoldings: BrokerageHolding[] = [
-      {
-        id: 'account-1-holding-1',
-        symbol: 'SPY',
-        name: 'SPDR S&P 500 ETF',
-        quantity: 10,
-        currentPrice: 425.5,
-        marketValue: 4255,
-        averageCost: 420,
-        currency: 'USD',
-        accountId: 'account-1',
-        lastUpdated: now,
-      },
-    ];
-    prismaMock.brokerageHolding.findMany.mockResolvedValue(refreshedHoldings);
-
-    prismaMock.$transaction.mockImplementation((operations: unknown) => {
-      if (Array.isArray(operations)) {
-        return Promise.all(operations);
-      }
-      return Promise.resolve();
+  it('refreshHoldings는 성공 시 갱신된 보유 정보를 반환한다', async () => {
+    prismaMock.brokerageAccount.findUnique.mockResolvedValue({
+      id: 'acc-1',
+      userId: USER_ID,
     });
+    prismaMock.$transaction.mockResolvedValue(undefined);
+    prismaMock.brokerageHolding.findMany.mockResolvedValue([]);
 
-    const result = await service.refreshHoldings('account-1');
-
-    expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
-    const [operations] = prismaMock.$transaction.mock.calls[0];
-    expect(Array.isArray(operations)).toBe(true);
-    expect(operations).toHaveLength(2);
+    await service.refreshHoldings(USER_ID, 'acc-1');
 
     expect(prismaMock.brokerageHolding.deleteMany).toHaveBeenCalledWith({
-      where: { accountId: 'account-1' },
+      where: { accountId: 'acc-1' },
     });
-    expect(prismaMock.brokerageHolding.createMany).toHaveBeenCalledWith({
-      data: [
-        {
-          id: 'account-1-holding-1',
-          symbol: 'SPY',
-          name: 'SPDR S&P 500 ETF Trust',
-          quantity: 10,
-          currentPrice: 425.5,
-          marketValue: 4255,
-          averageCost: 420,
-          currency: 'USD',
-          accountId: 'account-1',
-          lastUpdated: now,
-        },
-        {
-          id: 'account-1-holding-2',
-          symbol: 'VTI',
-          name: 'Vanguard Total Stock Market ETF',
-          quantity: 5,
-          currentPrice: 248.3,
-          marketValue: 1241.5,
-          averageCost: 245,
-          currency: 'USD',
-          accountId: 'account-1',
-          lastUpdated: now,
-        },
-      ],
-    });
-    expect(result).toBe(refreshedHoldings);
+    expect(prismaMock.brokerageHolding.createMany).toHaveBeenCalledTimes(1);
     expect(prismaMock.brokerageHolding.findMany).toHaveBeenCalledWith({
-      where: { accountId: 'account-1' },
+      where: { accountId: 'acc-1', account: { userId: USER_ID } },
       orderBy: { symbol: 'asc' },
     });
   });

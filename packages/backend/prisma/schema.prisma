@@ -18,7 +18,11 @@ model BrokerageAccount {
   isActive    Boolean            @default(true)
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   holdings    BrokerageHolding[]
+
+  @@index([userId])
 }
 
 model BrokerageHolding {
@@ -40,14 +44,18 @@ model BrokerageHolding {
 
 model Tag {
   id                String                 @id @default(cuid())
-  name              String                 @unique
+  name              String
   description       String?
   color             String
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
+  userId            String
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   holdingTags       HoldingTag[]
   groupLinks        RebalancingGroupTag[]
   targetAllocations TargetAllocation[]
+
+  @@unique([userId, name])
 }
 
 model HoldingTag {
@@ -55,10 +63,12 @@ model HoldingTag {
   holdingSymbol String
   tagId         String
   createdAt     DateTime @default(now())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tag           Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
-  @@index([holdingSymbol])
-  @@unique([holdingSymbol, tagId], name: "holdingSymbol_tagId")
+  @@index([userId, holdingSymbol])
+  @@unique([userId, holdingSymbol, tagId], name: "user_holdingSymbol_tagId")
 }
 
 model RebalancingGroup {
@@ -67,8 +77,12 @@ model RebalancingGroup {
   description       String?
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
+  userId            String
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   tags              RebalancingGroupTag[]
   targetAllocations TargetAllocation[]
+
+  @@unique([userId, name])
 }
 
 model RebalancingGroupTag {
@@ -90,4 +104,16 @@ model TargetAllocation {
   tag              Tag              @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, tagId])
+}
+
+model User {
+  id                 String              @id @default(cuid())
+  email              String              @unique
+  passwordHash       String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  brokerageAccounts  BrokerageAccount[]
+  tags               Tag[]
+  holdingTags        HoldingTag[]
+  rebalancingGroups  RebalancingGroup[]
 }

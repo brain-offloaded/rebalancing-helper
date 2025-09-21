@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -30,6 +34,43 @@ export class RebalancingService {
     private readonly holdingsService: HoldingsService,
   ) {}
 
+  private async assertTagsBelongToUser(
+    userId: string,
+    tagIds: string[],
+  ): Promise<void> {
+    if (tagIds.length === 0) {
+      return;
+    }
+
+    const uniqueTagIds = Array.from(new Set(tagIds));
+    const count = await this.prisma.tag.count({
+      where: {
+        id: { in: uniqueTagIds },
+        userId,
+      },
+    });
+
+    if (count !== uniqueTagIds.length) {
+      throw new NotFoundException('One or more tags were not found');
+    }
+  }
+
+  private async getGroupForUser(
+    userId: string,
+    groupId: string,
+  ): Promise<GroupWithTags> {
+    const group = await this.prisma.rebalancingGroup.findFirst({
+      where: { id: groupId, userId },
+      include: { tags: true },
+    });
+
+    if (!group) {
+      throw new NotFoundException('Rebalancing group not found');
+    }
+
+    return group;
+  }
+
   private mapGroup(group: GroupWithTags): RebalancingGroup {
     return {
       id: group.id,
@@ -42,12 +83,18 @@ export class RebalancingService {
   }
 
   async createGroup(
+    userId: string,
     input: CreateRebalancingGroupInput,
   ): Promise<RebalancingGroup> {
     const uniqueTagIds = Array.from(new Set(input.tagIds));
+    await this.assertTagsBelongToUser(userId, uniqueTagIds);
+
     const data: Prisma.RebalancingGroupCreateInput = {
       name: input.name,
       description: input.description ?? null,
+      user: {
+        connect: { id: userId },
+      },
       tags: {
         create: uniqueTagIds.map((tagId) => ({
           tag: {
@@ -66,6 +113,7 @@ export class RebalancingService {
   }
 
   async updateGroup(
+    userId: string,
     input: UpdateRebalancingGroupInput,
   ): Promise<RebalancingGroup> {
     const uniqueTagIds = input.tagIds
@@ -73,6 +121,8 @@ export class RebalancingService {
       : undefined;
 
     const data: Prisma.RebalancingGroupUpdateInput = {};
+
+    await this.getGroupForUser(userId, input.id);
 
     if (input.name !== undefined) {
       data.name = input.name;
@@ -83,6 +133,7 @@ export class RebalancingService {
     }
 
     if (uniqueTagIds) {
+      await this.assertTagsBelongToUser(userId, uniqueTagIds);
       data.tags = {
         deleteMany: {},
         create: uniqueTagIds.map((tagId) => ({
@@ -93,20 +144,24 @@ export class RebalancingService {
       };
     }
 
-    const group = await this.prisma.rebalancingGroup.update({
+    const updatedGroup = await this.prisma.rebalancingGroup.update({
       where: { id: input.id },
       data,
       include: { tags: true },
     });
 
-    return this.mapGroup(group);
+    return this.mapGroup(updatedGroup);
   }
 
-  async deleteGroup(id: string): Promise<boolean> {
+  async deleteGroup(userId: string, id: string): Promise<boolean> {
     try {
+      await this.getGroupForUser(userId, id);
       await this.prisma.rebalancingGroup.delete({ where: { id } });
       return true;
     } catch (error: unknown) {
+      if (error instanceof NotFoundException) {
+        return false;
+      }
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2025'
@@ -117,8 +172,9 @@ export class RebalancingService {
     }
   }
 
-  async getGroups(): Promise<RebalancingGroup[]> {
+  async getGroups(userId: string): Promise<RebalancingGroup[]> {
     const groups = await this.prisma.rebalancingGroup.findMany({
+      where: { userId },
       include: { tags: true },
       orderBy: { createdAt: 'asc' },
     });
@@ -126,9 +182,9 @@ export class RebalancingService {
     return groups.map((group) => this.mapGroup(group));
   }
 
-  async getGroup(id: string): Promise<RebalancingGroup | null> {
-    const group = await this.prisma.rebalancingGroup.findUnique({
-      where: { id },
+  async getGroup(userId: string, id: string): Promise<RebalancingGroup | null> {
+    const group = await this.prisma.rebalancingGroup.findFirst({
+      where: { id, userId },
       include: { tags: true },
     });
 
@@ -136,16 +192,10 @@ export class RebalancingService {
   }
 
   async setTargetAllocations(
+    userId: string,
     input: SetTargetAllocationsInput,
   ): Promise<boolean> {
-    const group = await this.prisma.rebalancingGroup.findUnique({
-      where: { id: input.groupId },
-      include: { tags: true },
-    });
-
-    if (!group) {
-      throw new Error('Rebalancing group not found');
-    }
+    const group = await this.getGroupForUser(userId, input.groupId);
 
     const groupTagIds = group.tags.map((tag) => tag.tagId);
     const totalPercentage = input.targets.reduce(
@@ -156,14 +206,14 @@ export class RebalancingService {
       input.targets.length > 0 &&
       Math.abs(totalPercentage - 100) > PERCENTAGE_TOLERANCE
     ) {
-      throw new Error('Target percentages must sum to 100');
+      throw new BadRequestException('Target percentages must sum to 100');
     }
 
     const invalidTags = input.targets.filter(
       (target) => !groupTagIds.includes(target.tagId),
     );
     if (invalidTags.length > 0) {
-      throw new Error(
+      throw new BadRequestException(
         `Invalid tags: ${invalidTags.map((t) => t.tagId).join(', ')}`,
       );
     }
@@ -186,23 +236,19 @@ export class RebalancingService {
     return true;
   }
 
-  async getRebalancingAnalysis(groupId: string): Promise<RebalancingAnalysis> {
-    const group = await this.prisma.rebalancingGroup.findUnique({
-      where: { id: groupId },
-      include: { tags: true },
-    });
-
-    if (!group) {
-      throw new Error('Rebalancing group not found');
-    }
+  async getRebalancingAnalysis(
+    userId: string,
+    groupId: string,
+  ): Promise<RebalancingAnalysis> {
+    const group = await this.getGroupForUser(userId, groupId);
 
     const groupTagIds = group.tags.map((tag) => tag.tagId);
     const tags = await this.prisma.tag.findMany({
-      where: { id: { in: groupTagIds } },
+      where: { id: { in: groupTagIds }, userId },
     });
     const tagMap = new Map(tags.map((tag) => [tag.id, tag]));
 
-    const allHoldings = await this.brokerageService.getHoldings();
+    const allHoldings = await this.brokerageService.getHoldings(userId);
     const targetAllocations = await this.prisma.targetAllocation.findMany({
       where: { groupId },
     });
@@ -228,8 +274,10 @@ export class RebalancingService {
     }
 
     for (const tagId of groupTagIds) {
-      const holdingsForTag =
-        await this.holdingsService.getHoldingsForTag(tagId);
+      const holdingsForTag = await this.holdingsService.getHoldingsForTag(
+        userId,
+        tagId,
+      );
       holdingsByTag.set(tagId, holdingsForTag);
       const tagValue = holdingsForTag.reduce((sum, symbol) => {
         return sum + (marketValueBySymbol.get(symbol) ?? 0);
@@ -244,12 +292,7 @@ export class RebalancingService {
         continue;
       }
 
-      const holdingsForTag = holdingsByTag.get(tagId) ?? [];
-      const tagValue =
-        tagValueByTag.get(tagId) ??
-        holdingsForTag.reduce((sum, symbol) => {
-          return sum + (marketValueBySymbol.get(symbol) ?? 0);
-        }, 0);
+      const tagValue = tagValueByTag.get(tagId) ?? 0;
 
       const currentPercentage =
         totalValue > 0 ? (tagValue / totalValue) * 100 : 0;
@@ -277,9 +320,10 @@ export class RebalancingService {
   }
 
   async calculateInvestmentRecommendation(
+    userId: string,
     input: CalculateInvestmentInput,
   ): Promise<InvestmentRecommendation[]> {
-    const analysis = await this.getRebalancingAnalysis(input.groupId);
+    const analysis = await this.getRebalancingAnalysis(userId, input.groupId);
     const newTotalValue = analysis.totalValue + input.investmentAmount;
 
     const recommendations: InvestmentRecommendation[] = [];
@@ -293,6 +337,7 @@ export class RebalancingService {
           ? (recommendedAmount / input.investmentAmount) * 100
           : 0;
       const suggestedSymbols = await this.holdingsService.getHoldingsForTag(
+        userId,
         allocation.tagId,
       );
 

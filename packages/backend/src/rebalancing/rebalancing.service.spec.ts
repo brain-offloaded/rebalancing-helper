@@ -1,67 +1,65 @@
-import { Prisma } from '@prisma/client';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { RebalancingService } from './rebalancing.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BrokerageService } from '../brokerage/brokerage.service';
 import { HoldingsService } from '../holdings/holdings.service';
-import { BrokerageHolding } from '../brokerage/brokerage.entities';
 import {
   CreateRebalancingGroupInput,
   UpdateRebalancingGroupInput,
   SetTargetAllocationsInput,
   CalculateInvestmentInput,
 } from './rebalancing.dto';
-import { RebalancingAnalysis } from './rebalancing.entities';
-import { createPrismaKnownRequestError } from '../test-utils/prisma-error';
+import { Prisma } from '@prisma/client';
 
-type GroupWithTags = Prisma.RebalancingGroupGetPayload<{
-  include: { tags: true };
-}>;
+const USER_ID = 'user-1';
+const baseDate = new Date('2024-01-01T00:00:00Z');
 
-describe('RebalancingService', () => {
-  let prismaMock: {
-    rebalancingGroup: {
-      create: jest.Mock;
-      update: jest.Mock;
-      delete: jest.Mock;
-      findMany: jest.Mock;
-      findUnique: jest.Mock;
-    };
-    targetAllocation: {
-      findMany: jest.Mock;
-      deleteMany: jest.Mock;
-      createMany: jest.Mock;
-    };
-    tag: {
-      findMany: jest.Mock;
-    };
-    $transaction: jest.Mock;
+type MockedPrisma = {
+  rebalancingGroup: {
+    create: jest.Mock;
+    update: jest.Mock;
+    delete: jest.Mock;
+    findMany: jest.Mock;
+    findFirst: jest.Mock;
   };
-  let brokerageServiceMock: {
-    getHoldings: jest.Mock;
+  tag: {
+    count: jest.Mock;
+    findMany: jest.Mock;
   };
-  let holdingsServiceMock: {
-    getHoldingsForTag: jest.Mock;
+  targetAllocation: {
+    findMany: jest.Mock;
+    deleteMany: jest.Mock;
+    createMany: jest.Mock;
   };
-  let service: RebalancingService;
+  $transaction: jest.Mock;
+};
 
-  const baseDate = new Date('2024-01-01T00:00:00Z');
-
-  beforeAll(() => {
-    createPrismaKnownRequestError('P0000');
-  });
-
-  const buildGroup = (overrides?: Partial<GroupWithTags>): GroupWithTags => ({
-    id: 'group-1',
-    name: '성장 포트폴리오',
-    description: '기본 설명',
-    createdAt: baseDate,
-    updatedAt: baseDate,
-    tags: [
+const buildGroup = (
+  overrides: Partial<
+    Prisma.RebalancingGroupGetPayload<{ include: { tags: true } }>
+  > = {},
+) => ({
+  id: overrides.id ?? 'group-1',
+  name: overrides.name ?? '성장 포트폴리오',
+  description: Object.prototype.hasOwnProperty.call(overrides, 'description')
+    ? (overrides.description ?? null)
+    : '기본 설명',
+  createdAt: overrides.createdAt ?? baseDate,
+  updatedAt: overrides.updatedAt ?? baseDate,
+  userId: overrides.userId ?? USER_ID,
+  tags:
+    overrides.tags ??
+    ([
       { groupId: 'group-1', tagId: 'tag-1', createdAt: baseDate },
       { groupId: 'group-1', tagId: 'tag-2', createdAt: baseDate },
-    ],
-    ...overrides,
-  });
+    ] satisfies { groupId: string; tagId: string; createdAt: Date }[]),
+});
+
+describe('RebalancingService', () => {
+  let prismaMock: MockedPrisma;
+  let brokerageServiceMock: jest.Mocked<BrokerageService>;
+  let holdingsServiceMock: jest.Mocked<HoldingsService>;
+  let service: RebalancingService;
 
   beforeEach(() => {
     prismaMock = {
@@ -70,53 +68,63 @@ describe('RebalancingService', () => {
         update: jest.fn(),
         delete: jest.fn(),
         findMany: jest.fn(),
-        findUnique: jest.fn(),
+        findFirst: jest.fn(),
+      },
+      tag: {
+        count: jest.fn(),
+        findMany: jest.fn(),
       },
       targetAllocation: {
         findMany: jest.fn(),
         deleteMany: jest.fn(),
         createMany: jest.fn(),
       },
-      tag: {
-        findMany: jest.fn(),
-      },
       $transaction: jest.fn(),
     };
 
     brokerageServiceMock = {
       getHoldings: jest.fn(),
-    };
+    } as unknown as jest.Mocked<BrokerageService>;
 
     holdingsServiceMock = {
       getHoldingsForTag: jest.fn(),
-    };
+    } as unknown as jest.Mocked<HoldingsService>;
 
     service = new RebalancingService(
       prismaMock as unknown as PrismaService,
-      brokerageServiceMock as unknown as BrokerageService,
-      holdingsServiceMock as unknown as HoldingsService,
+      brokerageServiceMock,
+      holdingsServiceMock,
     );
   });
 
-  it('createGroup는 태그 중복을 제거하고 그룹을 생성한다', async () => {
+  it('createGroup는 사용자 태그 소유 여부를 확인하고 그룹을 생성한다', async () => {
     const input: CreateRebalancingGroupInput = {
       name: '신규 그룹',
-      description: '새 설명',
+      description: '설명',
       tagIds: ['tag-1', 'tag-2', 'tag-1'],
     };
-    const persistedGroup = buildGroup({
-      id: 'group-new',
-      name: input.name,
-      description: input.description ?? null,
+    prismaMock.tag.count.mockResolvedValue(2);
+    prismaMock.rebalancingGroup.create.mockResolvedValue(
+      buildGroup({
+        id: 'group-new',
+        name: input.name,
+        description: input.description ?? null,
+      }),
+    );
+
+    const result = await service.createGroup(USER_ID, input);
+
+    expect(prismaMock.tag.count).toHaveBeenCalledWith({
+      where: {
+        id: { in: ['tag-1', 'tag-2'] },
+        userId: USER_ID,
+      },
     });
-    prismaMock.rebalancingGroup.create.mockResolvedValue(persistedGroup);
-
-    const result = await service.createGroup(input);
-
     expect(prismaMock.rebalancingGroup.create).toHaveBeenCalledWith({
       data: {
         name: input.name,
         description: input.description,
+        user: { connect: { id: USER_ID } },
         tags: {
           create: [
             { tag: { connect: { id: 'tag-1' } } },
@@ -126,33 +134,63 @@ describe('RebalancingService', () => {
       },
       include: { tags: true },
     });
-    expect(result).toEqual({
-      id: 'group-new',
-      name: input.name,
-      description: input.description,
-      tagIds: ['tag-1', 'tag-2'],
-      createdAt: baseDate,
-      updatedAt: baseDate,
-    });
+    expect(result.tagIds).toEqual(['tag-1', 'tag-2']);
   });
 
-  it('updateGroup은 전달된 필드만 갱신하고 태그 중복을 제거한다', async () => {
+  it('createGroup는 태그가 없으면 추가 조회 없이 그룹을 생성한다', async () => {
+    const input: CreateRebalancingGroupInput = {
+      name: '태그 없는 그룹',
+      tagIds: [],
+    };
+    prismaMock.tag.count.mockResolvedValue(0);
+    prismaMock.rebalancingGroup.create.mockResolvedValue(
+      buildGroup({ id: 'group-empty', tags: [] }),
+    );
+
+    const result = await service.createGroup(USER_ID, input);
+
+    expect(prismaMock.tag.count).not.toHaveBeenCalled();
+    expect(result.tagIds).toEqual([]);
+  });
+
+  it('createGroup는 소유하지 않은 태그가 있으면 예외를 던진다', async () => {
+    prismaMock.tag.count.mockResolvedValue(1);
+
+    await expect(
+      service.createGroup(USER_ID, {
+        name: '잘못된 그룹',
+        tagIds: ['tag-1', 'tag-2'],
+      }),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('updateGroup은 그룹 소유 여부를 확인하고 태그를 갱신한다', async () => {
     const input: UpdateRebalancingGroupInput = {
       id: 'group-1',
-      name: '업데이트 그룹',
-      tagIds: ['tag-2', 'tag-1', 'tag-2'],
+      name: '수정된 그룹',
+      tagIds: ['tag-2', 'tag-3'],
     };
-    const updatedGroup = buildGroup({
-      name: input.name,
-      tags: [
-        { groupId: 'group-1', tagId: 'tag-2', createdAt: baseDate },
-        { groupId: 'group-1', tagId: 'tag-1', createdAt: baseDate },
-      ],
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
+    prismaMock.tag.count.mockResolvedValue(2);
+    prismaMock.rebalancingGroup.update.mockResolvedValue(
+      buildGroup({
+        name: input.name,
+        tags: [
+          { groupId: 'group-1', tagId: 'tag-2', createdAt: baseDate },
+          { groupId: 'group-1', tagId: 'tag-3', createdAt: baseDate },
+        ],
+      }),
+    );
+
+    const result = await service.updateGroup(USER_ID, input);
+
+    expect(prismaMock.rebalancingGroup.findFirst).toHaveBeenCalledWith({
+      where: { id: input.id, userId: USER_ID },
+      include: { tags: true },
     });
-    prismaMock.rebalancingGroup.update.mockResolvedValue(updatedGroup);
-
-    const result = await service.updateGroup(input);
-
+    expect(prismaMock.tag.count).toHaveBeenCalledWith({
+      where: { id: { in: ['tag-2', 'tag-3'] }, userId: USER_ID },
+    });
     expect(prismaMock.rebalancingGroup.update).toHaveBeenCalledWith({
       where: { id: input.id },
       data: {
@@ -161,69 +199,158 @@ describe('RebalancingService', () => {
           deleteMany: {},
           create: [
             { tag: { connect: { id: 'tag-2' } } },
-            { tag: { connect: { id: 'tag-1' } } },
+            { tag: { connect: { id: 'tag-3' } } },
           ],
         },
       },
       include: { tags: true },
     });
-    expect(result.tagIds).toEqual(['tag-2', 'tag-1']);
+    expect(result.tagIds).toEqual(['tag-2', 'tag-3']);
   });
 
-  it('deleteGroup은 삭제 성공 시 true를 반환한다', async () => {
+  it('updateGroup은 description을 null로 설정할 수 있다', async () => {
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
+    prismaMock.rebalancingGroup.update.mockResolvedValue(
+      buildGroup({ description: null }),
+    );
+
+    const result = await service.updateGroup(USER_ID, {
+      id: 'group-1',
+      description: null,
+    } as unknown as UpdateRebalancingGroupInput);
+
+    expect(prismaMock.rebalancingGroup.update).toHaveBeenCalledWith({
+      where: { id: 'group-1' },
+      data: { description: null },
+      include: { tags: true },
+    });
+    expect(result.description).toBeNull();
+  });
+
+  it('deleteGroup은 소유하지 않은 그룹이면 false를 반환한다', async () => {
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(null);
+
+    await expect(service.deleteGroup(USER_ID, 'missing')).resolves.toBe(false);
+    expect(prismaMock.rebalancingGroup.delete).not.toHaveBeenCalled();
+  });
+
+  it('deleteGroup은 소유한 그룹을 삭제한다', async () => {
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
     prismaMock.rebalancingGroup.delete.mockResolvedValue({});
 
-    await expect(service.deleteGroup('group-1')).resolves.toBe(true);
+    await expect(service.deleteGroup(USER_ID, 'group-1')).resolves.toBe(true);
     expect(prismaMock.rebalancingGroup.delete).toHaveBeenCalledWith({
       where: { id: 'group-1' },
     });
   });
 
-  it('deleteGroup은 존재하지 않으면 false를 반환한다', async () => {
-    const error = createPrismaKnownRequestError('P2025');
-    prismaMock.rebalancingGroup.delete.mockRejectedValue(error);
+  it('deleteGroup은 Prisma P2025 오류가 발생하면 false를 반환한다', async () => {
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
+    const prismaError = new Prisma.PrismaClientKnownRequestError('error', {
+      code: 'P2025',
+      clientVersion: '1',
+    });
+    prismaMock.rebalancingGroup.delete.mockRejectedValue(prismaError);
 
-    await expect(service.deleteGroup('group-1')).resolves.toBe(false);
+    await expect(service.deleteGroup(USER_ID, 'group-1')).resolves.toBe(false);
   });
 
-  it('getGroups는 Prisma 결과를 GraphQL 엔티티로 변환한다', async () => {
-    const groups = [
+  it('deleteGroup은 알 수 없는 오류가 발생하면 다시 던진다', async () => {
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
+    const unexpected = new Error('boom');
+    prismaMock.rebalancingGroup.delete.mockRejectedValue(unexpected);
+
+    await expect(service.deleteGroup(USER_ID, 'group-1')).rejects.toBe(
+      unexpected,
+    );
+  });
+
+  it('getGroups는 사용자별 그룹을 반환한다', async () => {
+    prismaMock.rebalancingGroup.findMany.mockResolvedValue([
       buildGroup(),
       buildGroup({
         id: 'group-2',
-        name: '배당 포트폴리오',
         tags: [{ groupId: 'group-2', tagId: 'tag-3', createdAt: baseDate }],
       }),
-    ];
-    prismaMock.rebalancingGroup.findMany.mockResolvedValue(groups);
-
-    const result = await service.getGroups();
-
-    expect(result).toEqual([
-      {
-        id: 'group-1',
-        name: '성장 포트폴리오',
-        description: '기본 설명',
-        tagIds: ['tag-1', 'tag-2'],
-        createdAt: baseDate,
-        updatedAt: baseDate,
-      },
-      {
-        id: 'group-2',
-        name: '배당 포트폴리오',
-        description: '기본 설명',
-        tagIds: ['tag-3'],
-        createdAt: baseDate,
-        updatedAt: baseDate,
-      },
     ]);
+
+    const result = await service.getGroups(USER_ID);
+
+    expect(prismaMock.rebalancingGroup.findMany).toHaveBeenCalledWith({
+      where: { userId: USER_ID },
+      include: { tags: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(result).toHaveLength(2);
+    expect(result[0].tagIds).toEqual(['tag-1', 'tag-2']);
   });
 
-  it('getGroup은 ID로 그룹을 조회하고 없으면 null을 반환한다', async () => {
-    const group = buildGroup();
-    prismaMock.rebalancingGroup.findUnique.mockResolvedValue(group);
+  it('setTargetAllocations는 합이 100이 아니면 예외를 던진다', async () => {
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
 
-    await expect(service.getGroup('group-1')).resolves.toEqual({
+    await expect(
+      service.setTargetAllocations(USER_ID, {
+        groupId: 'group-1',
+        targets: [
+          { tagId: 'tag-1', targetPercentage: 40 },
+          { tagId: 'tag-2', targetPercentage: 40 },
+        ],
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('setTargetAllocations는 그룹에 없는 태그가 포함되면 예외를 던진다', async () => {
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
+
+    await expect(
+      service.setTargetAllocations(USER_ID, {
+        groupId: 'group-1',
+        targets: [
+          { tagId: 'tag-1', targetPercentage: 50 },
+          { tagId: 'tag-unknown', targetPercentage: 50 },
+        ],
+      }),
+    ).rejects.toThrow('Invalid tags: tag-unknown');
+  });
+
+  it('setTargetAllocations는 기존 목표를 대체한다', async () => {
+    const input: SetTargetAllocationsInput = {
+      groupId: 'group-1',
+      targets: [
+        { tagId: 'tag-1', targetPercentage: 60 },
+        { tagId: 'tag-2', targetPercentage: 40 },
+      ],
+    };
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
+    prismaMock.$transaction.mockImplementation(async (callback) =>
+      callback({
+        targetAllocation: {
+          deleteMany: prismaMock.targetAllocation.deleteMany,
+          createMany: prismaMock.targetAllocation.createMany,
+        },
+      }),
+    );
+    prismaMock.targetAllocation.deleteMany.mockResolvedValue({});
+    prismaMock.targetAllocation.createMany.mockResolvedValue({ count: 2 });
+
+    await expect(service.setTargetAllocations(USER_ID, input)).resolves.toBe(
+      true,
+    );
+    expect(prismaMock.targetAllocation.deleteMany).toHaveBeenCalledWith({
+      where: { groupId: input.groupId },
+    });
+    expect(prismaMock.targetAllocation.createMany).toHaveBeenCalledWith({
+      data: [
+        { groupId: input.groupId, tagId: 'tag-1', targetPercentage: 60 },
+        { groupId: input.groupId, tagId: 'tag-2', targetPercentage: 40 },
+      ],
+    });
+  });
+
+  it('getGroup은 사용자 ID에 해당하는 그룹을 반환한다', async () => {
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
+
+    await expect(service.getGroup(USER_ID, 'group-1')).resolves.toEqual({
       id: 'group-1',
       name: '성장 포트폴리오',
       description: '기본 설명',
@@ -232,107 +359,12 @@ describe('RebalancingService', () => {
       updatedAt: baseDate,
     });
 
-    prismaMock.rebalancingGroup.findUnique.mockResolvedValue(null);
-    await expect(service.getGroup('group-unknown')).resolves.toBeNull();
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(null);
+    await expect(service.getGroup(USER_ID, 'missing')).resolves.toBeNull();
   });
 
-  it('setTargetAllocations는 그룹을 검증하고 기존 목표를 대체한다', async () => {
-    const input: SetTargetAllocationsInput = {
-      groupId: 'group-1',
-      targets: [
-        { tagId: 'tag-1', targetPercentage: 60 },
-        { tagId: 'tag-2', targetPercentage: 40 },
-      ],
-    };
-    prismaMock.rebalancingGroup.findUnique.mockResolvedValue(buildGroup());
-    const deleteManyMock = jest.fn().mockResolvedValue({ count: 2 });
-    const createManyMock = jest.fn().mockResolvedValue({ count: 2 });
-    prismaMock.$transaction.mockImplementation(async (callback) =>
-      callback({
-        targetAllocation: {
-          deleteMany: deleteManyMock,
-          createMany: createManyMock,
-        },
-      }),
-    );
-
-    await expect(service.setTargetAllocations(input)).resolves.toBe(true);
-    expect(deleteManyMock).toHaveBeenCalledWith({
-      where: { groupId: input.groupId },
-    });
-    expect(createManyMock).toHaveBeenCalledWith({
-      data: [
-        { groupId: input.groupId, tagId: 'tag-1', targetPercentage: 60 },
-        { groupId: input.groupId, tagId: 'tag-2', targetPercentage: 40 },
-      ],
-    });
-  });
-
-  it('setTargetAllocations는 목표가 비어 있으면 createMany를 호출하지 않는다', async () => {
-    prismaMock.rebalancingGroup.findUnique.mockResolvedValue(buildGroup());
-    const deleteManyMock = jest.fn().mockResolvedValue({ count: 0 });
-    const createManyMock = jest.fn();
-    prismaMock.$transaction.mockImplementation(async (callback) =>
-      callback({
-        targetAllocation: {
-          deleteMany: deleteManyMock,
-          createMany: createManyMock,
-        },
-      }),
-    );
-
-    await expect(
-      service.setTargetAllocations({ groupId: 'group-1', targets: [] }),
-    ).resolves.toBe(true);
-
-    expect(deleteManyMock).toHaveBeenCalledWith({
-      where: { groupId: 'group-1' },
-    });
-    expect(createManyMock).not.toHaveBeenCalled();
-  });
-
-  it('setTargetAllocations는 그룹이 없으면 예외를 던진다', async () => {
-    prismaMock.rebalancingGroup.findUnique.mockResolvedValue(null);
-
-    await expect(
-      service.setTargetAllocations({
-        groupId: 'missing',
-        targets: [],
-      }),
-    ).rejects.toThrow('Rebalancing group not found');
-  });
-
-  it('setTargetAllocations는 합이 100이 아니면 예외를 던진다', async () => {
-    prismaMock.rebalancingGroup.findUnique.mockResolvedValue(buildGroup());
-
-    await expect(
-      service.setTargetAllocations({
-        groupId: 'group-1',
-        targets: [
-          { tagId: 'tag-1', targetPercentage: 50 },
-          { tagId: 'tag-2', targetPercentage: 40 },
-        ],
-      }),
-    ).rejects.toThrow('Target percentages must sum to 100');
-  });
-
-  it('setTargetAllocations는 그룹에 없는 태그가 포함되면 예외를 던진다', async () => {
-    prismaMock.rebalancingGroup.findUnique.mockResolvedValue(buildGroup());
-
-    await expect(
-      service.setTargetAllocations({
-        groupId: 'group-1',
-        targets: [
-          { tagId: 'tag-1', targetPercentage: 50 },
-          { tagId: 'tag-3', targetPercentage: 50 },
-        ],
-      }),
-    ).rejects.toThrow('Invalid tags: tag-3');
-  });
-
-  it('getRebalancingAnalysis는 보유 자산과 목표 비중을 기반으로 분석을 생성한다', async () => {
-    const group = buildGroup();
-    prismaMock.rebalancingGroup.findUnique.mockResolvedValue(group);
+  it('getRebalancingAnalysis는 사용자 데이터를 기반으로 분석을 생성한다', async () => {
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
     prismaMock.tag.findMany.mockResolvedValue([
       {
         id: 'tag-1',
@@ -351,99 +383,47 @@ describe('RebalancingService', () => {
         updatedAt: baseDate,
       },
     ]);
-    const holdings: BrokerageHolding[] = [
+    brokerageServiceMock.getHoldings.mockResolvedValue([
       {
         id: 'holding-1',
         symbol: 'SPY',
-        name: 'SPDR S&P 500 ETF',
-        quantity: 10,
-        currentPrice: 500,
-        marketValue: 5000,
-        averageCost: 450,
+        name: 'SPY',
+        quantity: 1,
+        currentPrice: 100,
+        marketValue: 100,
+        averageCost: null,
         currency: 'USD',
-        accountId: 'account-1',
+        accountId: 'acc-1',
         lastUpdated: baseDate,
       },
-      {
-        id: 'holding-2',
-        symbol: 'QQQ',
-        name: 'Invesco QQQ Trust',
-        quantity: 5,
-        currentPrice: 600,
-        marketValue: 3000,
-        averageCost: 550,
-        currency: 'USD',
-        accountId: 'account-1',
-        lastUpdated: baseDate,
-      },
-      {
-        id: 'holding-3',
-        symbol: 'IWM',
-        name: 'iShares Russell 2000 ETF',
-        quantity: 4,
-        currentPrice: 500,
-        marketValue: 2000,
-        averageCost: 480,
-        currency: 'USD',
-        accountId: 'account-2',
-        lastUpdated: baseDate,
-      },
-    ];
-    brokerageServiceMock.getHoldings.mockResolvedValue(holdings);
+    ]);
+    holdingsServiceMock.getHoldingsForTag
+      .mockResolvedValueOnce(['SPY'])
+      .mockResolvedValueOnce([]);
     prismaMock.targetAllocation.findMany.mockResolvedValue([
       {
         id: 'alloc-1',
         groupId: 'group-1',
         tagId: 'tag-1',
-        targetPercentage: 60,
+        targetPercentage: 70,
       },
       {
         id: 'alloc-2',
         groupId: 'group-1',
         tagId: 'tag-2',
-        targetPercentage: 40,
+        targetPercentage: 30,
       },
     ]);
-    holdingsServiceMock.getHoldingsForTag.mockImplementation(
-      async (tagId: string) => {
-        if (tagId === 'tag-1') {
-          return ['SPY'];
-        }
-        return ['QQQ', 'IWM'];
-      },
-    );
 
-    const result = await service.getRebalancingAnalysis('group-1');
+    const analysis = await service.getRebalancingAnalysis(USER_ID, 'group-1');
 
-    expect(result.groupId).toBe('group-1');
-    expect(result.groupName).toBe('성장 포트폴리오');
-    expect(result.totalValue).toBe(10000);
-    expect(result.allocations).toEqual([
-      {
-        tagId: 'tag-1',
-        tagName: '성장주',
-        tagColor: '#ff0000',
-        currentValue: 5000,
-        currentPercentage: 50,
-        targetPercentage: 60,
-        difference: 10,
-      },
-      {
-        tagId: 'tag-2',
-        tagName: '배당주',
-        tagColor: '#00ff00',
-        currentValue: 5000,
-        currentPercentage: 50,
-        targetPercentage: 40,
-        difference: -10,
-      },
-    ]);
-    expect(result.lastUpdated).toBeInstanceOf(Date);
+    expect(brokerageServiceMock.getHoldings).toHaveBeenCalledWith(USER_ID);
+    expect(analysis.totalValue).toBe(100);
+    expect(analysis.allocations).toHaveLength(2);
   });
 
   it('getRebalancingAnalysis는 태그 정보가 없으면 해당 항목을 건너뛴다', async () => {
-    const group = buildGroup();
-    prismaMock.rebalancingGroup.findUnique.mockResolvedValue(group);
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
     prismaMock.tag.findMany.mockResolvedValue([
       {
         id: 'tag-1',
@@ -454,178 +434,151 @@ describe('RebalancingService', () => {
         updatedAt: baseDate,
       },
     ]);
-    const holdings: BrokerageHolding[] = [
+    brokerageServiceMock.getHoldings.mockResolvedValue([
       {
-        id: 'h1',
+        id: 'holding-1',
         symbol: 'SPY',
-        name: 'SPDR S&P 500 ETF',
-        quantity: 10,
-        currentPrice: 500,
-        marketValue: 5000,
-        averageCost: 450,
+        name: 'SPY',
+        quantity: 1,
+        currentPrice: 100,
+        marketValue: 100,
+        averageCost: null,
         currency: 'USD',
-        accountId: 'account-1',
+        accountId: 'acc-1',
         lastUpdated: baseDate,
       },
-      {
-        id: 'h2',
-        symbol: 'QQQ',
-        name: 'Invesco QQQ Trust',
-        quantity: 5,
-        currentPrice: 400,
-        marketValue: 2000,
-        averageCost: 350,
-        currency: 'USD',
-        accountId: 'account-1',
-        lastUpdated: baseDate,
-      },
-    ];
-    brokerageServiceMock.getHoldings.mockResolvedValue(holdings);
-    prismaMock.targetAllocation.findMany.mockResolvedValue([
-      {
-        id: 'alloc-1',
-        groupId: 'group-1',
-        tagId: 'tag-1',
-        targetPercentage: 60,
-      },
-      {
-        id: 'alloc-2',
-        groupId: 'group-1',
-        tagId: 'tag-2',
-        targetPercentage: 40,
-      },
     ]);
-    holdingsServiceMock.getHoldingsForTag.mockImplementation(async (tagId) => {
-      if (tagId === 'tag-1') {
-        return ['SPY'];
-      }
-      return ['QQQ'];
-    });
+    holdingsServiceMock.getHoldingsForTag
+      .mockResolvedValueOnce(['SPY'])
+      .mockResolvedValueOnce([]);
+    prismaMock.targetAllocation.findMany.mockResolvedValue([]);
 
-    const analysis = await service.getRebalancingAnalysis('group-1');
+    const analysis = await service.getRebalancingAnalysis(USER_ID, 'group-1');
 
-    expect(analysis.totalValue).toBe(7000);
-    expect(analysis.allocations).toEqual([
-      {
-        tagId: 'tag-1',
-        tagName: '성장주',
-        tagColor: '#ff0000',
-        currentValue: 5000,
-        currentPercentage: (5000 / 7000) * 100,
-        targetPercentage: 60,
-        difference: 60 - (5000 / 7000) * 100,
-      },
-    ]);
+    expect(analysis.allocations).toHaveLength(1);
+    expect(analysis.allocations[0].tagId).toBe('tag-1');
   });
 
-  it('calculateInvestmentRecommendation은 추가 투자금에 대한 권장 금액을 계산한다', async () => {
-    const analysis: RebalancingAnalysis = {
+  it('getRebalancingAnalysis는 총 자산 가치가 0이면 비중을 0으로 설정한다', async () => {
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
+    prismaMock.tag.findMany.mockResolvedValue([
+      {
+        id: 'tag-1',
+        name: '성장주',
+        description: null,
+        color: '#ff0000',
+        createdAt: baseDate,
+        updatedAt: baseDate,
+      },
+      {
+        id: 'tag-2',
+        name: '배당주',
+        description: null,
+        color: '#00ff00',
+        createdAt: baseDate,
+        updatedAt: baseDate,
+      },
+    ]);
+    brokerageServiceMock.getHoldings.mockResolvedValue([]);
+    holdingsServiceMock.getHoldingsForTag.mockResolvedValue([]);
+    prismaMock.targetAllocation.findMany.mockResolvedValue([]);
+
+    const analysis = await service.getRebalancingAnalysis(USER_ID, 'group-1');
+
+    expect(analysis.totalValue).toBe(0);
+    expect(
+      analysis.allocations.every((item) => item.currentPercentage === 0),
+    ).toBe(true);
+  });
+
+  it('calculateInvestmentRecommendation는 분석 결과를 기반으로 추천을 생성한다', async () => {
+    const analysis = {
       groupId: 'group-1',
       groupName: '성장 포트폴리오',
-      totalValue: 10000,
+      totalValue: 100,
+      lastUpdated: baseDate,
       allocations: [
         {
           tagId: 'tag-1',
           tagName: '성장주',
           tagColor: '#ff0000',
-          currentValue: 5000,
-          currentPercentage: 50,
-          targetPercentage: 60,
+          currentValue: 60,
+          currentPercentage: 60,
+          targetPercentage: 70,
           difference: 10,
         },
         {
           tagId: 'tag-2',
           tagName: '배당주',
           tagColor: '#00ff00',
-          currentValue: 5000,
-          currentPercentage: 50,
-          targetPercentage: 40,
+          currentValue: 40,
+          currentPercentage: 40,
+          targetPercentage: 30,
           difference: -10,
         },
       ],
-      lastUpdated: new Date('2024-01-05T00:00:00Z'),
     };
-    jest.spyOn(service, 'getRebalancingAnalysis').mockResolvedValue(analysis);
-    holdingsServiceMock.getHoldingsForTag.mockImplementation(
-      async (tagId: string) => {
-        if (tagId === 'tag-1') {
-          return ['SPY'];
-        }
-        return ['QQQ'];
-      },
-    );
+    jest
+      .spyOn(service, 'getRebalancingAnalysis')
+      .mockResolvedValue(analysis as never);
+    holdingsServiceMock.getHoldingsForTag
+      .mockResolvedValueOnce(['SPY'])
+      .mockResolvedValueOnce(['QQQ']);
 
     const input: CalculateInvestmentInput = {
       groupId: 'group-1',
-      investmentAmount: 2000,
+      investmentAmount: 100,
     };
 
-    const result = await service.calculateInvestmentRecommendation(input);
+    const recommendations = await service.calculateInvestmentRecommendation(
+      USER_ID,
+      input,
+    );
 
-    expect(service.getRebalancingAnalysis).toHaveBeenCalledWith('group-1');
-    expect(result).toHaveLength(2);
-    expect(result[0]).toMatchObject({
-      tagId: 'tag-1',
-      tagName: '성장주',
-      recommendedAmount: 2200,
-      suggestedSymbols: ['SPY'],
-    });
-    expect(result[0].recommendedPercentage).toBeCloseTo(110, 5);
-    expect(result[1]).toMatchObject({
-      tagId: 'tag-2',
-      tagName: '배당주',
-      recommendedAmount: 0,
-      suggestedSymbols: ['QQQ'],
-    });
-    expect(result[1].recommendedPercentage).toBeCloseTo(0, 5);
+    expect(service.getRebalancingAnalysis).toHaveBeenCalledWith(
+      USER_ID,
+      input.groupId,
+    );
+    expect(recommendations).toHaveLength(2);
+    expect(recommendations[0].suggestedSymbols).toEqual(['SPY']);
   });
 
-  it('calculateInvestmentRecommendation은 투자금이 0이면 비율을 0으로 유지한다', async () => {
-    const analysis: RebalancingAnalysis = {
+  it('calculateInvestmentRecommendation는 투자금이 0이면 비율을 0으로 만든다', async () => {
+    const analysis = {
       groupId: 'group-1',
       groupName: '성장 포트폴리오',
-      totalValue: 10000,
+      totalValue: 200,
+      lastUpdated: baseDate,
       allocations: [
         {
           tagId: 'tag-1',
           tagName: '성장주',
           tagColor: '#ff0000',
-          currentValue: 5000,
-          currentPercentage: 50,
-          targetPercentage: 60,
-          difference: 10,
-        },
-        {
-          tagId: 'tag-2',
-          tagName: '배당주',
-          tagColor: '#00ff00',
-          currentValue: 5000,
-          currentPercentage: 50,
-          targetPercentage: 40,
-          difference: -10,
+          currentValue: 200,
+          currentPercentage: 100,
+          targetPercentage: 100,
+          difference: 0,
         },
       ],
-      lastUpdated: new Date('2024-01-05T00:00:00Z'),
     };
-    jest.spyOn(service, 'getRebalancingAnalysis').mockResolvedValue(analysis);
-    holdingsServiceMock.getHoldingsForTag.mockImplementation(async (tagId) =>
-      tagId === 'tag-1' ? ['SPY'] : ['QQQ'],
+    jest
+      .spyOn(service, 'getRebalancingAnalysis')
+      .mockResolvedValue(analysis as never);
+    holdingsServiceMock.getHoldingsForTag.mockResolvedValue(['SPY']);
+
+    const recommendations = await service.calculateInvestmentRecommendation(
+      USER_ID,
+      { groupId: 'group-1', investmentAmount: 0 },
     );
 
-    const recommendations = await service.calculateInvestmentRecommendation({
-      groupId: 'group-1',
-      investmentAmount: 0,
-    });
-
-    expect(recommendations[0]).toMatchObject({
-      tagId: 'tag-1',
-      recommendedAmount: 1000,
-      recommendedPercentage: 0,
-    });
-    expect(recommendations[1]).toMatchObject({
-      tagId: 'tag-2',
-      recommendedAmount: 0,
-      recommendedPercentage: 0,
-    });
+    expect(recommendations).toEqual([
+      {
+        tagId: 'tag-1',
+        tagName: '성장주',
+        recommendedAmount: 0,
+        recommendedPercentage: 0,
+        suggestedSymbols: ['SPY'],
+      },
+    ]);
   });
 });

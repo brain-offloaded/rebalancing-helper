@@ -4,29 +4,30 @@ import styled from 'styled-components';
 import { GET_TAGS, CREATE_TAG, UPDATE_TAG, DELETE_TAG } from '../graphql/tags';
 
 const Container = styled.div`
-  padding: ${props => props.theme.spacing.lg};
+  padding: ${(props) => props.theme.spacing.lg};
 `;
 
 const Card = styled.div`
   background: white;
-  border: 1px solid ${props => props.theme.colors.border};
-  border-radius: ${props => props.theme.borderRadius.md};
-  padding: ${props => props.theme.spacing.lg};
-  margin-bottom: ${props => props.theme.spacing.md};
-  box-shadow: ${props => props.theme.shadows.sm};
+  border: 1px solid ${(props) => props.theme.colors.border};
+  border-radius: ${(props) => props.theme.borderRadius.md};
+  padding: ${(props) => props.theme.spacing.lg};
+  margin-bottom: ${(props) => props.theme.spacing.md};
+  box-shadow: ${(props) => props.theme.shadows.sm};
 `;
 
 const Button = styled.button<{ variant?: 'primary' | 'danger' | 'secondary' }>`
-  padding: ${props => props.theme.spacing.sm} ${props => props.theme.spacing.md};
-  font-size: ${props => props.theme.typography.fontSize.sm};
-  font-weight: ${props => props.theme.typography.fontWeight.medium};
+  padding: ${(props) => props.theme.spacing.sm}
+    ${(props) => props.theme.spacing.md};
+  font-size: ${(props) => props.theme.typography.fontSize.sm};
+  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
   border: none;
-  border-radius: ${props => props.theme.borderRadius.sm};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-right: ${props => props.theme.spacing.sm};
+  margin-right: ${(props) => props.theme.spacing.sm};
 
-  ${props => {
+  ${(props) => {
     switch (props.variant) {
       case 'primary':
         return `
@@ -54,8 +55,8 @@ const Button = styled.button<{ variant?: 'primary' | 'danger' | 'secondary' }>`
 
 const Form = styled.form`
   display: grid;
-  gap: ${props => props.theme.spacing.md};
-  margin-bottom: ${props => props.theme.spacing.lg};
+  gap: ${(props) => props.theme.spacing.md};
+  margin-bottom: ${(props) => props.theme.spacing.lg};
 `;
 
 const FormGroup = styled.div`
@@ -64,19 +65,20 @@ const FormGroup = styled.div`
 `;
 
 const Label = styled.label`
-  font-weight: ${props => props.theme.typography.fontWeight.medium};
-  margin-bottom: ${props => props.theme.spacing.xs};
+  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
+  margin-bottom: ${(props) => props.theme.spacing.xs};
 `;
 
 const Input = styled.input`
-  padding: ${props => props.theme.spacing.sm} ${props => props.theme.spacing.md};
-  border: 1px solid ${props => props.theme.colors.border};
-  border-radius: ${props => props.theme.borderRadius.sm};
-  font-size: ${props => props.theme.typography.fontSize.md};
+  padding: ${(props) => props.theme.spacing.sm}
+    ${(props) => props.theme.spacing.md};
+  border: 1px solid ${(props) => props.theme.colors.border};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
+  font-size: ${(props) => props.theme.typography.fontSize.md};
 
   &:focus {
     outline: none;
-    border-color: ${props => props.theme.colors.primary};
+    border-color: ${(props) => props.theme.colors.primary};
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
   }
 `;
@@ -84,7 +86,7 @@ const Input = styled.input`
 const TagGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: ${props => props.theme.spacing.md};
+  gap: ${(props) => props.theme.spacing.md};
 `;
 
 const TagCard = styled(Card)`
@@ -94,26 +96,26 @@ const TagCard = styled(Card)`
 const TagHeader = styled.div`
   display: flex;
   align-items: center;
-  margin-bottom: ${props => props.theme.spacing.md};
+  margin-bottom: ${(props) => props.theme.spacing.md};
 `;
 
 const TagColorBox = styled.div<{ color: string }>`
   width: 24px;
   height: 24px;
-  background-color: ${props => props.color};
-  border-radius: ${props => props.theme.borderRadius.sm};
-  margin-right: ${props => props.theme.spacing.sm};
+  background-color: ${(props) => props.color};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
+  margin-right: ${(props) => props.theme.spacing.sm};
 `;
 
 const TagTitle = styled.h3`
   margin: 0;
-  color: ${props => props.theme.colors.text};
+  color: ${(props) => props.theme.colors.text};
 `;
 
 const TagDescription = styled.p`
-  color: ${props => props.theme.colors.textLight};
-  margin-bottom: ${props => props.theme.spacing.md};
-  font-size: ${props => props.theme.typography.fontSize.sm};
+  color: ${(props) => props.theme.colors.textLight};
+  margin-bottom: ${(props) => props.theme.spacing.md};
+  font-size: ${(props) => props.theme.typography.fontSize.sm};
 `;
 
 interface Tag {
@@ -126,8 +128,16 @@ interface Tag {
 }
 
 const DEFAULT_COLORS = [
-  '#007bff', '#28a745', '#ffc107', '#dc3545', '#17a2b8',
-  '#6f42c1', '#e83e8c', '#fd7e14', '#20c997', '#6c757d'
+  '#007bff',
+  '#28a745',
+  '#ffc107',
+  '#dc3545',
+  '#17a2b8',
+  '#6f42c1',
+  '#e83e8c',
+  '#fd7e14',
+  '#20c997',
+  '#6c757d',
 ];
 
 export const Tags: React.FC = () => {
@@ -206,7 +216,7 @@ export const Tags: React.FC = () => {
     <Container>
       <h2>태그 관리</h2>
       <p>보유 종목을 분류하기 위한 태그를 관리합니다.</p>
-      
+
       <Button variant="primary" onClick={() => setShowForm(!showForm)}>
         {showForm ? '취소' : '태그 추가'}
       </Button>
@@ -220,7 +230,9 @@ export const Tags: React.FC = () => {
               <Input
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 required
               />
             </FormGroup>
@@ -230,7 +242,9 @@ export const Tags: React.FC = () => {
               <Input
                 type="text"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
               />
             </FormGroup>
 
@@ -244,7 +258,10 @@ export const Tags: React.FC = () => {
                       width: '40px',
                       height: '40px',
                       backgroundColor: color,
-                      border: formData.color === color ? '3px solid #000' : '1px solid #ccc',
+                      border:
+                        formData.color === color
+                          ? '3px solid #000'
+                          : '1px solid #ccc',
                       borderRadius: '4px',
                       cursor: 'pointer',
                     }}
@@ -255,7 +272,9 @@ export const Tags: React.FC = () => {
               <Input
                 type="color"
                 value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, color: e.target.value })
+                }
                 style={{ marginTop: '8px', width: '80px', height: '40px' }}
               />
             </FormGroup>
@@ -264,7 +283,9 @@ export const Tags: React.FC = () => {
               <Button type="submit" variant="primary">
                 {editingTag ? '수정' : '추가'}
               </Button>
-              <Button type="button" onClick={resetForm}>취소</Button>
+              <Button type="button" onClick={resetForm}>
+                취소
+              </Button>
             </div>
           </Form>
         </Card>
@@ -277,14 +298,16 @@ export const Tags: React.FC = () => {
               <TagColorBox color={tag.color} />
               <TagTitle>{tag.name}</TagTitle>
             </TagHeader>
-            
+
             {tag.description && (
               <TagDescription>{tag.description}</TagDescription>
             )}
 
             <div>
               <Button onClick={() => handleEdit(tag)}>수정</Button>
-              <Button variant="danger" onClick={() => handleDelete(tag.id)}>삭제</Button>
+              <Button variant="danger" onClick={() => handleDelete(tag.id)}>
+                삭제
+              </Button>
             </div>
           </TagCard>
         ))}

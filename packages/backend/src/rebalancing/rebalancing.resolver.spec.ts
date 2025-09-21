@@ -10,8 +10,13 @@ import {
   InvestmentRecommendation,
   RebalancingAnalysis,
   RebalancingGroup,
-  TagAllocation,
 } from './rebalancing.entities';
+import { ActiveUserData } from '../auth/auth.types';
+
+const mockUser: ActiveUserData = {
+  userId: 'user-1',
+  email: 'demo@example.com',
+};
 
 const createGroup = (
   overrides: Partial<RebalancingGroup> = {},
@@ -24,25 +29,23 @@ const createGroup = (
   updatedAt: overrides.updatedAt ?? new Date('2024-01-02T00:00:00Z'),
 });
 
-const createAllocation = (
-  overrides: Partial<TagAllocation> = {},
-): TagAllocation => ({
-  tagId: overrides.tagId ?? 'tag-1',
-  tagName: overrides.tagName ?? '성장주',
-  tagColor: overrides.tagColor ?? '#ff0000',
-  currentValue: overrides.currentValue ?? 1000,
-  currentPercentage: overrides.currentPercentage ?? 0.5,
-  targetPercentage: overrides.targetPercentage ?? 0.6,
-  difference: overrides.difference ?? 0.1,
-});
-
 const createAnalysis = (
   overrides: Partial<RebalancingAnalysis> = {},
 ): RebalancingAnalysis => ({
   groupId: overrides.groupId ?? 'group-1',
   groupName: overrides.groupName ?? '테스트 그룹',
   totalValue: overrides.totalValue ?? 1000,
-  allocations: overrides.allocations ?? [createAllocation()],
+  allocations: overrides.allocations ?? [
+    {
+      tagId: 'tag-1',
+      tagName: '성장주',
+      tagColor: '#ff0000',
+      currentValue: 600,
+      currentPercentage: 60,
+      targetPercentage: 70,
+      difference: 10,
+    },
+  ],
   lastUpdated: overrides.lastUpdated ?? new Date('2024-01-02T00:00:00Z'),
 });
 
@@ -52,7 +55,7 @@ const createRecommendation = (
   tagId: overrides.tagId ?? 'tag-1',
   tagName: overrides.tagName ?? '성장주',
   recommendedAmount: overrides.recommendedAmount ?? 100,
-  recommendedPercentage: overrides.recommendedPercentage ?? 0.1,
+  recommendedPercentage: overrides.recommendedPercentage ?? 50,
   suggestedSymbols: overrides.suggestedSymbols ?? ['SPY'],
 });
 
@@ -75,49 +78,53 @@ describe('RebalancingResolver', () => {
     resolver = new RebalancingResolver(service);
   });
 
-  it('rebalancingGroups는 서비스의 그룹 목록을 반환한다', async () => {
+  it('rebalancingGroups는 사용자 ID로 그룹 목록을 조회한다', async () => {
     const groups = [createGroup()];
     service.getGroups.mockResolvedValue(groups);
 
-    await expect(resolver.rebalancingGroups()).resolves.toBe(groups);
-    expect(service.getGroups).toHaveBeenCalledTimes(1);
+    await expect(resolver.rebalancingGroups(mockUser)).resolves.toBe(groups);
+    expect(service.getGroups).toHaveBeenCalledWith(mockUser.userId);
   });
 
-  it('rebalancingGroup은 ID 기반 단일 그룹을 조회한다', async () => {
+  it('rebalancingGroup은 사용자와 ID를 전달한다', async () => {
     const group = createGroup({ id: 'group-9' });
     service.getGroup.mockResolvedValue(group);
 
-    await expect(resolver.rebalancingGroup('group-9')).resolves.toBe(group);
-    expect(service.getGroup).toHaveBeenCalledWith('group-9');
+    await expect(resolver.rebalancingGroup(mockUser, 'group-9')).resolves.toBe(
+      group,
+    );
+    expect(service.getGroup).toHaveBeenCalledWith(mockUser.userId, 'group-9');
   });
 
-  it('rebalancingAnalysis는 분석 데이터를 반환한다', async () => {
-    const analysis = createAnalysis({ groupId: 'group-1' });
+  it('rebalancingAnalysis는 사용자와 그룹 ID로 분석을 조회한다', async () => {
+    const analysis = createAnalysis();
     service.getRebalancingAnalysis.mockResolvedValue(analysis);
 
-    await expect(resolver.rebalancingAnalysis('group-1')).resolves.toBe(
-      analysis,
+    await expect(
+      resolver.rebalancingAnalysis(mockUser, 'group-1'),
+    ).resolves.toBe(analysis);
+    expect(service.getRebalancingAnalysis).toHaveBeenCalledWith(
+      mockUser.userId,
+      'group-1',
     );
-    expect(service.getRebalancingAnalysis).toHaveBeenCalledWith('group-1');
   });
 
-  it('createRebalancingGroup은 생성 입력을 위임한다', async () => {
+  it('createRebalancingGroup은 사용자 ID와 입력을 서비스로 전달한다', async () => {
     const input: CreateRebalancingGroupInput = {
       name: '새 그룹',
       description: '설명',
       tagIds: ['tag-1'],
     };
-    const group = createGroup({
-      name: input.name,
-      description: input.description,
-    });
+    const group = createGroup({ name: input.name });
     service.createGroup.mockResolvedValue(group);
 
-    await expect(resolver.createRebalancingGroup(input)).resolves.toBe(group);
-    expect(service.createGroup).toHaveBeenCalledWith(input);
+    await expect(
+      resolver.createRebalancingGroup(mockUser, input),
+    ).resolves.toBe(group);
+    expect(service.createGroup).toHaveBeenCalledWith(mockUser.userId, input);
   });
 
-  it('updateRebalancingGroup은 수정 입력을 서비스로 전달한다', async () => {
+  it('updateRebalancingGroup은 사용자 ID를 포함해 호출한다', async () => {
     const input: UpdateRebalancingGroupInput = {
       id: 'group-1',
       name: '수정된 이름',
@@ -125,44 +132,55 @@ describe('RebalancingResolver', () => {
     const group = createGroup({ name: input.name });
     service.updateGroup.mockResolvedValue(group);
 
-    await expect(resolver.updateRebalancingGroup(input)).resolves.toBe(group);
-    expect(service.updateGroup).toHaveBeenCalledWith(input);
+    await expect(
+      resolver.updateRebalancingGroup(mockUser, input),
+    ).resolves.toBe(group);
+    expect(service.updateGroup).toHaveBeenCalledWith(mockUser.userId, input);
   });
 
-  it('deleteRebalancingGroup은 Boolean 값을 반환한다', async () => {
+  it('deleteRebalancingGroup은 사용자 ID와 그룹 ID를 전달한다', async () => {
     service.deleteGroup.mockResolvedValue(true);
 
-    await expect(resolver.deleteRebalancingGroup('group-1')).resolves.toBe(
-      true,
+    await expect(
+      resolver.deleteRebalancingGroup(mockUser, 'group-1'),
+    ).resolves.toBe(true);
+    expect(service.deleteGroup).toHaveBeenCalledWith(
+      mockUser.userId,
+      'group-1',
     );
-    expect(service.deleteGroup).toHaveBeenCalledWith('group-1');
   });
 
-  it('setTargetAllocations는 성공 여부를 전달한다', async () => {
+  it('setTargetAllocations는 사용자 ID와 입력을 전달한다', async () => {
     const input: SetTargetAllocationsInput = {
       groupId: 'group-1',
-      targets: [{ tagId: 'tag-1', targetPercentage: 0.5 }],
+      targets: [{ tagId: 'tag-1', targetPercentage: 50 }],
     };
     service.setTargetAllocations.mockResolvedValue(true);
 
-    await expect(resolver.setTargetAllocations(input)).resolves.toBe(true);
-    expect(service.setTargetAllocations).toHaveBeenCalledWith(input);
+    await expect(resolver.setTargetAllocations(mockUser, input)).resolves.toBe(
+      true,
+    );
+    expect(service.setTargetAllocations).toHaveBeenCalledWith(
+      mockUser.userId,
+      input,
+    );
   });
 
-  it('investmentRecommendation은 추천 결과를 반환한다', async () => {
+  it('investmentRecommendation은 사용자 ID와 입력을 전달한다', async () => {
     const input: CalculateInvestmentInput = {
       groupId: 'group-1',
       investmentAmount: 1000,
     };
-    const recommendations = [createRecommendation({ recommendedAmount: 500 })];
+    const recommendations = [createRecommendation()];
     service.calculateInvestmentRecommendation.mockResolvedValue(
       recommendations,
     );
 
-    await expect(resolver.investmentRecommendation(input)).resolves.toBe(
-      recommendations,
-    );
+    await expect(
+      resolver.investmentRecommendation(mockUser, input),
+    ).resolves.toBe(recommendations);
     expect(service.calculateInvestmentRecommendation).toHaveBeenCalledWith(
+      mockUser.userId,
       input,
     );
   });

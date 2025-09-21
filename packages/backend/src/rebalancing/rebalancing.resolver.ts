@@ -1,3 +1,4 @@
+import { UseGuards } from '@nestjs/common';
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import { RebalancingService } from './rebalancing.service';
 import {
@@ -11,58 +12,78 @@ import {
   SetTargetAllocationsInput,
   CalculateInvestmentInput,
 } from './rebalancing.dto';
+import { GqlAuthGuard } from '../auth/gql-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { ActiveUserData } from '../auth/auth.types';
 
+@UseGuards(GqlAuthGuard)
 @Resolver(() => RebalancingGroup)
 export class RebalancingResolver {
   constructor(private readonly rebalancingService: RebalancingService) {}
 
   @Query(() => [RebalancingGroup])
-  rebalancingGroups(): Promise<RebalancingGroup[]> {
-    return this.rebalancingService.getGroups();
+  rebalancingGroups(
+    @CurrentUser() user: ActiveUserData,
+  ): Promise<RebalancingGroup[]> {
+    return this.rebalancingService.getGroups(user.userId);
   }
 
   @Query(() => RebalancingGroup, { nullable: true })
-  rebalancingGroup(@Args('id') id: string): Promise<RebalancingGroup | null> {
-    return this.rebalancingService.getGroup(id);
+  rebalancingGroup(
+    @CurrentUser() user: ActiveUserData,
+    @Args('id') id: string,
+  ): Promise<RebalancingGroup | null> {
+    return this.rebalancingService.getGroup(user.userId, id);
   }
 
   @Query(() => RebalancingAnalysis)
   rebalancingAnalysis(
+    @CurrentUser() user: ActiveUserData,
     @Args('groupId') groupId: string,
   ): Promise<RebalancingAnalysis> {
-    return this.rebalancingService.getRebalancingAnalysis(groupId);
+    return this.rebalancingService.getRebalancingAnalysis(user.userId, groupId);
   }
 
   @Mutation(() => RebalancingGroup)
   createRebalancingGroup(
+    @CurrentUser() user: ActiveUserData,
     @Args('input') input: CreateRebalancingGroupInput,
   ): Promise<RebalancingGroup> {
-    return this.rebalancingService.createGroup(input);
+    return this.rebalancingService.createGroup(user.userId, input);
   }
 
   @Mutation(() => RebalancingGroup)
   updateRebalancingGroup(
+    @CurrentUser() user: ActiveUserData,
     @Args('input') input: UpdateRebalancingGroupInput,
   ): Promise<RebalancingGroup> {
-    return this.rebalancingService.updateGroup(input);
+    return this.rebalancingService.updateGroup(user.userId, input);
   }
 
   @Mutation(() => Boolean)
-  deleteRebalancingGroup(@Args('id') id: string): Promise<boolean> {
-    return this.rebalancingService.deleteGroup(id);
+  deleteRebalancingGroup(
+    @CurrentUser() user: ActiveUserData,
+    @Args('id') id: string,
+  ): Promise<boolean> {
+    return this.rebalancingService.deleteGroup(user.userId, id);
   }
 
   @Mutation(() => Boolean)
   setTargetAllocations(
+    @CurrentUser() user: ActiveUserData,
     @Args('input') input: SetTargetAllocationsInput,
   ): Promise<boolean> {
-    return this.rebalancingService.setTargetAllocations(input);
+    return this.rebalancingService.setTargetAllocations(user.userId, input);
   }
 
   @Query(() => [InvestmentRecommendation])
   investmentRecommendation(
+    @CurrentUser() user: ActiveUserData,
     @Args('input') input: CalculateInvestmentInput,
   ): Promise<InvestmentRecommendation[]> {
-    return this.rebalancingService.calculateInvestmentRecommendation(input);
+    return this.rebalancingService.calculateInvestmentRecommendation(
+      user.userId,
+      input,
+    );
   }
 }

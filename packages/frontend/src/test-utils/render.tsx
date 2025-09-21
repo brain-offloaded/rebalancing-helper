@@ -1,16 +1,16 @@
-import { ReactElement, ReactNode } from 'react'
-import { render, RenderOptions } from '@testing-library/react'
-import { MockedProvider, MockedResponse } from '@apollo/client/testing'
-import { ThemeProvider } from 'styled-components'
-import { theme } from '../styles/GlobalStyle'
+import { ReactElement, ReactNode } from 'react';
+import { render, RenderOptions } from '@testing-library/react';
+import { MockedProvider, MockedResponse } from '@apollo/client/testing';
+import { ThemeProvider } from 'styled-components';
+import { theme } from '../styles/GlobalStyle';
 
 interface ProvidersOptions {
-  mocks?: MockedResponse[]
-  addTypename?: boolean
-  withApollo?: boolean
+  mocks?: MockedResponse[];
+  addTypename?: boolean;
+  withApollo?: boolean;
 }
 
-type ExtendedRenderOptions = ProvidersOptions & Omit<RenderOptions, 'wrapper'>
+type ExtendedRenderOptions = ProvidersOptions & Omit<RenderOptions, 'wrapper'>;
 
 export const renderWithProviders = (
   ui: ReactElement,
@@ -31,10 +31,10 @@ export const renderWithProviders = (
       </MockedProvider>
     ) : (
       children
-    )
+    );
 
-    return <ThemeProvider theme={theme}>{content}</ThemeProvider>
-  }
+    return <ThemeProvider theme={theme}>{content}</ThemeProvider>;
+  };
 
-  return render(ui, { wrapper: Wrapper, ...renderOptions })
-}
+  return render(ui, { wrapper: Wrapper, ...renderOptions });
+};
