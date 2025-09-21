@@ -1,10 +1,16 @@
 import { BrokerageResolver } from './brokerage.resolver';
 import { BrokerageService } from './brokerage.service';
 import {
+  CreateBrokerInput,
   CreateBrokerageAccountInput,
+  UpdateBrokerInput,
   UpdateBrokerageAccountInput,
 } from './brokerage.dto';
-import { BrokerageAccount, BrokerageHolding } from './brokerage.entities';
+import {
+  Broker,
+  BrokerageAccount,
+  BrokerageHolding,
+} from './brokerage.entities';
 import { ActiveUserData } from '../auth/auth.types';
 
 const mockUser: ActiveUserData = {
@@ -17,8 +23,31 @@ const createAccount = (
 ): BrokerageAccount => ({
   id: overrides.id ?? 'account-1',
   name: overrides.name ?? '기본 계좌',
-  brokerName: overrides.brokerName ?? '브로커',
+  brokerId: overrides.brokerId ?? 'broker-1',
   description: overrides.description ?? null,
+  isActive: overrides.isActive ?? true,
+  broker:
+    overrides.broker ??
+    ({
+      id: 'broker-1',
+      code: 'B001',
+      name: '브로커',
+      description: null,
+      apiBaseUrl: null,
+      isActive: true,
+      createdAt: new Date('2024-01-01T00:00:00Z'),
+      updatedAt: new Date('2024-01-02T00:00:00Z'),
+    } as Broker),
+  createdAt: overrides.createdAt ?? new Date('2024-01-01T00:00:00Z'),
+  updatedAt: overrides.updatedAt ?? new Date('2024-01-02T00:00:00Z'),
+});
+
+const createBroker = (overrides: Partial<Broker> = {}): Broker => ({
+  id: overrides.id ?? 'broker-1',
+  code: overrides.code ?? 'B001',
+  name: overrides.name ?? '브로커',
+  description: overrides.description ?? null,
+  apiBaseUrl: overrides.apiBaseUrl ?? null,
   isActive: overrides.isActive ?? true,
   createdAt: overrides.createdAt ?? new Date('2024-01-01T00:00:00Z'),
   updatedAt: overrides.updatedAt ?? new Date('2024-01-02T00:00:00Z'),
@@ -45,6 +74,10 @@ describe('BrokerageResolver', () => {
 
   beforeEach(() => {
     service = {
+      listBrokers: jest.fn(),
+      createBroker: jest.fn(),
+      updateBroker: jest.fn(),
+      deleteBroker: jest.fn(),
       getAccounts: jest.fn(),
       getAccount: jest.fn(),
       getHoldings: jest.fn(),
@@ -103,7 +136,7 @@ describe('BrokerageResolver', () => {
   it('createBrokerageAccount는 사용자 ID와 입력을 전달한다', async () => {
     const input: CreateBrokerageAccountInput = {
       name: '새 계좌',
-      brokerName: '새 브로커',
+      brokerId: 'broker-1',
       apiKey: 'api-key',
     };
     const account = createAccount({ name: input.name });
@@ -152,5 +185,43 @@ describe('BrokerageResolver', () => {
       mockUser.userId,
       'account-1',
     );
+  });
+
+  it('brokers는 서비스의 목록을 반환한다', async () => {
+    const brokers = [createBroker()];
+    service.listBrokers.mockResolvedValue(brokers);
+
+    await expect(resolver.brokers(mockUser)).resolves.toBe(brokers);
+    expect(service.listBrokers).toHaveBeenCalledTimes(1);
+  });
+
+  it('createBroker는 입력을 서비스로 전달한다', async () => {
+    const input: CreateBrokerInput = {
+      code: 'NEW',
+      name: '새 증권사',
+    };
+    const broker = createBroker({ code: input.code, name: input.name });
+    service.createBroker.mockResolvedValue(broker);
+
+    await expect(resolver.createBroker(mockUser, input)).resolves.toBe(broker);
+    expect(service.createBroker).toHaveBeenCalledWith(input);
+  });
+
+  it('updateBroker는 입력을 서비스로 전달한다', async () => {
+    const input: UpdateBrokerInput = { id: 'broker-1', name: '수정' };
+    const broker = createBroker({ name: '수정' });
+    service.updateBroker.mockResolvedValue(broker);
+
+    await expect(resolver.updateBroker(mockUser, input)).resolves.toBe(broker);
+    expect(service.updateBroker).toHaveBeenCalledWith(input);
+  });
+
+  it('deleteBroker는 삭제 결과를 반환한다', async () => {
+    service.deleteBroker.mockResolvedValue(true);
+
+    await expect(resolver.deleteBroker(mockUser, 'broker-1')).resolves.toBe(
+      true,
+    );
+    expect(service.deleteBroker).toHaveBeenCalledWith('broker-1');
   });
 });

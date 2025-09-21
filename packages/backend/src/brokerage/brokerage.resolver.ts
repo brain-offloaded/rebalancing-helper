@@ -1,9 +1,15 @@
 import { UseGuards } from '@nestjs/common';
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import { BrokerageService } from './brokerage.service';
-import { BrokerageAccount, BrokerageHolding } from './brokerage.entities';
 import {
+  Broker,
+  BrokerageAccount,
+  BrokerageHolding,
+} from './brokerage.entities';
+import {
+  CreateBrokerInput,
   CreateBrokerageAccountInput,
+  UpdateBrokerInput,
   UpdateBrokerageAccountInput,
 } from './brokerage.dto';
 import { GqlAuthGuard } from '../auth/gql-auth.guard';
@@ -14,6 +20,35 @@ import { ActiveUserData } from '../auth/auth.types';
 @Resolver(() => BrokerageAccount)
 export class BrokerageResolver {
   constructor(private readonly brokerageService: BrokerageService) {}
+
+  @Query(() => [Broker])
+  brokers(@CurrentUser() _user: ActiveUserData): Promise<Broker[]> {
+    return this.brokerageService.listBrokers();
+  }
+
+  @Mutation(() => Broker)
+  createBroker(
+    @CurrentUser() _user: ActiveUserData,
+    @Args('input') input: CreateBrokerInput,
+  ): Promise<Broker> {
+    return this.brokerageService.createBroker(input);
+  }
+
+  @Mutation(() => Broker)
+  updateBroker(
+    @CurrentUser() _user: ActiveUserData,
+    @Args('input') input: UpdateBrokerInput,
+  ): Promise<Broker> {
+    return this.brokerageService.updateBroker(input);
+  }
+
+  @Mutation(() => Boolean)
+  deleteBroker(
+    @CurrentUser() _user: ActiveUserData,
+    @Args('id') id: string,
+  ): Promise<boolean> {
+    return this.brokerageService.deleteBroker(id);
+  }
 
   @Query(() => [BrokerageAccount])
   brokerageAccounts(

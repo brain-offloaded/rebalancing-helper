@@ -7,22 +7,39 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model BrokerageAccount {
+model Broker {
   id          String             @id @default(cuid())
+  code        String             @unique
   name        String
-  brokerName  String
   description String?
-  apiKey      String
-  apiSecret   String?
   apiBaseUrl  String?
   isActive    Boolean            @default(true)
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
-  userId      String
-  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  holdings    BrokerageHolding[]
+  accounts    BrokerageAccount[]
+}
+
+model BrokerageAccount {
+  id           String           @id @default(cuid())
+  name         String
+  description  String?
+  isActive     Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brokerId     String
+  broker       Broker           @relation(fields: [brokerId], references: [id], onDelete: Restrict)
+  apiKeyCipher String
+  apiKeyIv     String
+  apiKeyTag    String
+  apiSecretCipher String?
+  apiSecretIv     String?
+  apiSecretTag    String?
+  holdings     BrokerageHolding[]
 
   @@index([userId])
+  @@index([brokerId])
 }
 
 model BrokerageHolding {

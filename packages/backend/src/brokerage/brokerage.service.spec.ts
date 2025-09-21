@@ -1,14 +1,21 @@
+import { NotFoundException } from '@nestjs/common';
 import { BrokerageService } from './brokerage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateBrokerageAccountInput,
   UpdateBrokerageAccountInput,
 } from './brokerage.dto';
-import { NotFoundException } from '@nestjs/common';
+import { CredentialCryptoService } from './credential-crypto.service';
 
 const USER_ID = 'user-1';
 
 type MockedPrisma = {
+  broker: {
+    findMany: jest.Mock;
+    create: jest.Mock;
+    update: jest.Mock;
+    deleteMany: jest.Mock;
+  };
   brokerageAccount: {
     create: jest.Mock;
     update: jest.Mock;
@@ -28,9 +35,18 @@ type MockedPrisma = {
 describe('BrokerageService', () => {
   let prismaMock: MockedPrisma;
   let service: BrokerageService;
+  let credentialCryptoMock: jest.Mocked<
+    Pick<CredentialCryptoService, 'encrypt'>
+  >;
 
   beforeEach(() => {
     prismaMock = {
+      broker: {
+        findMany: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        deleteMany: jest.fn(),
+      },
       brokerageAccount: {
         create: jest.fn(),
         update: jest.fn(),
@@ -47,29 +63,46 @@ describe('BrokerageService', () => {
       $transaction: jest.fn(),
     };
 
-    service = new BrokerageService(prismaMock as unknown as PrismaService);
+    credentialCryptoMock = {
+      encrypt: jest.fn((value) => ({
+        cipher: `${value}-cipher`,
+        iv: `${value}-iv`,
+        authTag: `${value}-tag`,
+      })),
+    };
+
+    service = new BrokerageService(
+      prismaMock as unknown as PrismaService,
+      credentialCryptoMock as unknown as CredentialCryptoService,
+    );
   });
 
   it('createAccount는 사용자와 연결된 계좌를 생성한다', async () => {
     const input: CreateBrokerageAccountInput = {
       name: '미래에셋 계좌',
-      brokerName: '미래에셋',
+      brokerId: 'broker-1',
       apiKey: 'api-key',
     };
     prismaMock.brokerageAccount.create.mockResolvedValue({ id: 'acc-1' });
 
     await service.createAccount(USER_ID, input);
 
+    expect(credentialCryptoMock.encrypt).toHaveBeenCalledWith('api-key');
     expect(prismaMock.brokerageAccount.create).toHaveBeenCalledWith({
       data: {
         name: input.name,
-        brokerName: input.brokerName,
-        apiKey: input.apiKey,
+        broker: { connect: { id: input.brokerId } },
+        apiKeyCipher: 'api-key-cipher',
+        apiKeyIv: 'api-key-iv',
+        apiKeyTag: 'api-key-tag',
+        apiSecretCipher: null,
+        apiSecretIv: null,
+        apiSecretTag: null,
         description: null,
-        apiSecret: null,
-        apiBaseUrl: null,
+        isActive: true,
         user: { connect: { id: USER_ID } },
       },
+      include: { broker: true },
     });
   });
 
@@ -90,6 +123,34 @@ describe('BrokerageService', () => {
     expect(prismaMock.brokerageAccount.update).toHaveBeenCalledWith({
       where: { id: input.id },
       data: { name: input.name },
+      include: { broker: true },
+    });
+  });
+
+  it('updateAccount는 자격 증명 갱신 시 암호화한다', async () => {
+    prismaMock.brokerageAccount.findFirst.mockResolvedValue({ id: 'acc-1' });
+    const input: UpdateBrokerageAccountInput = {
+      id: 'acc-1',
+      apiKey: 'new-key',
+      apiSecret: 'new-secret',
+    };
+    prismaMock.brokerageAccount.update.mockResolvedValue({ id: 'acc-1' });
+
+    await service.updateAccount(USER_ID, input);
+
+    expect(credentialCryptoMock.encrypt).toHaveBeenCalledWith('new-key');
+    expect(credentialCryptoMock.encrypt).toHaveBeenCalledWith('new-secret');
+    expect(prismaMock.brokerageAccount.update).toHaveBeenCalledWith({
+      where: { id: input.id },
+      data: {
+        apiKeyCipher: 'new-key-cipher',
+        apiKeyIv: 'new-key-iv',
+        apiKeyTag: 'new-key-tag',
+        apiSecretCipher: 'new-secret-cipher',
+        apiSecretIv: 'new-secret-iv',
+        apiSecretTag: 'new-secret-tag',
+      },
+      include: { broker: true },
     });
   });
 
@@ -126,6 +187,7 @@ describe('BrokerageService', () => {
     expect(prismaMock.brokerageAccount.findMany).toHaveBeenCalledWith({
       where: { userId: USER_ID },
       orderBy: { createdAt: 'asc' },
+      include: { broker: true },
     });
   });
 
@@ -135,6 +197,7 @@ describe('BrokerageService', () => {
     await service.getAccount(USER_ID, 'acc-1');
     expect(prismaMock.brokerageAccount.findFirst).toHaveBeenCalledWith({
       where: { id: 'acc-1', userId: USER_ID },
+      include: { broker: true },
     });
   });
 
@@ -189,5 +252,51 @@ describe('BrokerageService', () => {
       where: { accountId: 'acc-1', account: { userId: USER_ID } },
       orderBy: { symbol: 'asc' },
     });
+  });
+
+  it('listBrokers는 이름 순으로 정렬해 조회한다', async () => {
+    prismaMock.broker.findMany.mockResolvedValue([]);
+
+    await service.listBrokers();
+    expect(prismaMock.broker.findMany).toHaveBeenCalledWith({
+      orderBy: { name: 'asc' },
+    });
+  });
+
+  it('createBroker는 입력을 그대로 위임한다', async () => {
+    const input = {
+      code: 'KR-BROKER',
+      name: '한국증권',
+      description: 'desc',
+      apiBaseUrl: 'https://api.example.com',
+    };
+    prismaMock.broker.create.mockResolvedValue({ id: 'broker-1' });
+
+    await service.createBroker(input);
+    expect(prismaMock.broker.create).toHaveBeenCalledWith({
+      data: {
+        code: input.code,
+        name: input.name,
+        description: input.description,
+        apiBaseUrl: input.apiBaseUrl,
+      },
+    });
+  });
+
+  it('updateBroker는 전달된 필드만 수정한다', async () => {
+    prismaMock.broker.update.mockResolvedValue({ id: 'broker-1' });
+
+    await service.updateBroker({ id: 'broker-1', name: '새 이름' });
+
+    expect(prismaMock.broker.update).toHaveBeenCalledWith({
+      where: { id: 'broker-1' },
+      data: { name: '새 이름' },
+    });
+  });
+
+  it('deleteBroker는 삭제 여부를 boolean으로 반환한다', async () => {
+    prismaMock.broker.deleteMany.mockResolvedValue({ count: 1 });
+
+    await expect(service.deleteBroker('broker-1')).resolves.toBe(true);
   });
 });

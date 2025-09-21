@@ -53,6 +53,38 @@ async function main() {
       },
     });
   }
+
+  const defaultBrokers = [
+    {
+      code: 'KB_SEC',
+      name: 'KB증권',
+      description: 'KB증권 표준 API',
+      apiBaseUrl: 'https://api.kbsec.com',
+    },
+    {
+      code: 'NH_INV',
+      name: 'NH투자증권',
+      description: 'NH투자증권 Open API',
+      apiBaseUrl: 'https://openapi.nhqv.com',
+    },
+  ];
+
+  for (const broker of defaultBrokers) {
+    await prisma.broker.upsert({
+      where: { code: broker.code },
+      update: {
+        name: broker.name,
+        description: broker.description,
+        apiBaseUrl: broker.apiBaseUrl,
+      },
+      create: {
+        code: broker.code,
+        name: broker.name,
+        description: broker.description,
+        apiBaseUrl: broker.apiBaseUrl,
+      },
+    });
+  }
 }
 
 main()

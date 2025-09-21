@@ -1,5 +1,67 @@
-import { InputType, Field } from '@nestjs/graphql';
-import { IsString, IsNotEmpty, IsOptional, IsUrl } from 'class-validator';
+import { Field, InputType } from '@nestjs/graphql';
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUrl,
+} from 'class-validator';
+
+@InputType()
+export class CreateBrokerInput {
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  code: string;
+
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  description?: string | null;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsUrl()
+  apiBaseUrl?: string;
+}
+
+@InputType()
+export class UpdateBrokerInput {
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  id: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  code?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  description?: string | null;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsUrl()
+  apiBaseUrl?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
 
 @InputType()
 export class CreateBrokerageAccountInput {
@@ -11,7 +73,7 @@ export class CreateBrokerageAccountInput {
   @Field()
   @IsString()
   @IsNotEmpty()
-  brokerName: string;
+  brokerId: string;
 
   @Field()
   @IsString()
@@ -21,17 +83,17 @@ export class CreateBrokerageAccountInput {
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  apiSecret?: string;
-
-  @Field({ nullable: true })
-  @IsOptional()
-  @IsUrl()
-  apiBaseUrl?: string;
+  apiSecret?: string | null;
 
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  description?: string;
+  description?: string | null;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 @InputType()
@@ -49,20 +111,25 @@ export class UpdateBrokerageAccountInput {
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
+  brokerId?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
   apiKey?: string;
 
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  apiSecret?: string;
-
-  @Field({ nullable: true })
-  @IsOptional()
-  @IsUrl()
-  apiBaseUrl?: string;
+  apiSecret?: string | null;
 
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
   description?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
