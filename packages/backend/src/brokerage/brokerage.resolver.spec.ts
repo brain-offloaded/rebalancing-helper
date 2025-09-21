@@ -5,6 +5,12 @@ import {
   UpdateBrokerageAccountInput,
 } from './brokerage.dto';
 import { BrokerageAccount, BrokerageHolding } from './brokerage.entities';
+import { ActiveUserData } from '../auth/auth.types';
+
+const mockUser: ActiveUserData = {
+  userId: 'user-1',
+  email: 'demo@example.com',
+};
 
 const createAccount = (
   overrides: Partial<BrokerageAccount> = {},
@@ -51,59 +57,65 @@ describe('BrokerageResolver', () => {
     resolver = new BrokerageResolver(service);
   });
 
-  it('brokerageAccounts는 서비스의 계좌 조회 결과를 반환한다', async () => {
+  it('brokerageAccounts는 사용자별 계좌를 조회한다', async () => {
     const accounts = [createAccount()];
     service.getAccounts.mockResolvedValue(accounts);
 
-    await expect(resolver.brokerageAccounts()).resolves.toBe(accounts);
-    expect(service.getAccounts).toHaveBeenCalledTimes(1);
+    await expect(resolver.brokerageAccounts(mockUser)).resolves.toBe(accounts);
+    expect(service.getAccounts).toHaveBeenCalledWith(mockUser.userId);
   });
 
-  it('brokerageAccount는 ID로 단일 계좌를 조회한다', async () => {
+  it('brokerageAccount는 사용자와 ID를 전달한다', async () => {
     const account = createAccount({ id: 'account-42' });
     service.getAccount.mockResolvedValue(account);
 
-    await expect(resolver.brokerageAccount('account-42')).resolves.toBe(
-      account,
+    await expect(
+      resolver.brokerageAccount(mockUser, 'account-42'),
+    ).resolves.toBe(account);
+    expect(service.getAccount).toHaveBeenCalledWith(
+      mockUser.userId,
+      'account-42',
     );
-    expect(service.getAccount).toHaveBeenCalledWith('account-42');
   });
 
-  it('brokerageHoldings는 accountId가 없으면 undefined로 위임한다', async () => {
+  it('brokerageHoldings는 사용자와 선택적 accountId로 조회한다', async () => {
     const holdings = [createHolding()];
     service.getHoldings.mockResolvedValue(holdings);
 
-    await expect(resolver.brokerageHoldings()).resolves.toBe(holdings);
-    expect(service.getHoldings).toHaveBeenCalledWith(undefined);
-  });
+    await expect(resolver.brokerageHoldings(mockUser)).resolves.toBe(holdings);
+    expect(service.getHoldings).toHaveBeenCalledWith(
+      mockUser.userId,
+      undefined,
+    );
 
-  it('brokerageHoldings는 accountId가 있으면 해당 값으로 위임한다', async () => {
-    const holdings = [createHolding({ accountId: 'account-7' })];
+    service.getHoldings.mockClear();
     service.getHoldings.mockResolvedValue(holdings);
 
-    await expect(resolver.brokerageHoldings('account-7')).resolves.toBe(
-      holdings,
+    await expect(
+      resolver.brokerageHoldings(mockUser, 'account-1'),
+    ).resolves.toBe(holdings);
+    expect(service.getHoldings).toHaveBeenCalledWith(
+      mockUser.userId,
+      'account-1',
     );
-    expect(service.getHoldings).toHaveBeenCalledWith('account-7');
   });
 
-  it('createBrokerageAccount는 입력값을 서비스로 전달한다', async () => {
+  it('createBrokerageAccount는 사용자 ID와 입력을 전달한다', async () => {
     const input: CreateBrokerageAccountInput = {
       name: '새 계좌',
       brokerName: '새 브로커',
       apiKey: 'api-key',
     };
-    const account = createAccount({
-      name: input.name,
-      brokerName: input.brokerName,
-    });
+    const account = createAccount({ name: input.name });
     service.createAccount.mockResolvedValue(account);
 
-    await expect(resolver.createBrokerageAccount(input)).resolves.toBe(account);
-    expect(service.createAccount).toHaveBeenCalledWith(input);
+    await expect(
+      resolver.createBrokerageAccount(mockUser, input),
+    ).resolves.toBe(account);
+    expect(service.createAccount).toHaveBeenCalledWith(mockUser.userId, input);
   });
 
-  it('updateBrokerageAccount는 수정 입력을 위임한다', async () => {
+  it('updateBrokerageAccount는 사용자 ID를 포함해 업데이트를 위임한다', async () => {
     const input: UpdateBrokerageAccountInput = {
       id: 'account-1',
       name: '변경된 이름',
@@ -111,26 +123,34 @@ describe('BrokerageResolver', () => {
     const account = createAccount({ name: input.name });
     service.updateAccount.mockResolvedValue(account);
 
-    await expect(resolver.updateBrokerageAccount(input)).resolves.toBe(account);
-    expect(service.updateAccount).toHaveBeenCalledWith(input);
+    await expect(
+      resolver.updateBrokerageAccount(mockUser, input),
+    ).resolves.toBe(account);
+    expect(service.updateAccount).toHaveBeenCalledWith(mockUser.userId, input);
   });
 
-  it('deleteBrokerageAccount는 삭제 여부를 반환한다', async () => {
+  it('deleteBrokerageAccount는 사용자 ID와 함께 호출한다', async () => {
     service.deleteAccount.mockResolvedValue(true);
 
-    await expect(resolver.deleteBrokerageAccount('account-1')).resolves.toBe(
-      true,
+    await expect(
+      resolver.deleteBrokerageAccount(mockUser, 'account-1'),
+    ).resolves.toBe(true);
+    expect(service.deleteAccount).toHaveBeenCalledWith(
+      mockUser.userId,
+      'account-1',
     );
-    expect(service.deleteAccount).toHaveBeenCalledWith('account-1');
   });
 
-  it('refreshBrokerageHoldings는 최신 보유 내역을 반환한다', async () => {
+  it('refreshBrokerageHoldings는 사용자 ID를 포함하여 호출한다', async () => {
     const holdings = [createHolding({ accountId: 'account-1' })];
     service.refreshHoldings.mockResolvedValue(holdings);
 
-    await expect(resolver.refreshBrokerageHoldings('account-1')).resolves.toBe(
-      holdings,
+    await expect(
+      resolver.refreshBrokerageHoldings(mockUser, 'account-1'),
+    ).resolves.toBe(holdings);
+    expect(service.refreshHoldings).toHaveBeenCalledWith(
+      mockUser.userId,
+      'account-1',
     );
-    expect(service.refreshHoldings).toHaveBeenCalledWith('account-1');
   });
 });

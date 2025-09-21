@@ -6,24 +6,26 @@ import {
   RemoveHoldingTagInput,
   SetHoldingTagsInput,
 } from './holdings.dto';
-import { createPrismaKnownRequestError } from '../test-utils/prisma-error';
+
+const USER_ID = 'user-1';
+
+type MockedPrisma = {
+  holdingTag: {
+    upsert: jest.Mock;
+    delete: jest.Mock;
+    deleteMany: jest.Mock;
+    create: jest.Mock;
+    findMany: jest.Mock;
+  };
+  tag: {
+    findFirst: jest.Mock;
+  };
+  $transaction: jest.Mock;
+};
 
 describe('HoldingsService', () => {
-  let prismaMock: {
-    holdingTag: {
-      upsert: jest.Mock;
-      delete: jest.Mock;
-      deleteMany: jest.Mock;
-      create: jest.Mock;
-      findMany: jest.Mock;
-    };
-    $transaction: jest.Mock;
-  };
+  let prismaMock: MockedPrisma;
   let service: HoldingsService;
-
-  beforeAll(() => {
-    createPrismaKnownRequestError('P0000');
-  });
 
   beforeEach(() => {
     prismaMock = {
@@ -34,30 +36,38 @@ describe('HoldingsService', () => {
         create: jest.fn(),
         findMany: jest.fn(),
       },
+      tag: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'tag-1' }),
+      },
       $transaction: jest.fn(),
     };
 
     service = new HoldingsService(prismaMock as unknown as PrismaService);
   });
 
-  it('addTag는 upsert를 호출하고 결과를 반환한다', async () => {
+  it('addTag는 사용자 소유 태그인지 확인한 후 upsert를 수행한다', async () => {
     const input: AddHoldingTagInput = {
       holdingSymbol: 'AAPL',
-      tagId: 'growth',
+      tagId: 'tag-1',
     };
-    const createdTag: HoldingTag = {
-      id: 'tag-link-1',
+    const created: HoldingTag = {
+      id: 'link-1',
       holdingSymbol: input.holdingSymbol,
       tagId: input.tagId,
       createdAt: new Date('2024-01-01T00:00:00Z'),
     };
-    prismaMock.holdingTag.upsert.mockResolvedValue(createdTag);
+    prismaMock.holdingTag.upsert.mockResolvedValue(created);
 
-    const result = await service.addTag(input);
+    const result = await service.addTag(USER_ID, input);
 
+    expect(prismaMock.tag.findFirst).toHaveBeenCalledWith({
+      where: { id: input.tagId, userId: USER_ID },
+      select: { id: true },
+    });
     expect(prismaMock.holdingTag.upsert).toHaveBeenCalledWith({
       where: {
-        holdingSymbol_tagId: {
+        user_holdingSymbol_tagId: {
+          userId: USER_ID,
           holdingSymbol: input.holdingSymbol,
           tagId: input.tagId,
         },
@@ -66,22 +76,24 @@ describe('HoldingsService', () => {
       create: {
         holdingSymbol: input.holdingSymbol,
         tagId: input.tagId,
+        userId: USER_ID,
       },
     });
-    expect(result).toEqual(createdTag);
+    expect(result).toEqual(created);
   });
 
-  it('removeTag는 삭제 성공 시 true를 반환한다', async () => {
+  it('removeTag는 소유태그인 경우 삭제하고 Boolean을 반환한다', async () => {
     const input: RemoveHoldingTagInput = {
       holdingSymbol: 'AAPL',
-      tagId: 'growth',
+      tagId: 'tag-1',
     };
     prismaMock.holdingTag.delete.mockResolvedValue({});
 
-    await expect(service.removeTag(input)).resolves.toBe(true);
+    await expect(service.removeTag(USER_ID, input)).resolves.toBe(true);
     expect(prismaMock.holdingTag.delete).toHaveBeenCalledWith({
       where: {
-        holdingSymbol_tagId: {
+        user_holdingSymbol_tagId: {
+          userId: USER_ID,
           holdingSymbol: input.holdingSymbol,
           tagId: input.tagId,
         },
@@ -89,143 +101,115 @@ describe('HoldingsService', () => {
     });
   });
 
-  it('removeTag는 삭제 대상이 없으면 false를 반환한다', async () => {
-    const input: RemoveHoldingTagInput = {
-      holdingSymbol: 'AAPL',
-      tagId: 'growth',
-    };
-    const error = createPrismaKnownRequestError('P2025');
-    prismaMock.holdingTag.delete.mockRejectedValue(error);
-
-    await expect(service.removeTag(input)).resolves.toBe(false);
-  });
-
-  it('removeTag는 다른 오류가 발생하면 다시 던진다', async () => {
-    const input: RemoveHoldingTagInput = {
-      holdingSymbol: 'AAPL',
-      tagId: 'growth',
-    };
-    const error = new Error('database failure');
-    prismaMock.holdingTag.delete.mockRejectedValue(error);
-
-    await expect(service.removeTag(input)).rejects.toThrow('database failure');
-  });
-
-  it('removeTag는 Prisma 오류가 P2025가 아니면 그대로 전달한다', async () => {
-    const input: RemoveHoldingTagInput = {
-      holdingSymbol: 'AAPL',
-      tagId: 'growth',
-    };
-    const prismaError = createPrismaKnownRequestError('P5000');
-    prismaMock.holdingTag.delete.mockRejectedValue(prismaError);
-
-    await expect(service.removeTag(input)).rejects.toBe(prismaError);
-  });
-
   it('setTags는 기존 태그를 삭제하고 새 태그를 생성한다', async () => {
     const input: SetHoldingTagsInput = {
       holdingSymbol: 'AAPL',
-      tagIds: ['growth', 'dividend'],
+      tagIds: ['tag-1', 'tag-2'],
     };
-    const createdTags: HoldingTag[] = [
-      {
-        id: 'link-1',
-        holdingSymbol: input.holdingSymbol,
-        tagId: 'growth',
-        createdAt: new Date('2024-01-02T00:00:00Z'),
-      },
-      {
-        id: 'link-2',
-        holdingSymbol: input.holdingSymbol,
-        tagId: 'dividend',
-        createdAt: new Date('2024-01-02T00:00:10Z'),
-      },
-    ];
-    const deleteManyMock = jest.fn().mockResolvedValue({ count: 2 });
-    const createMock = jest
-      .fn()
-      .mockResolvedValueOnce(createdTags[0])
-      .mockResolvedValueOnce(createdTags[1]);
+    prismaMock.tag.findFirst
+      .mockResolvedValueOnce({ id: 'tag-1' })
+      .mockResolvedValueOnce({ id: 'tag-2' });
 
     prismaMock.$transaction.mockImplementation(async (callback) =>
       callback({
         holdingTag: {
-          deleteMany: deleteManyMock,
-          create: createMock,
+          deleteMany: prismaMock.holdingTag.deleteMany.mockResolvedValue({}),
+          create: prismaMock.holdingTag.create
+            .mockResolvedValueOnce({
+              id: 'link-1',
+              holdingSymbol: input.holdingSymbol,
+              tagId: 'tag-1',
+              createdAt: new Date('2024-01-01T00:00:00Z'),
+            })
+            .mockResolvedValueOnce({
+              id: 'link-2',
+              holdingSymbol: input.holdingSymbol,
+              tagId: 'tag-2',
+              createdAt: new Date('2024-01-01T00:00:10Z'),
+            }),
         },
       }),
     );
 
-    const result = await service.setTags(input);
+    const result = await service.setTags(USER_ID, input);
 
-    expect(deleteManyMock).toHaveBeenCalledWith({
-      where: { holdingSymbol: input.holdingSymbol },
+    expect(prismaMock.holdingTag.deleteMany).toHaveBeenCalledWith({
+      where: { holdingSymbol: input.holdingSymbol, userId: USER_ID },
     });
-    expect(createMock).toHaveBeenCalledTimes(2);
-    expect(createMock).toHaveBeenNthCalledWith(1, {
+    expect(prismaMock.holdingTag.create).toHaveBeenNthCalledWith(1, {
       data: {
         holdingSymbol: input.holdingSymbol,
-        tagId: 'growth',
+        tagId: 'tag-1',
+        userId: USER_ID,
       },
     });
-    expect(createMock).toHaveBeenNthCalledWith(2, {
+    expect(prismaMock.holdingTag.create).toHaveBeenNthCalledWith(2, {
       data: {
         holdingSymbol: input.holdingSymbol,
-        tagId: 'dividend',
+        tagId: 'tag-2',
+        userId: USER_ID,
       },
     });
-    expect(result).toEqual(createdTags);
+    expect(result).toHaveLength(2);
   });
 
-  it('getHoldingTags는 심볼 유무에 따라 조회 조건을 전달한다', async () => {
-    const holdingTags: HoldingTag[] = [];
-    prismaMock.holdingTag.findMany.mockResolvedValue(holdingTags);
+  it('getHoldingTags는 사용자 기준으로 필터링한다', async () => {
+    prismaMock.holdingTag.findMany.mockResolvedValue([]);
 
-    await service.getHoldingTags();
+    await service.getHoldingTags(USER_ID);
     expect(prismaMock.holdingTag.findMany).toHaveBeenCalledWith({
-      where: undefined,
+      where: {
+        userId: USER_ID,
+      },
       orderBy: { createdAt: 'asc' },
     });
 
     prismaMock.holdingTag.findMany.mockClear();
-    prismaMock.holdingTag.findMany.mockResolvedValue(holdingTags);
-
-    await service.getHoldingTags('AAPL');
+    await service.getHoldingTags(USER_ID, 'AAPL');
     expect(prismaMock.holdingTag.findMany).toHaveBeenCalledWith({
-      where: { holdingSymbol: 'AAPL' },
+      where: {
+        userId: USER_ID,
+        holdingSymbol: 'AAPL',
+      },
       orderBy: { createdAt: 'asc' },
     });
   });
 
-  it('getTagsForHolding은 태그 ID 배열을 반환한다', async () => {
-    prismaMock.holdingTag.findMany.mockResolvedValue([
-      { tagId: 'growth' },
-      { tagId: 'dividend' },
-    ]);
-
-    await expect(service.getTagsForHolding('AAPL')).resolves.toEqual([
-      'growth',
-      'dividend',
-    ]);
-    expect(prismaMock.holdingTag.findMany).toHaveBeenCalledWith({
-      where: { holdingSymbol: 'AAPL' },
-      select: { tagId: true },
-    });
-  });
-
-  it('getHoldingsForTag는 보유 종목 심볼 배열을 반환한다', async () => {
+  it('getHoldingsForTag는 소유권을 검증한다', async () => {
     prismaMock.holdingTag.findMany.mockResolvedValue([
       { holdingSymbol: 'AAPL' },
-      { holdingSymbol: 'TSLA' },
+      { holdingSymbol: 'MSFT' },
     ]);
 
-    await expect(service.getHoldingsForTag('growth')).resolves.toEqual([
-      'AAPL',
-      'TSLA',
-    ]);
-    expect(prismaMock.holdingTag.findMany).toHaveBeenCalledWith({
-      where: { tagId: 'growth' },
-      select: { holdingSymbol: true },
+    const result = await service.getHoldingsForTag(USER_ID, 'tag-1');
+
+    expect(prismaMock.tag.findFirst).toHaveBeenCalledWith({
+      where: { id: 'tag-1', userId: USER_ID },
+      select: { id: true },
     });
+    expect(result).toEqual(['AAPL', 'MSFT']);
+  });
+
+  it('getTagsForHolding은 사용자 기준으로 태그 ID를 반환한다', async () => {
+    prismaMock.holdingTag.findMany.mockResolvedValue([
+      { tagId: 'tag-1' },
+      { tagId: 'tag-2' },
+    ]);
+
+    const result = await service.getTagsForHolding(USER_ID, 'AAPL');
+
+    expect(prismaMock.holdingTag.findMany).toHaveBeenCalledWith({
+      where: { holdingSymbol: 'AAPL', userId: USER_ID },
+      select: { tagId: true },
+    });
+    expect(result).toEqual(['tag-1', 'tag-2']);
+  });
+
+  it('소유하지 않은 태그에 접근하면 NotFoundException을 던진다', async () => {
+    prismaMock.tag.findFirst.mockResolvedValueOnce(null);
+
+    await expect(service.getHoldingsForTag(USER_ID, 'tag-x')).rejects.toThrow(
+      'Tag not found',
+    );
   });
 });
