@@ -93,8 +93,8 @@
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s",
-      "!**/*.(entities|dto|input|entity|module).ts",
-      "!**/*.resolver.ts",
+      "!**/*.(entities|dto|input|entity|module|types).ts",
+      "!**/*.type.ts",
       "!test-utils/**/*"
     ],
     "coverageDirectory": "../coverage",
@@ -105,6 +105,7 @@
       "text",
       "text-summary"
     ],
+    "coverageProvider": "v8",
     "coverageThreshold": {
       "global": {
         "branches": 75,
