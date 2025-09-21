@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import styled from 'styled-components';
 import {
   GET_BROKERAGE_ACCOUNTS,
+  GET_BROKERS,
   CREATE_BROKERAGE_ACCOUNT,
   DELETE_BROKERAGE_ACCOUNT,
   REFRESH_BROKERAGE_HOLDINGS,
@@ -92,6 +93,21 @@ const Input = styled.input`
   }
 `;
 
+const Select = styled.select`
+  padding: ${(props) => props.theme.spacing.sm}
+    ${(props) => props.theme.spacing.md};
+  border: 1px solid ${(props) => props.theme.colors.border};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
+  font-size: ${(props) => props.theme.typography.fontSize.md};
+  background: white;
+
+  &:focus {
+    outline: none;
+    border-color: ${(props) => props.theme.colors.primary};
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  }
+`;
+
 const AccountGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -129,10 +145,18 @@ const Label2 = styled.span`
   color: ${(props) => props.theme.colors.textLight};
 `;
 
+interface BrokerInfo {
+  id: string;
+  name: string;
+  code: string;
+  isActive: boolean;
+}
+
 interface BrokerageAccount {
   id: string;
   name: string;
-  brokerName: string;
+  brokerId: string;
+  broker: BrokerInfo | null;
   description: string | null;
   isActive: boolean;
   createdAt: string;
@@ -143,30 +167,56 @@ export const BrokerageAccounts: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    brokerName: '',
+    brokerId: '',
     apiKey: '',
     apiSecret: '',
-    apiBaseUrl: '',
     description: '',
   });
 
   const { data, loading, error, refetch } = useQuery(GET_BROKERAGE_ACCOUNTS);
+  const {
+    data: brokersData,
+    loading: brokersLoading,
+    error: brokersError,
+  } = useQuery(GET_BROKERS);
   const [createAccount] = useMutation(CREATE_BROKERAGE_ACCOUNT);
   const [deleteAccount] = useMutation(DELETE_BROKERAGE_ACCOUNT);
   const [refreshHoldings] = useMutation(REFRESH_BROKERAGE_HOLDINGS);
 
+  const brokers: BrokerInfo[] = useMemo(
+    () => brokersData?.brokers ?? [],
+    [brokersData],
+  );
+
+  useEffect(() => {
+    if (!formData.brokerId && brokers.length > 0) {
+      setFormData((prev) => ({ ...prev, brokerId: brokers[0].id }));
+    }
+  }, [brokers, formData.brokerId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.brokerId) {
+      alert('증권사를 선택해주세요.');
+      return;
+    }
     try {
       await createAccount({
-        variables: { input: formData },
+        variables: {
+          input: {
+            name: formData.name,
+            brokerId: formData.brokerId,
+            apiKey: formData.apiKey,
+            apiSecret: formData.apiSecret || undefined,
+            description: formData.description || undefined,
+          },
+        },
       });
       setFormData({
         name: '',
-        brokerName: '',
+        brokerId: brokers[0]?.id ?? '',
         apiKey: '',
         apiSecret: '',
-        apiBaseUrl: '',
         description: '',
       });
       setShowForm(false);
@@ -196,8 +246,9 @@ export const BrokerageAccounts: React.FC = () => {
     }
   };
 
-  if (loading) return <div>로딩 중...</div>;
+  if (loading || brokersLoading) return <div>로딩 중...</div>;
   if (error) return <div>오류 발생: {error.message}</div>;
+  if (brokersError) return <div>오류 발생: {brokersError.message}</div>;
 
   return (
     <Container>
@@ -226,15 +277,24 @@ export const BrokerageAccounts: React.FC = () => {
               </FormGroup>
 
               <FormGroup>
-                <Label>증권사 이름</Label>
-                <Input
-                  type="text"
-                  value={formData.brokerName}
+                <Label>증권사</Label>
+                <Select
+                  value={formData.brokerId}
                   onChange={(e) =>
-                    setFormData({ ...formData, brokerName: e.target.value })
+                    setFormData({ ...formData, brokerId: e.target.value })
                   }
+                  disabled={brokers.length === 0}
                   required
-                />
+                >
+                  {brokers.map((broker) => (
+                    <option key={broker.id} value={broker.id}>
+                      {broker.name} ({broker.code})
+                    </option>
+                  ))}
+                  {brokers.length === 0 && (
+                    <option value="">등록된 증권사가 없습니다</option>
+                  )}
+                </Select>
               </FormGroup>
 
               <FormGroup>
@@ -257,18 +317,6 @@ export const BrokerageAccounts: React.FC = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, apiSecret: e.target.value })
                   }
-                />
-              </FormGroup>
-
-              <FormGroup>
-                <Label>API 베이스 URL</Label>
-                <Input
-                  type="url"
-                  value={formData.apiBaseUrl}
-                  onChange={(e) =>
-                    setFormData({ ...formData, apiBaseUrl: e.target.value })
-                  }
-                  placeholder="https://api.broker.com"
                 />
               </FormGroup>
 
@@ -305,7 +353,10 @@ export const BrokerageAccounts: React.FC = () => {
               <AccountInfo>
                 <InfoRow>
                   <Label2>증권사:</Label2>
-                  <span>{account.brokerName}</span>
+                  <span>
+                    {account.broker?.name ?? '알 수 없음'}
+                    {account.broker?.code ? ` (${account.broker.code})` : ''}
+                  </span>
                 </InfoRow>
                 <InfoRow>
                   <Label2>상태:</Label2>

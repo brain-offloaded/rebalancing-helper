@@ -22,7 +22,7 @@ export class CreateBrokerInput {
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  description?: string | null;
+  description?: string;
 
   @Field({ nullable: true })
   @IsOptional()
@@ -50,7 +50,7 @@ export class UpdateBrokerInput {
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  description?: string | null;
+  description?: string;
 
   @Field({ nullable: true })
   @IsOptional()
@@ -83,12 +83,12 @@ export class CreateBrokerageAccountInput {
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  apiSecret?: string | null;
+  apiSecret?: string;
 
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  description?: string | null;
+  description?: string;
 
   @Field({ nullable: true })
   @IsOptional()
@@ -121,7 +121,7 @@ export class UpdateBrokerageAccountInput {
   @Field({ nullable: true })
   @IsOptional()
   @IsString()
-  apiSecret?: string | null;
+  apiSecret?: string;
 
   @Field({ nullable: true })
   @IsOptional()

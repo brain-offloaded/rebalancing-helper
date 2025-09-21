@@ -10,6 +10,10 @@ vi.mock('../BrokerageAccounts', () => ({
   ),
 }));
 
+vi.mock('../Brokers', () => ({
+  Brokers: () => <div data-testid="brokers">증권사 관리 컴포넌트</div>,
+}));
+
 vi.mock('../Holdings', () => ({
   Holdings: () => <div data-testid="holdings">보유 종목 컴포넌트</div>,
 }));
@@ -35,6 +39,9 @@ describe('Dashboard', () => {
     const user = userEvent.setup();
 
     renderWithProviders(<Dashboard />, { withApollo: false });
+
+    await user.click(screen.getByRole('button', { name: '증권사 정보' }));
+    expect(screen.getByTestId('brokers')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '보유 종목' }));
     expect(screen.getByTestId('holdings')).toBeInTheDocument();
