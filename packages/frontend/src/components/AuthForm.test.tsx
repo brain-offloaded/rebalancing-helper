@@ -12,7 +12,10 @@ describe('AuthForm', () => {
       <AuthForm mode="login" onSubmit={onSubmit} onToggleMode={onToggleMode} />,
     );
 
-    await userEvent.type(screen.getByPlaceholderText('you@example.com'), 'user@example.com');
+    await userEvent.type(
+      screen.getByPlaceholderText('you@example.com'),
+      'user@example.com',
+    );
     await userEvent.type(
       screen.getByPlaceholderText('8자리 이상 비밀번호'),
       'password123',
@@ -26,15 +29,20 @@ describe('AuthForm', () => {
   });
 
   it('제출 중에는 버튼이 비활성화되고 완료 후 복구된다', async () => {
-    const onSubmit = vi.fn().mockImplementation(
-      () => new Promise((resolve) => setTimeout(resolve, 0)),
-    );
+    const onSubmit = vi
+      .fn()
+      .mockImplementation(
+        () => new Promise((resolve) => setTimeout(resolve, 0)),
+      );
 
     render(
       <AuthForm mode="login" onSubmit={onSubmit} onToggleMode={() => {}} />,
     );
 
-    await userEvent.type(screen.getByPlaceholderText('you@example.com'), 'user@example.com');
+    await userEvent.type(
+      screen.getByPlaceholderText('you@example.com'),
+      'user@example.com',
+    );
     await userEvent.type(
       screen.getByPlaceholderText('8자리 이상 비밀번호'),
       'password123',
@@ -56,7 +64,10 @@ describe('AuthForm', () => {
       <AuthForm mode="login" onSubmit={onSubmit} onToggleMode={() => {}} />,
     );
 
-    await userEvent.type(screen.getByPlaceholderText('you@example.com'), 'user@example.com');
+    await userEvent.type(
+      screen.getByPlaceholderText('you@example.com'),
+      'user@example.com',
+    );
     await userEvent.type(
       screen.getByPlaceholderText('8자리 이상 비밀번호'),
       'password123',
@@ -85,7 +96,9 @@ describe('AuthForm', () => {
       <AuthForm mode="register" onSubmit={vi.fn()} onToggleMode={() => {}} />,
     );
 
-    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('회원가입');
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent(
+      '회원가입',
+    );
     expect(
       screen.getByRole('button', { name: '이미 계정이 있으신가요? 로그인' }),
     ).toBeInTheDocument();

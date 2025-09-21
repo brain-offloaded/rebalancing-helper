@@ -1,7 +1,5 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -10,29 +8,12 @@ import {
 import { ApolloError } from '@apollo/client';
 import { apolloClient, AUTH_TOKEN_STORAGE_KEY } from '../apollo-client';
 import { LOGIN_MUTATION, ME_QUERY, REGISTER_MUTATION } from '../graphql/auth';
-
-type User = {
-  id: string;
-  email: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type AuthCredentials = {
-  email: string;
-  password: string;
-};
-
-type AuthContextValue = {
-  user: User | null;
-  token: string | null;
-  initializing: boolean;
-  login: (credentials: AuthCredentials) => Promise<void>;
-  register: (credentials: AuthCredentials) => Promise<void>;
-  logout: () => Promise<void>;
-};
-
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+import {
+  AuthContext,
+  type AuthContextValue,
+  type AuthCredentials,
+  type User,
+} from './auth-context.shared';
 
 const readStoredToken = (): string | null => {
   if (typeof window === 'undefined') {
@@ -203,14 +184,4 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-export const useAuth = (): AuthContextValue => {
-  const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error('useAuth 훅은 AuthProvider 내부에서만 사용할 수 있습니다.');
-  }
-
-  return context;
 };

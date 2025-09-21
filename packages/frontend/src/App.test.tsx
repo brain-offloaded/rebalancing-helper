@@ -4,7 +4,9 @@ import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AppShell } from './App';
 
-const AuthFormMock = vi.hoisted(() => vi.fn(() => <div data-testid="auth-form" />));
+const AuthFormMock = vi.hoisted(() =>
+  vi.fn(() => <div data-testid="auth-form" />),
+);
 
 vi.mock('./components/AuthForm', () => ({
   AuthForm: AuthFormMock,
@@ -12,8 +14,11 @@ vi.mock('./components/AuthForm', () => ({
 
 const useAuthMock = vi.hoisted(() => vi.fn());
 
-vi.mock('./auth/auth-context', () => ({
+vi.mock('./auth/use-auth', () => ({
   useAuth: () => useAuthMock(),
+}));
+
+vi.mock('./auth/auth-context', () => ({
   AuthProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 

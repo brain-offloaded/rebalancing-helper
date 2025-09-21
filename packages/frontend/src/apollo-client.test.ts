@@ -17,7 +17,10 @@ describe('apollo-client helpers', () => {
   });
 
   it('applyAuthHeader는 기존 헤더를 유지하고 토큰을 추가한다', () => {
-    const headers = applyAuthHeader({ 'Content-Type': 'application/json' }, 'token');
+    const headers = applyAuthHeader(
+      { 'Content-Type': 'application/json' },
+      'token',
+    );
     expect(headers).toEqual({
       'Content-Type': 'application/json',
       Authorization: 'Bearer token',

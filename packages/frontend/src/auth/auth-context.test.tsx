@@ -1,15 +1,17 @@
-import { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { ApolloError } from '@apollo/client';
-import { AuthProvider, useAuth } from './auth-context';
+import { AuthProvider } from './auth-context';
+import { useAuth } from './use-auth';
 import { apolloClient, AUTH_TOKEN_STORAGE_KEY } from '../apollo-client';
 import { GraphQLError } from 'graphql';
 
 vi.mock('../apollo-client', async () => {
-  const actual = await vi.importActual<typeof import('../apollo-client')>(
-    '../apollo-client'
-  );
+  const actual =
+    await vi.importActual<typeof import('../apollo-client')>(
+      '../apollo-client',
+    );
   const query = vi.fn();
   const mutate = vi.fn();
   const clearStore = vi.fn();

@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { ApolloProvider } from '@apollo/client';
 import { apolloClient } from './apollo-client';
 import './App.css';
-import { AuthProvider, useAuth } from './auth/auth-context';
+import { AuthProvider } from './auth/auth-context';
+import { useAuth } from './auth/use-auth';
 import { AuthForm } from './components/AuthForm';
 
 export const AppShell = () => {
