@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
 import { ApolloProvider } from '@apollo/client';
+import { ThemeProvider } from 'styled-components';
 import { apolloClient } from './apollo-client';
 import './App.css';
 import { AuthProvider } from './auth/auth-context';
 import { useAuth } from './auth/use-auth';
 import { AuthForm } from './components/AuthForm';
+import { Dashboard } from './components/Dashboard';
+import { GlobalStyle, theme } from './styles/GlobalStyle';
 
 export const AppShell = () => {
   const { user, initializing, login, register, logout } = useAuth();
@@ -90,56 +93,7 @@ export const AppShell = () => {
         </div>
       </header>
       <main style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-        <section
-          style={{
-            marginBottom: '24px',
-            backgroundColor: '#ffffff',
-            borderRadius: '12px',
-            padding: '24px',
-            boxShadow: '0 10px 30px rgba(15, 23, 42, 0.08)',
-          }}
-        >
-          <h2 style={{ marginBottom: '8px' }}>증권사 계정 관리</h2>
-          <p style={{ marginBottom: '16px', color: '#475569' }}>
-            증권사 API를 연동하고 보유 종목을 최신 상태로 유지하세요.
-          </p>
-          <button
-            style={{
-              backgroundColor: '#2563eb',
-              color: 'white',
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: 600,
-            }}
-          >
-            계정 추가
-          </button>
-        </section>
-
-        <section
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '12px',
-            padding: '24px',
-            boxShadow: '0 10px 30px rgba(15, 23, 42, 0.08)',
-          }}
-        >
-          <h3 style={{ marginBottom: '12px' }}>GraphQL 연결 테스트</h3>
-          <p style={{ marginBottom: '8px', color: '#475569' }}>
-            인증이 적용되었습니다. GraphQL Playground에서 요청 시 헤더에 토큰을
-            추가하세요.
-          </p>
-          <a
-            href="http://localhost:3000/graphql"
-            target="_blank"
-            rel="noreferrer"
-            style={{ color: '#2563eb', textDecoration: 'underline' }}
-          >
-            http://localhost:3000/graphql
-          </a>
-        </section>
+        <Dashboard />
       </main>
     </div>
   );
@@ -149,7 +103,10 @@ function App() {
   return (
     <ApolloProvider client={apolloClient}>
       <AuthProvider>
-        <AppShell />
+        <ThemeProvider theme={theme}>
+          <GlobalStyle />
+          <AppShell />
+        </ThemeProvider>
       </AuthProvider>
     </ApolloProvider>
   );
