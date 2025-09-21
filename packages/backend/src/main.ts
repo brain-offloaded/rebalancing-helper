@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { PrismaService } from './prisma/prisma.service';
 
-async function bootstrap() {
+export async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   app.enableCors({
     origin: ['http://localhost:5173'],
@@ -14,4 +14,6 @@ async function bootstrap() {
   prismaService.enableShutdownHooks(app);
   await app.listen(process.env.PORT ?? 3000);
 }
-void bootstrap();
+if (process.env.NODE_ENV !== 'test') {
+  void bootstrap();
+}
