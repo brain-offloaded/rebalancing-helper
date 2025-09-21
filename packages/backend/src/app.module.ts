@@ -17,10 +17,28 @@ import { GraphqlContext } from './common/graphql/graphql-context.type';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 
-type GraphqlContextFactoryArgs = {
+export type GraphqlContextFactoryArgs = {
   req: Request;
   res: Response;
 };
+
+export const REQUEST_ID_HEADER = 'x-request-id';
+
+export function createGraphqlContext({
+  req,
+  res,
+}: GraphqlContextFactoryArgs): GraphqlContext {
+  const requestIdHeader = req.headers[REQUEST_ID_HEADER];
+  const requestIdCandidate = Array.isArray(requestIdHeader)
+    ? requestIdHeader[0]
+    : requestIdHeader;
+  const requestId =
+    typeof requestIdCandidate === 'string' && requestIdCandidate.length > 0
+      ? requestIdCandidate
+      : randomUUID();
+
+  return { req, res, requestId, user: null };
+}
 
 @Module({
   imports: [
@@ -34,19 +52,7 @@ type GraphqlContextFactoryArgs = {
       playground: false,
       introspection: true,
       plugins: [ApolloServerPluginLandingPageLocalDefault()],
-      context: ({ req, res }: GraphqlContextFactoryArgs): GraphqlContext => {
-        const requestIdHeader = req.headers['x-request-id'];
-        const requestIdCandidate = Array.isArray(requestIdHeader)
-          ? requestIdHeader[0]
-          : requestIdHeader;
-        const requestId =
-          typeof requestIdCandidate === 'string' &&
-          requestIdCandidate.length > 0
-            ? requestIdCandidate
-            : randomUUID();
-
-        return { req, res, requestId, user: null };
-      },
+      context: createGraphqlContext,
     }),
     PrismaModule,
     AuthModule,

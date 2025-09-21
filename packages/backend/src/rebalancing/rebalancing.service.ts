@@ -292,12 +292,7 @@ export class RebalancingService {
         continue;
       }
 
-      const holdingsForTag = holdingsByTag.get(tagId) ?? [];
-      const tagValue =
-        tagValueByTag.get(tagId) ??
-        holdingsForTag.reduce((sum, symbol) => {
-          return sum + (marketValueBySymbol.get(symbol) ?? 0);
-        }, 0);
+      const tagValue = tagValueByTag.get(tagId) ?? 0;
 
       const currentPercentage =
         totalValue > 0 ? (tagValue / totalValue) * 100 : 0;

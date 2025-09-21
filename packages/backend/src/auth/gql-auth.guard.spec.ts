@@ -37,7 +37,10 @@ describe('GqlAuthGuard', () => {
   });
 
   it('handleRequest는 사용자 정보를 설정하고 반환한다', () => {
-    const user: ActiveUserData = { userId: 'user-1', email: 'demo@example.com' };
+    const user: ActiveUserData = {
+      userId: 'user-1',
+      email: 'demo@example.com',
+    };
 
     const result = guard.handleRequest(
       null,

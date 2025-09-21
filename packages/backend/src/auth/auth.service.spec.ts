@@ -11,10 +11,7 @@ jest.mock('bcryptjs', () => ({
   compare: jest.fn(),
 }));
 
-const { hash, compare } = jest.requireMock('bcryptjs') as {
-  hash: jest.Mock;
-  compare: jest.Mock;
-};
+const { hash, compare } = jest.requireMock('bcryptjs');
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -107,7 +104,10 @@ describe('AuthService', () => {
       const result = await service.login(input);
 
       expect(usersService.findByEmail).toHaveBeenCalledWith(input.email);
-      expect(compare).toHaveBeenCalledWith(input.password, baseUser.passwordHash);
+      expect(compare).toHaveBeenCalledWith(
+        input.password,
+        baseUser.passwordHash,
+      );
       expect(result.accessToken).toBe('token');
     });
 

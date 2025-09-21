@@ -6,14 +6,17 @@ import { ActiveUserData } from '../../auth/auth.types';
 jest.mock('@nestjs/graphql');
 
 describe('CurrentUser decorator', () => {
-  const createExecutionContext = () => ({} as never);
+  const createExecutionContext = () => ({}) as never;
 
   afterEach(() => {
     jest.resetAllMocks();
   });
 
   it('컨텍스트에서 user를 반환한다', () => {
-    const user: ActiveUserData = { userId: 'user-1', email: 'demo@example.com' };
+    const user: ActiveUserData = {
+      userId: 'user-1',
+      email: 'demo@example.com',
+    };
     (GqlExecutionContext.create as jest.Mock).mockReturnValue({
       getContext: () => ({ user }),
     });
