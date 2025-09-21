@@ -92,7 +92,10 @@
       ]
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)s",
+      "!**/*.entities.ts",
+      "!**/*.dto.ts",
+      "!**/*.input.ts"
     ],
     "coverageDirectory": "../coverage",
     "coverageReporters": [
