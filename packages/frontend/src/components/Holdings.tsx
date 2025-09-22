@@ -1,12 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import styled from 'styled-components';
-import {
-  GET_BROKERAGE_HOLDINGS,
-  PATCH_BROKERAGE_HOLDING_QUANTITY,
-  PUT_BROKERAGE_HOLDING_QUANTITY,
-  SYNC_BROKERAGE_HOLDING_PRICE,
-} from '../graphql/brokerage';
+import { GET_BROKERAGE_HOLDINGS } from '../graphql/brokerage';
 import { GET_TAGS } from '../graphql/tags';
 import { GET_TAGS_FOR_HOLDING, SET_HOLDING_TAGS } from '../graphql/holdings';
 
@@ -76,27 +71,6 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
   `}
 `;
 
-const ManualControls = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: ${(props) => props.theme.spacing.xs};
-`;
-
-const ControlRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${(props) => props.theme.spacing.xs};
-  flex-wrap: wrap;
-`;
-
-const NumberInput = styled.input`
-  width: 100px;
-  padding: ${(props) => props.theme.spacing.xs};
-  border: 1px solid ${(props) => props.theme.colors.border};
-  border-radius: ${(props) => props.theme.borderRadius.sm};
-  font-size: ${(props) => props.theme.typography.fontSize.xs};
-`;
-
 const Modal = styled.div`
   position: fixed;
   top: 0;
@@ -153,17 +127,10 @@ interface Tag {
 export const Holdings: React.FC = () => {
   const [selectedHolding, setSelectedHolding] = useState<string | null>(null);
   const [showTagModal, setShowTagModal] = useState(false);
-  const [patchInputs, setPatchInputs] = useState<Record<string, string>>({});
-  const [putInputs, setPutInputs] = useState<Record<string, string>>({});
-  const [patchingHoldingId, setPatchingHoldingId] = useState<string | null>(null);
-  const [puttingHoldingId, setPuttingHoldingId] = useState<string | null>(null);
-  const [syncingHoldingId, setSyncingHoldingId] = useState<string | null>(null);
 
-  const {
-    data: holdingsData,
-    loading: holdingsLoading,
-    refetch: refetchHoldings,
-  } = useQuery(GET_BROKERAGE_HOLDINGS);
+  const { data: holdingsData, loading: holdingsLoading } = useQuery(
+    GET_BROKERAGE_HOLDINGS,
+  );
   const { data: tagsData } = useQuery<{ tags: Tag[] }>(GET_TAGS);
   const {
     data: holdingTagsData,
@@ -177,97 +144,6 @@ export const Holdings: React.FC = () => {
   });
 
   const [setHoldingTags] = useMutation(SET_HOLDING_TAGS);
-  const [patchHoldingQuantity, { loading: patchLoading }] = useMutation(
-    PATCH_BROKERAGE_HOLDING_QUANTITY,
-  );
-  const [putHoldingQuantity, { loading: putLoading }] = useMutation(
-    PUT_BROKERAGE_HOLDING_QUANTITY,
-  );
-  const [syncHoldingPrice, { loading: syncLoading }] = useMutation(
-    SYNC_BROKERAGE_HOLDING_PRICE,
-  );
-
-  const handlePatchInputChange = (holdingId: string, value: string) => {
-    setPatchInputs((prev) => ({ ...prev, [holdingId]: value }));
-  };
-
-  const handlePutInputChange = (holdingId: string, value: string) => {
-    setPutInputs((prev) => ({ ...prev, [holdingId]: value }));
-  };
-
-  const handlePatchQuantity = async (holding: Holding) => {
-    const rawValue = patchInputs[holding.id];
-    if (!rawValue) return;
-
-    const quantityDelta = Number(rawValue);
-    if (Number.isNaN(quantityDelta) || quantityDelta <= 0) {
-      return;
-    }
-
-    setPatchingHoldingId(holding.id);
-    try {
-      await patchHoldingQuantity({
-        variables: {
-          input: {
-            holdingId: holding.id,
-            quantityDelta,
-          },
-        },
-      });
-      setPatchInputs((prev) => ({ ...prev, [holding.id]: '' }));
-      await refetchHoldings();
-    } catch (error) {
-      console.error('보유 수량 증가 실패:', error);
-    } finally {
-      setPatchingHoldingId(null);
-    }
-  };
-
-  const handlePutQuantity = async (holding: Holding) => {
-    const rawValue = putInputs[holding.id];
-    if (rawValue === undefined || rawValue === '') return;
-
-    const quantity = Number(rawValue);
-    if (Number.isNaN(quantity) || quantity < 0) {
-      return;
-    }
-
-    setPuttingHoldingId(holding.id);
-    try {
-      await putHoldingQuantity({
-        variables: {
-          input: {
-            holdingId: holding.id,
-            quantity,
-          },
-        },
-      });
-      setPutInputs((prev) => ({ ...prev, [holding.id]: '' }));
-      await refetchHoldings();
-    } catch (error) {
-      console.error('보유 수량 설정 실패:', error);
-    } finally {
-      setPuttingHoldingId(null);
-    }
-  };
-
-  const handleSyncPrice = async (holding: Holding) => {
-    setSyncingHoldingId(holding.id);
-    try {
-      await syncHoldingPrice({
-        variables: {
-          input: {
-            holdingId: holding.id,
-          },
-        },
-      });
-      await refetchHoldings();
-    } catch (error) {
-      console.error('현재가 동기화 실패:', error);
-    } finally {
-      setSyncingHoldingId(null);
-    }
-  };
 
   const handleTagManagement = (symbol: string) => {
     setSelectedHolding(symbol);
@@ -332,17 +208,12 @@ export const Holdings: React.FC = () => {
             <Th>평가금액</Th>
             <Th>평균단가</Th>
             <Th>태그</Th>
-            <Th>수동 조정</Th>
             <Th>관리</Th>
           </tr>
         </thead>
         <tbody>
           {holdingsData?.brokerageHoldings?.map((holding: Holding) => {
             const tags = getTagsForHolding(holding.symbol);
-            const isPatching =
-              patchLoading && patchingHoldingId === holding.id;
-            const isPutting = putLoading && puttingHoldingId === holding.id;
-            const isSyncing = syncLoading && syncingHoldingId === holding.id;
             return (
               <tr key={holding.id}>
                 <Td>{holding.symbol}</Td>
@@ -363,53 +234,6 @@ export const Holdings: React.FC = () => {
                       </Tag>
                     ))}
                   </TagContainer>
-                </Td>
-                <Td>
-                  <ManualControls>
-                    <ControlRow>
-                      <NumberInput
-                        type="number"
-                        min="0"
-                        placeholder="증가 수량"
-                        value={patchInputs[holding.id] ?? ''}
-                        onChange={(event) =>
-                          handlePatchInputChange(holding.id, event.target.value)
-                        }
-                      />
-                      <Button
-                        variant="primary"
-                        onClick={() => handlePatchQuantity(holding)}
-                        disabled={isPatching}
-                      >
-                        수량 추가
-                      </Button>
-                    </ControlRow>
-                    <ControlRow>
-                      <NumberInput
-                        type="number"
-                        min="0"
-                        placeholder="설정 수량"
-                        value={putInputs[holding.id] ?? ''}
-                        onChange={(event) =>
-                          handlePutInputChange(holding.id, event.target.value)
-                        }
-                      />
-                      <Button
-                        onClick={() => handlePutQuantity(holding)}
-                        disabled={isPutting}
-                      >
-                        수량 설정
-                      </Button>
-                    </ControlRow>
-                    <ControlRow>
-                      <Button
-                        onClick={() => handleSyncPrice(holding)}
-                        disabled={isSyncing}
-                      >
-                        현재가 동기화
-                      </Button>
-                    </ControlRow>
-                  </ManualControls>
                 </Td>
                 <Td>
                   <Button
