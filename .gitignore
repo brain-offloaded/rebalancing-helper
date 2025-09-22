@@ -2,7 +2,6 @@
 logs
 *.log
 npm-debug.log*
-pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
@@ -65,6 +64,9 @@ web_modules/
 # Output of 'npm pack'
 *.tgz
 
+# Yarn Integrity file
+.yarn-integrity
+
 # dotenv environment variable files
 .env
 .env.*
@@ -124,6 +126,15 @@ dist
 
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
+
+# yarn v3
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
 
 # Turborepo cache
 .turbo

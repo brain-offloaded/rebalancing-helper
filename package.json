@@ -3,13 +3,16 @@
   "version": "1.0.0",
   "description": "리밸런싱을 도와주기 위한 단순 조회용 프로그램",
   "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "turbo run dev --parallel",
-    "dev:backend": "pnpm --filter backend start:dev",
-    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:backend": "yarn workspace backend start:dev",
+    "dev:frontend": "yarn workspace frontend dev",
     "build": "turbo run build",
-    "build:backend": "pnpm --filter backend build",
-    "build:frontend": "pnpm --filter frontend build",
+    "build:backend": "yarn workspace backend build",
+    "build:frontend": "yarn workspace frontend build",
     "test": "turbo run test",
     "test:cov": "turbo run test:cov",
     "lint": "turbo run lint"
@@ -19,7 +22,7 @@
   },
   "engines": {
     "node": ">=18.0.0",
-    "pnpm": ">=9.0.0"
+    "yarn": ">=4.0.0"
   },
-  "packageManager": "pnpm@9.15.4"
+  "packageManager": "yarn@4.9.4"
 }
