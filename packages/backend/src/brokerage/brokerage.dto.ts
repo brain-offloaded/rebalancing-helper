@@ -2,6 +2,7 @@ import { Field, InputType } from '@nestjs/graphql';
 import {
   IsBoolean,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   IsUrl,
@@ -132,4 +133,36 @@ export class UpdateBrokerageAccountInput {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+}
+
+@InputType()
+export class PatchHoldingQuantityInput {
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  holdingId: string;
+
+  @Field(() => Number)
+  @IsNumber()
+  quantityDelta: number;
+}
+
+@InputType()
+export class PutHoldingQuantityInput {
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  holdingId: string;
+
+  @Field(() => Number)
+  @IsNumber()
+  quantity: number;
+}
+
+@InputType()
+export class SyncHoldingPriceInput {
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  holdingId: string;
 }

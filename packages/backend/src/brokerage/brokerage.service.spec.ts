@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { BrokerageService } from './brokerage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -26,8 +26,10 @@ type MockedPrisma = {
   };
   brokerageHolding: {
     findMany: jest.Mock;
+    findFirst: jest.Mock;
     deleteMany: jest.Mock;
     createMany: jest.Mock;
+    update: jest.Mock;
   };
   $transaction: jest.Mock;
 };
@@ -57,8 +59,10 @@ describe('BrokerageService', () => {
       },
       brokerageHolding: {
         findMany: jest.fn(),
+        findFirst: jest.fn(),
         deleteMany: jest.fn(),
         createMany: jest.fn(),
+        update: jest.fn(),
       },
       $transaction: jest.fn(),
     };
@@ -274,6 +278,177 @@ describe('BrokerageService', () => {
       where: { accountId: 'acc-1', account: { userId: USER_ID } },
       orderBy: { symbol: 'asc' },
     });
+  });
+
+  it('patchHoldingQuantity는 보유 수량을 증가시키고 시장가치를 갱신한다', async () => {
+    const holding = {
+      id: 'holding-1',
+      symbol: 'SPY',
+      name: 'S&P 500',
+      quantity: 5,
+      currentPrice: 100,
+      marketValue: 500,
+      averageCost: 90,
+      currency: 'USD',
+      accountId: 'acc-1',
+      lastUpdated: new Date('2024-01-01T00:00:00Z'),
+    };
+    prismaMock.brokerageHolding.findFirst.mockResolvedValue(holding);
+    const updated = { ...holding, quantity: 8, marketValue: 800 };
+    prismaMock.brokerageHolding.update.mockResolvedValue(updated);
+
+    await expect(
+      service.patchHoldingQuantity(USER_ID, {
+        holdingId: holding.id,
+        quantityDelta: 3,
+      }),
+    ).resolves.toBe(updated);
+
+    expect(prismaMock.brokerageHolding.findFirst).toHaveBeenCalledWith({
+      where: { id: holding.id, account: { userId: USER_ID } },
+    });
+    expect(prismaMock.brokerageHolding.update).toHaveBeenCalledWith({
+      where: { id: holding.id },
+      data: {
+        quantity: 8,
+        marketValue: 800,
+        lastUpdated: expect.any(Date),
+      },
+    });
+  });
+
+  it('patchHoldingQuantity는 음수 결과면 예외를 던진다', async () => {
+    prismaMock.brokerageHolding.findFirst.mockResolvedValue({
+      id: 'holding-1',
+      symbol: 'SPY',
+      name: 'S&P 500',
+      quantity: 2,
+      currentPrice: 100,
+      marketValue: 200,
+      averageCost: 90,
+      currency: 'USD',
+      accountId: 'acc-1',
+      lastUpdated: new Date('2024-01-01T00:00:00Z'),
+    });
+
+    await expect(
+      service.patchHoldingQuantity(USER_ID, {
+        holdingId: 'holding-1',
+        quantityDelta: -5,
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(prismaMock.brokerageHolding.update).not.toHaveBeenCalled();
+  });
+
+  it('patchHoldingQuantity는 보유 정보가 없으면 NotFoundException을 던진다', async () => {
+    prismaMock.brokerageHolding.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.patchHoldingQuantity(USER_ID, {
+        holdingId: 'holding-x',
+        quantityDelta: 1,
+      }),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('putHoldingQuantity는 수량을 설정한다', async () => {
+    const holding = {
+      id: 'holding-1',
+      symbol: 'SPY',
+      name: 'S&P 500',
+      quantity: 5,
+      currentPrice: 100,
+      marketValue: 500,
+      averageCost: 90,
+      currency: 'USD',
+      accountId: 'acc-1',
+      lastUpdated: new Date('2024-01-01T00:00:00Z'),
+    };
+    prismaMock.brokerageHolding.findFirst.mockResolvedValue(holding);
+    const updated = { ...holding, quantity: 12, marketValue: 1200 };
+    prismaMock.brokerageHolding.update.mockResolvedValue(updated);
+
+    await expect(
+      service.putHoldingQuantity(USER_ID, {
+        holdingId: holding.id,
+        quantity: 12,
+      }),
+    ).resolves.toBe(updated);
+
+    expect(prismaMock.brokerageHolding.update).toHaveBeenCalledWith({
+      where: { id: holding.id },
+      data: {
+        quantity: 12,
+        marketValue: 1200,
+        lastUpdated: expect.any(Date),
+      },
+    });
+  });
+
+  it('putHoldingQuantity는 음수 수량이면 예외를 던진다', async () => {
+    prismaMock.brokerageHolding.findFirst.mockResolvedValue({
+      id: 'holding-1',
+      symbol: 'SPY',
+      name: 'S&P 500',
+      quantity: 5,
+      currentPrice: 100,
+      marketValue: 500,
+      averageCost: 90,
+      currency: 'USD',
+      accountId: 'acc-1',
+      lastUpdated: new Date('2024-01-01T00:00:00Z'),
+    });
+
+    await expect(
+      service.putHoldingQuantity(USER_ID, {
+        holdingId: 'holding-1',
+        quantity: -1,
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(prismaMock.brokerageHolding.update).not.toHaveBeenCalled();
+  });
+
+  it('syncHoldingPrice는 현재가와 시장가치를 갱신한다', async () => {
+    const holding = {
+      id: 'holding-1',
+      symbol: 'SPY',
+      name: 'S&P 500',
+      quantity: 5,
+      currentPrice: 100,
+      marketValue: 500,
+      averageCost: 90,
+      currency: 'USD',
+      accountId: 'acc-1',
+      lastUpdated: new Date('2024-01-01T00:00:00Z'),
+    };
+    prismaMock.brokerageHolding.findFirst.mockResolvedValue(holding);
+    const updated = {
+      ...holding,
+      currentPrice: 100.01,
+      marketValue: 500.05,
+    };
+    prismaMock.brokerageHolding.update.mockResolvedValue(updated);
+
+    await expect(
+      service.syncHoldingPrice(USER_ID, { holdingId: holding.id }),
+    ).resolves.toBe(updated);
+
+    expect(prismaMock.brokerageHolding.update).toHaveBeenCalledWith({
+      where: { id: holding.id },
+      data: {
+        currentPrice: 100.01,
+        marketValue: 500.05,
+        lastUpdated: expect.any(Date),
+      },
+    });
+  });
+
+  it('syncHoldingPrice는 보유 정보가 없으면 예외를 던진다', async () => {
+    prismaMock.brokerageHolding.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.syncHoldingPrice(USER_ID, { holdingId: 'holding-x' }),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('listBrokers는 이름 순으로 정렬해 조회한다', async () => {

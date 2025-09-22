@@ -9,6 +9,9 @@ import {
 import {
   CreateBrokerInput,
   CreateBrokerageAccountInput,
+  PatchHoldingQuantityInput,
+  PutHoldingQuantityInput,
+  SyncHoldingPriceInput,
   UpdateBrokerInput,
   UpdateBrokerageAccountInput,
 } from './brokerage.dto';
@@ -105,5 +108,29 @@ export class BrokerageResolver {
     @Args('accountId') accountId: string,
   ): Promise<BrokerageHolding[]> {
     return this.brokerageService.refreshHoldings(user.userId, accountId);
+  }
+
+  @Mutation(() => BrokerageHolding)
+  patchBrokerageHoldingQuantity(
+    @CurrentUser() user: ActiveUserData,
+    @Args('input') input: PatchHoldingQuantityInput,
+  ): Promise<BrokerageHolding> {
+    return this.brokerageService.patchHoldingQuantity(user.userId, input);
+  }
+
+  @Mutation(() => BrokerageHolding)
+  putBrokerageHoldingQuantity(
+    @CurrentUser() user: ActiveUserData,
+    @Args('input') input: PutHoldingQuantityInput,
+  ): Promise<BrokerageHolding> {
+    return this.brokerageService.putHoldingQuantity(user.userId, input);
+  }
+
+  @Mutation(() => BrokerageHolding)
+  syncBrokerageHoldingPrice(
+    @CurrentUser() user: ActiveUserData,
+    @Args('input') input: SyncHoldingPriceInput,
+  ): Promise<BrokerageHolding> {
+    return this.brokerageService.syncHoldingPrice(user.userId, input);
   }
 }

@@ -1,10 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Broker as BrokerModel, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BrokerageAccount, BrokerageHolding } from './brokerage.entities';
 import {
   CreateBrokerInput,
   CreateBrokerageAccountInput,
+  PatchHoldingQuantityInput,
+  PutHoldingQuantityInput,
+  SyncHoldingPriceInput,
   UpdateBrokerInput,
   UpdateBrokerageAccountInput,
 } from './brokerage.dto';
@@ -190,6 +197,106 @@ export class BrokerageService {
       }
       throw error;
     }
+  }
+
+  private async findOwnedHolding(
+    userId: string,
+    holdingId: string,
+  ): Promise<BrokerageHolding | null> {
+    return this.prisma.brokerageHolding.findFirst({
+      where: {
+        id: holdingId,
+        account: {
+          userId,
+        },
+      },
+    });
+  }
+
+  private calculateMarketValue(quantity: number, price: number): number {
+    return Number((quantity * price).toFixed(2));
+  }
+
+  private getSyncedPrice(previousPrice: number): number {
+    return Number((previousPrice + 0.01).toFixed(2));
+  }
+
+  async patchHoldingQuantity(
+    userId: string,
+    input: PatchHoldingQuantityInput,
+  ): Promise<BrokerageHolding> {
+    const holding = await this.findOwnedHolding(userId, input.holdingId);
+
+    if (!holding) {
+      throw new NotFoundException('Holding not found');
+    }
+
+    const nextQuantity = holding.quantity + input.quantityDelta;
+
+    if (nextQuantity < 0) {
+      throw new BadRequestException('Quantity cannot be negative');
+    }
+
+    return this.prisma.brokerageHolding.update({
+      where: { id: holding.id },
+      data: {
+        quantity: nextQuantity,
+        marketValue: this.calculateMarketValue(
+          nextQuantity,
+          holding.currentPrice,
+        ),
+        lastUpdated: new Date(),
+      },
+    });
+  }
+
+  async putHoldingQuantity(
+    userId: string,
+    input: PutHoldingQuantityInput,
+  ): Promise<BrokerageHolding> {
+    const holding = await this.findOwnedHolding(userId, input.holdingId);
+
+    if (!holding) {
+      throw new NotFoundException('Holding not found');
+    }
+
+    if (input.quantity < 0) {
+      throw new BadRequestException('Quantity cannot be negative');
+    }
+
+    return this.prisma.brokerageHolding.update({
+      where: { id: holding.id },
+      data: {
+        quantity: input.quantity,
+        marketValue: this.calculateMarketValue(
+          input.quantity,
+          holding.currentPrice,
+        ),
+        lastUpdated: new Date(),
+      },
+    });
+  }
+
+  async syncHoldingPrice(
+    userId: string,
+    input: SyncHoldingPriceInput,
+  ): Promise<BrokerageHolding> {
+    const holding = await this.findOwnedHolding(userId, input.holdingId);
+
+    if (!holding) {
+      throw new NotFoundException('Holding not found');
+    }
+
+    const nextPrice = this.getSyncedPrice(holding.currentPrice);
+
+    return this.prisma.brokerageHolding.update({
+      where: { id: holding.id },
+      data: {
+        currentPrice: nextPrice,
+        marketValue: this.calculateMarketValue(holding.quantity, nextPrice),
+        lastUpdated: new Date(),
+      },
+    });
   }
 
   getAccounts(userId: string): Promise<BrokerageAccount[]> {
