@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateTagInput, UpdateTagInput } from './tags.dto';
 import { Tag } from './tags.entities';
 import { NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 const USER_ID = 'user-1';
 
@@ -92,6 +93,29 @@ describe('TagsService', () => {
     expect(result).toBe(updated);
   });
 
+  it('updateTag는 name과 description 변경을 처리한다', async () => {
+    prismaMock.tag.findFirst.mockResolvedValue({ id: 'tag-1' });
+    prismaMock.tag.update.mockResolvedValue({
+      id: 'tag-1',
+      name: '배당주',
+      description: '업데이트 설명',
+      color: '#ff0000',
+      createdAt: baseDate,
+      updatedAt: baseDate,
+    });
+
+    await service.updateTag(USER_ID, {
+      id: 'tag-1',
+      name: '배당주',
+      description: '업데이트 설명',
+    });
+
+    expect(prismaMock.tag.update).toHaveBeenCalledWith({
+      where: { id: 'tag-1' },
+      data: { name: '배당주', description: '업데이트 설명' },
+    });
+  });
+
   it('updateTag는 다른 사용자의 태그면 NotFoundException을 던진다', async () => {
     prismaMock.tag.findFirst.mockResolvedValue(null);
 
@@ -116,6 +140,28 @@ describe('TagsService', () => {
 
     await expect(service.deleteTag(USER_ID, 'tag-1')).resolves.toBe(false);
     expect(prismaMock.tag.delete).not.toHaveBeenCalled();
+  });
+
+  it('deleteTag는 Prisma P2025 오류 시 false를 반환한다', async () => {
+    prismaMock.tag.findFirst.mockResolvedValue({ id: 'tag-1' });
+    prismaMock.tag.delete.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('not found', {
+        clientVersion: 'test',
+        code: 'P2025',
+      }),
+    );
+
+    await expect(service.deleteTag(USER_ID, 'tag-1')).resolves.toBe(false);
+  });
+
+  it('deleteTag는 예상치 못한 오류를 다시 던진다', async () => {
+    prismaMock.tag.findFirst.mockResolvedValue({ id: 'tag-1' });
+    const unexpectedError = new Error('boom');
+    prismaMock.tag.delete.mockRejectedValue(unexpectedError);
+
+    await expect(service.deleteTag(USER_ID, 'tag-1')).rejects.toBe(
+      unexpectedError,
+    );
   });
 
   it('getTags는 사용자 기준으로 정렬한다', async () => {
@@ -143,5 +189,11 @@ describe('TagsService', () => {
     expect(prismaMock.tag.findFirst).toHaveBeenCalledWith({
       where: { id: 'tag-1', userId: USER_ID },
     });
+  });
+
+  it('getTag는 태그가 없으면 null을 반환한다', async () => {
+    prismaMock.tag.findFirst.mockResolvedValue(null);
+
+    await expect(service.getTag(USER_ID, 'tag-x')).resolves.toBeNull();
   });
 });

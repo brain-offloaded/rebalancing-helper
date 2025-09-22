@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import styled from 'styled-components';
-import { GET_BROKERAGE_HOLDINGS } from '../graphql/brokerage';
+import {
+  GET_BROKERAGE_HOLDINGS,
+  INCREMENT_BROKERAGE_HOLDING_QUANTITY,
+  SET_BROKERAGE_HOLDING_QUANTITY,
+  SYNC_BROKERAGE_HOLDING_PRICE,
+} from '../graphql/brokerage';
 import { GET_TAGS } from '../graphql/tags';
 import { GET_TAGS_FOR_HOLDING, SET_HOLDING_TAGS } from '../graphql/holdings';
 
@@ -71,6 +76,17 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
   `}
 `;
 
+const ActionContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: ${(props) => props.theme.spacing.xs};
+
+  & > button {
+    margin-left: 0;
+  }
+`;
+
 const Modal = styled.div`
   position: fixed;
   top: 0;
@@ -104,6 +120,26 @@ const Checkbox = styled.input`
   margin-right: ${(props) => props.theme.spacing.sm};
 `;
 
+const Field = styled.div`
+  width: 100%;
+  margin-bottom: ${(props) => props.theme.spacing.md};
+
+  label {
+    display: block;
+    margin-bottom: ${(props) => props.theme.spacing.xs};
+    font-weight: ${(props) => props.theme.typography.fontWeight.medium};
+  }
+`;
+
+const Input = styled.input`
+  width: 100%;
+  padding: ${(props) => props.theme.spacing.xs};
+  border: 1px solid ${(props) => props.theme.colors.border};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
+  font-size: ${(props) => props.theme.typography.fontSize.sm};
+  box-sizing: border-box;
+`;
+
 interface Holding {
   id: string;
   symbol: string;
@@ -127,10 +163,14 @@ interface Tag {
 export const Holdings: React.FC = () => {
   const [selectedHolding, setSelectedHolding] = useState<string | null>(null);
   const [showTagModal, setShowTagModal] = useState(false);
+  const [quantityModalHolding, setQuantityModalHolding] =
+    useState<Holding | null>(null);
 
-  const { data: holdingsData, loading: holdingsLoading } = useQuery(
-    GET_BROKERAGE_HOLDINGS,
-  );
+  const {
+    data: holdingsData,
+    loading: holdingsLoading,
+    refetch: refetchHoldings,
+  } = useQuery(GET_BROKERAGE_HOLDINGS);
   const { data: tagsData } = useQuery<{ tags: Tag[] }>(GET_TAGS);
   const {
     data: holdingTagsData,
@@ -144,10 +184,27 @@ export const Holdings: React.FC = () => {
   });
 
   const [setHoldingTags] = useMutation(SET_HOLDING_TAGS);
+  const [
+    incrementHoldingQuantityMutation,
+    { loading: incrementQuantityLoading },
+  ] = useMutation(INCREMENT_BROKERAGE_HOLDING_QUANTITY);
+  const [setHoldingQuantityMutation, { loading: setQuantityLoading }] =
+    useMutation(SET_BROKERAGE_HOLDING_QUANTITY);
+  const [syncHoldingPriceMutation, { loading: syncPriceLoading }] = useMutation(
+    SYNC_BROKERAGE_HOLDING_PRICE,
+  );
 
   const handleTagManagement = (symbol: string) => {
     setSelectedHolding(symbol);
     setShowTagModal(true);
+  };
+
+  const handleQuantityManagement = (holding: Holding) => {
+    setQuantityModalHolding(holding);
+  };
+
+  const closeQuantityModal = () => {
+    setQuantityModalHolding(null);
   };
 
   const handleTagUpdate = async (tagIds: string[]) => {
@@ -186,6 +243,87 @@ export const Holdings: React.FC = () => {
     return tagIds
       .map((tagId) => tagsById.get(tagId))
       .filter((tag): tag is Tag => Boolean(tag));
+  };
+
+  const handleIncrementQuantity = async (delta: number): Promise<void> => {
+    if (!quantityModalHolding) return;
+
+    try {
+      const { data } = await incrementHoldingQuantityMutation({
+        variables: {
+          input: {
+            holdingId: quantityModalHolding.id,
+            quantityDelta: delta,
+          },
+        },
+      });
+
+      const updatedHolding =
+        (data?.incrementBrokerageHoldingQuantity as Holding | undefined) ??
+        null;
+
+      if (updatedHolding) {
+        setQuantityModalHolding(updatedHolding);
+      }
+
+      await refetchHoldings();
+    } catch (error) {
+      console.error('보유 수량 증가 실패:', error);
+      throw error;
+    }
+  };
+
+  const handleSetQuantity = async (quantity: number): Promise<void> => {
+    if (!quantityModalHolding) return;
+
+    try {
+      const { data } = await setHoldingQuantityMutation({
+        variables: {
+          input: {
+            holdingId: quantityModalHolding.id,
+            quantity,
+          },
+        },
+      });
+
+      const updatedHolding =
+        (data?.setBrokerageHoldingQuantity as Holding | undefined) ?? null;
+
+      if (updatedHolding) {
+        setQuantityModalHolding(updatedHolding);
+      }
+
+      await refetchHoldings();
+    } catch (error) {
+      console.error('보유 수량 설정 실패:', error);
+      throw error;
+    }
+  };
+
+  const handleSyncHoldingPrice = async (): Promise<void> => {
+    if (!quantityModalHolding) return;
+
+    try {
+      const { data } = await syncHoldingPriceMutation({
+        variables: {
+          input: {
+            holdingId: quantityModalHolding.id,
+          },
+        },
+      });
+
+      const updatedHolding =
+        (data?.syncBrokerageHoldingPrice as Holding | undefined) ?? null;
+
+      if (updatedHolding) {
+        setQuantityModalHolding(updatedHolding);
+      }
+
+      await refetchHoldings();
+    } catch (error) {
+      console.error('현재가 동기화 실패:', error);
+      throw error;
+    }
   };
 
   if (holdingsLoading) return <div>로딩 중...</div>;
@@ -236,12 +374,17 @@ export const Holdings: React.FC = () => {
                   </TagContainer>
                 </Td>
                 <Td>
-                  <Button
-                    variant="primary"
-                    onClick={() => handleTagManagement(holding.symbol)}
-                  >
-                    태그 관리
-                  </Button>
+                  <ActionContainer>
+                    <Button onClick={() => handleQuantityManagement(holding)}>
+                      수량 조정
+                    </Button>
+                    <Button
+                      variant="primary"
+                      onClick={() => handleTagManagement(holding.symbol)}
+                    >
+                      태그 관리
+                    </Button>
+                  </ActionContainer>
                 </Td>
               </tr>
             );
@@ -259,6 +402,18 @@ export const Holdings: React.FC = () => {
           isLoading={holdingTagsLoading}
           onUpdate={handleTagUpdate}
           onClose={() => setShowTagModal(false)}
+        />
+      )}
+      {quantityModalHolding && (
+        <QuantityModal
+          holding={quantityModalHolding}
+          onClose={closeQuantityModal}
+          onIncrement={handleIncrementQuantity}
+          onSetQuantity={handleSetQuantity}
+          onSyncPrice={handleSyncHoldingPrice}
+          isIncrementLoading={incrementQuantityLoading}
+          isSetLoading={setQuantityLoading}
+          isSyncLoading={syncPriceLoading}
         />
       )}
     </Container>
@@ -339,6 +494,155 @@ const TagModal: React.FC<TagModalProps> = ({
             적용
           </Button>
           <Button onClick={onClose} disabled={isLoading}>
+            취소
+          </Button>
+        </div>
+      </ModalContent>
+    </Modal>
+  );
+};
+
+interface QuantityModalProps {
+  holding: Holding;
+  onIncrement: (delta: number) => Promise<void>;
+  onSetQuantity: (quantity: number) => Promise<void>;
+  onSyncPrice: () => Promise<void>;
+  isIncrementLoading: boolean;
+  isSetLoading: boolean;
+  isSyncLoading: boolean;
+  onClose: () => void;
+}
+
+const QuantityModal: React.FC<QuantityModalProps> = ({
+  holding,
+  onIncrement,
+  onSetQuantity,
+  onSyncPrice,
+  isIncrementLoading,
+  isSetLoading,
+  isSyncLoading,
+  onClose,
+}) => {
+  const [incrementValue, setIncrementValue] = useState('');
+  const [setValue, setSetValue] = useState('');
+
+  useEffect(() => {
+    setIncrementValue('');
+    setSetValue('');
+  }, [holding]);
+
+  const parsedIncrement = parseFloat(incrementValue);
+  const canIncrement =
+    !Number.isNaN(parsedIncrement) && parsedIncrement > 0;
+
+  const parsedSet = parseFloat(setValue);
+  const canSet = !Number.isNaN(parsedSet) && parsedSet >= 0;
+
+  const handleIncrementClick = async () => {
+    if (!canIncrement || isIncrementLoading) {
+      return;
+    }
+
+    try {
+      await onIncrement(parsedIncrement);
+      setIncrementValue('');
+    } catch (error) {
+      console.error('수량 증가 처리 중 오류:', error);
+    }
+  };
+
+  const handleSetClick = async () => {
+    if (!canSet || isSetLoading) {
+      return;
+    }
+
+    try {
+      await onSetQuantity(parsedSet);
+    } catch (error) {
+      console.error('수량 설정 처리 중 오류:', error);
+    }
+  };
+
+  const handleSyncClick = async () => {
+    if (isSyncLoading) {
+      return;
+    }
+
+    try {
+      await onSyncPrice();
+    } catch (error) {
+      console.error('현재가 동기화 처리 중 오류:', error);
+    }
+  };
+
+  return (
+    <Modal onClick={onClose}>
+      <ModalContent onClick={(event) => event.stopPropagation()}>
+        <h3>{holding.symbol} 수량 조정</h3>
+        <p>현재 수량: {holding.quantity.toLocaleString()}</p>
+        <p>현재가: ${holding.currentPrice.toFixed(2)}</p>
+
+        <Field>
+          <label htmlFor="incrementQuantity">추가 수량</label>
+          <Input
+            id="incrementQuantity"
+            type="number"
+            value={incrementValue}
+            onChange={(event) => setIncrementValue(event.target.value)}
+            min="0"
+            step="any"
+          />
+          <div style={{ marginTop: '8px' }}>
+            <Button
+              variant="primary"
+              onClick={handleIncrementClick}
+              disabled={!canIncrement || isIncrementLoading}
+              style={{ marginLeft: 0 }}
+            >
+              수량 증가
+            </Button>
+          </div>
+        </Field>
+
+        <Field>
+          <label htmlFor="setQuantity">설정 수량</label>
+          <Input
+            id="setQuantity"
+            type="number"
+            value={setValue}
+            onChange={(event) => setSetValue(event.target.value)}
+            min="0"
+            step="any"
+          />
+          <div style={{ marginTop: '8px' }}>
+            <Button
+              variant="primary"
+              onClick={handleSetClick}
+              disabled={!canSet || isSetLoading}
+              style={{ marginLeft: 0 }}
+            >
+              수량 설정
+            </Button>
+          </div>
+        </Field>
+
+        <Field>
+          <Button
+            variant="secondary"
+            onClick={handleSyncClick}
+            disabled={isSyncLoading}
+            style={{ marginLeft: 0 }}
+          >
+            현재가 동기화
+          </Button>
+        </Field>
+
+        <div>
+          <Button
+            onClick={onClose}
+            disabled={isIncrementLoading || isSetLoading || isSyncLoading}
+            style={{ marginLeft: 0 }}
+          >
             취소
           </Button>
         </div>

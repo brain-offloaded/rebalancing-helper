@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { BrokerageService } from './brokerage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -6,6 +7,7 @@ import {
   UpdateBrokerageAccountInput,
 } from './brokerage.dto';
 import { CredentialCryptoService } from './credential-crypto.service';
+import { MarketDataService } from './market-data.service';
 
 const USER_ID = 'user-1';
 
@@ -28,6 +30,8 @@ type MockedPrisma = {
     findMany: jest.Mock;
     deleteMany: jest.Mock;
     createMany: jest.Mock;
+    findUnique: jest.Mock;
+    update: jest.Mock;
   };
   $transaction: jest.Mock;
 };
@@ -38,6 +42,7 @@ describe('BrokerageService', () => {
   let credentialCryptoMock: jest.Mocked<
     Pick<CredentialCryptoService, 'encrypt'>
   >;
+  let marketDataMock: { getLatestPrice: jest.Mock };
 
   beforeEach(() => {
     prismaMock = {
@@ -59,6 +64,8 @@ describe('BrokerageService', () => {
         findMany: jest.fn(),
         deleteMany: jest.fn(),
         createMany: jest.fn(),
+        findUnique: jest.fn(),
+        update: jest.fn(),
       },
       $transaction: jest.fn(),
     };
@@ -71,9 +78,14 @@ describe('BrokerageService', () => {
       })),
     };
 
+    marketDataMock = {
+      getLatestPrice: jest.fn(),
+    };
+
     service = new BrokerageService(
       prismaMock as unknown as PrismaService,
       credentialCryptoMock as unknown as CredentialCryptoService,
+      marketDataMock as unknown as MarketDataService,
     );
   });
 
@@ -185,6 +197,28 @@ describe('BrokerageService', () => {
     expect(prismaMock.brokerageAccount.update).not.toHaveBeenCalled();
   });
 
+  it('updateAccount는 apiSecret을 null로 초기화할 수 있다', async () => {
+    prismaMock.brokerageAccount.findFirst.mockResolvedValue({ id: 'acc-1' });
+    prismaMock.brokerageAccount.update.mockResolvedValue({ id: 'acc-1' });
+
+    await service.updateAccount(USER_ID, {
+      id: 'acc-1',
+      apiSecret: null,
+      description: null,
+    });
+
+    expect(prismaMock.brokerageAccount.update).toHaveBeenCalledWith({
+      where: { id: 'acc-1' },
+      data: {
+        apiSecretCipher: null,
+        apiSecretIv: null,
+        apiSecretTag: null,
+        description: null,
+      },
+      include: { broker: true },
+    });
+  });
+
   it('deleteAccount는 소유권을 확인한 뒤 삭제한다', async () => {
     prismaMock.brokerageAccount.findFirst.mockResolvedValue({ id: 'acc-1' });
     prismaMock.brokerageAccount.delete.mockResolvedValue({});
@@ -200,6 +234,18 @@ describe('BrokerageService', () => {
 
     await expect(service.deleteAccount(USER_ID, 'acc-1')).resolves.toBe(false);
     expect(prismaMock.brokerageAccount.delete).not.toHaveBeenCalled();
+  });
+
+  it('deleteAccount는 Prisma P2025 오류 시 false를 반환한다', async () => {
+    prismaMock.brokerageAccount.findFirst.mockResolvedValue({ id: 'acc-1' });
+    prismaMock.brokerageAccount.delete.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('not found', {
+        clientVersion: 'test',
+        code: 'P2025',
+      }),
+    );
+
+    await expect(service.deleteAccount(USER_ID, 'acc-1')).resolves.toBe(false);
   });
 
   it('getAccounts는 사용자에 연결된 계좌를 조회한다', async () => {
@@ -274,6 +320,153 @@ describe('BrokerageService', () => {
       where: { accountId: 'acc-1', account: { userId: USER_ID } },
       orderBy: { symbol: 'asc' },
     });
+  });
+
+  it('incrementHoldingQuantity는 소유 종목의 수량을 증가시킨다', async () => {
+    const now = new Date('2024-01-03T00:00:00Z');
+    jest.useFakeTimers().setSystemTime(now);
+    const existingHolding = {
+      id: 'holding-1',
+      symbol: 'AAPL',
+      name: '애플',
+      quantity: 2,
+      currentPrice: 150,
+      marketValue: 300,
+      averageCost: 120,
+      currency: 'USD',
+      accountId: 'acc-1',
+      account: { userId: USER_ID },
+      lastUpdated: new Date('2024-01-01T00:00:00Z'),
+    };
+    const updatedHolding = {
+      ...existingHolding,
+      quantity: 5,
+      marketValue: 750,
+      lastUpdated: now,
+    };
+    prismaMock.brokerageHolding.findUnique.mockResolvedValue(existingHolding);
+    prismaMock.brokerageHolding.update.mockResolvedValue(updatedHolding);
+
+    const result = await service.incrementHoldingQuantity(USER_ID, {
+      holdingId: 'holding-1',
+      quantityDelta: 3,
+    });
+
+    expect(prismaMock.brokerageHolding.findUnique).toHaveBeenCalledWith({
+      where: { id: 'holding-1' },
+      include: { account: { select: { userId: true } } },
+    });
+    expect(prismaMock.brokerageHolding.update).toHaveBeenCalledWith({
+      where: { id: 'holding-1' },
+      data: {
+        quantity: 5,
+        marketValue: 750,
+        lastUpdated: now,
+      },
+    });
+    expect(result).toBe(updatedHolding);
+
+    jest.useRealTimers();
+  });
+
+  it('incrementHoldingQuantity는 타인 소유면 NotFoundException을 던진다', async () => {
+    prismaMock.brokerageHolding.findUnique.mockResolvedValue({
+      id: 'holding-1',
+      account: { userId: 'other-user' },
+    });
+
+    await expect(
+      service.incrementHoldingQuantity(USER_ID, {
+        holdingId: 'holding-1',
+        quantityDelta: 1,
+      }),
+    ).rejects.toThrow(NotFoundException);
+    expect(prismaMock.brokerageHolding.update).not.toHaveBeenCalled();
+  });
+
+  it('setHoldingQuantity는 절대 수량으로 갱신한다', async () => {
+    const now = new Date('2024-01-04T00:00:00Z');
+    jest.useFakeTimers().setSystemTime(now);
+    const existingHolding = {
+      id: 'holding-2',
+      symbol: 'MSFT',
+      name: '마이크로소프트',
+      quantity: 10,
+      currentPrice: 100,
+      marketValue: 1000,
+      averageCost: 90,
+      currency: 'USD',
+      accountId: 'acc-1',
+      account: { userId: USER_ID },
+      lastUpdated: new Date('2024-01-01T00:00:00Z'),
+    };
+    prismaMock.brokerageHolding.findUnique.mockResolvedValue(existingHolding);
+    const updatedHolding = {
+      ...existingHolding,
+      quantity: 4.5,
+      marketValue: 450,
+      lastUpdated: now,
+    };
+    prismaMock.brokerageHolding.update.mockResolvedValue(updatedHolding);
+
+    const result = await service.setHoldingQuantity(USER_ID, {
+      holdingId: 'holding-2',
+      quantity: 4.5,
+    });
+
+    expect(prismaMock.brokerageHolding.update).toHaveBeenCalledWith({
+      where: { id: 'holding-2' },
+      data: {
+        quantity: 4.5,
+        marketValue: 450,
+        lastUpdated: now,
+      },
+    });
+    expect(result).toBe(updatedHolding);
+    jest.useRealTimers();
+  });
+
+  it('syncHoldingPrice는 시세를 조회해 가격을 갱신한다', async () => {
+    const now = new Date('2024-01-05T00:00:00Z');
+    jest.useFakeTimers().setSystemTime(now);
+    const existingHolding = {
+      id: 'holding-3',
+      symbol: 'QQQ',
+      name: '나스닥 ETF',
+      quantity: 7,
+      currentPrice: 350,
+      marketValue: 2450,
+      averageCost: 300,
+      currency: 'USD',
+      accountId: 'acc-1',
+      account: { userId: USER_ID },
+      lastUpdated: new Date('2024-01-01T00:00:00Z'),
+    };
+    prismaMock.brokerageHolding.findUnique.mockResolvedValue(existingHolding);
+    marketDataMock.getLatestPrice.mockResolvedValue(360.5);
+    const updatedHolding = {
+      ...existingHolding,
+      currentPrice: 360.5,
+      marketValue: 2523.5,
+      lastUpdated: now,
+    };
+    prismaMock.brokerageHolding.update.mockResolvedValue(updatedHolding);
+
+    const result = await service.syncHoldingPrice(USER_ID, {
+      holdingId: 'holding-3',
+    });
+
+    expect(marketDataMock.getLatestPrice).toHaveBeenCalledWith('QQQ');
+    expect(prismaMock.brokerageHolding.update).toHaveBeenCalledWith({
+      where: { id: 'holding-3' },
+      data: {
+        currentPrice: 360.5,
+        marketValue: 2523.5,
+        lastUpdated: now,
+      },
+    });
+    expect(result).toBe(updatedHolding);
+    jest.useRealTimers();
   });
 
   it('listBrokers는 이름 순으로 정렬해 조회한다', async () => {

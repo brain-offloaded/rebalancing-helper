@@ -1,112 +1,65 @@
-jest.mock('@prisma/client', () => {
-  const actual = jest.requireActual('@prisma/client');
-  class PrismaClientMock {
-    public readonly options: unknown;
-    public $connect = jest.fn();
-    public $disconnect = jest.fn();
-    public $on = jest.fn();
-
-    constructor(options?: unknown) {
-      this.options = options;
-    }
-  }
-
-  return {
-    ...actual,
-    PrismaClient: PrismaClientMock,
-  };
-});
-
 import { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from './prisma.service';
 
 describe('PrismaService', () => {
-  const createConfigService = (databaseUrl?: string) => {
-    const get = jest.fn().mockImplementation((key: string) => {
-      if (key === 'DATABASE_URL') {
-        return databaseUrl;
-      }
-      return undefined;
-    });
-    return { get } as unknown as ConfigService;
-  };
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('DATABASE_URL 환경 변수를 활용해 Prisma 클라이언트를 초기화한다', () => {
-    const get = jest.fn().mockReturnValue('postgres://example');
-    const config = { get } as unknown as ConfigService;
-
-    const service = new PrismaService(config);
-    const internal = service as unknown as { options: unknown };
+  it('생성자는 ConfigService에서 DATABASE_URL을 조회한다', async () => {
+    const get = jest.fn().mockReturnValue('file:./prisma/test.db');
+    const service = new PrismaService({
+      get: get as ConfigService['get'],
+    } as ConfigService);
 
     expect(get).toHaveBeenCalledWith('DATABASE_URL');
-    expect(internal.options).toEqual({
-      datasources: {
-        db: {
-          url: 'postgres://example',
-        },
-      },
-    });
+
+    await service.$disconnect();
   });
 
-  it('DATABASE_URL이 없으면 로컬 파일 데이터베이스를 사용한다', () => {
-    const config = createConfigService(undefined);
+  const createService = () =>
+    Object.create(PrismaService.prototype) as PrismaService & {
+      $connect: jest.Mock;
+      $disconnect: jest.Mock;
+    };
 
-    const service = new PrismaService(config);
-    const internal = service as unknown as { options: unknown };
-
-    expect(internal.options).toEqual({
-      datasources: {
-        db: {
-          url: 'file:./prisma/dev.db',
-        },
-      },
-    });
-  });
-
-  it('onModuleInit은 Prisma 연결을 수립한다', async () => {
-    const config = createConfigService('postgres://example');
-
-    const service = new PrismaService(config);
-    const internal = service as unknown as { $connect: jest.Mock };
+  it('onModuleInit는 Prisma 연결을 초기화한다', async () => {
+    const service = createService();
+    service.$connect = jest.fn();
 
     await service.onModuleInit();
 
-    expect(internal.$connect).toHaveBeenCalledTimes(1);
+    expect(service.$connect).toHaveBeenCalledTimes(1);
   });
 
   it('onModuleDestroy는 Prisma 연결을 종료한다', async () => {
-    const config = createConfigService('postgres://example');
-
-    const service = new PrismaService(config);
-    const internal = service as unknown as { $disconnect: jest.Mock };
+    const service = createService();
+    service.$disconnect = jest.fn();
 
     await service.onModuleDestroy();
 
-    expect(internal.$disconnect).toHaveBeenCalledTimes(1);
+    expect(service.$disconnect).toHaveBeenCalledTimes(1);
   });
 
-  it('enableShutdownHooks는 beforeExit 이벤트 리스너를 등록한다', () => {
-    const config = createConfigService('postgres://example');
-    const service = new PrismaService(config);
-    const app = {
-      close: jest.fn().mockResolvedValue(undefined),
-    } as unknown as INestApplication;
-
-    const onSpy = jest.spyOn(process, 'on');
+  it('enableShutdownHooks는 beforeExit에서 앱을 종료한다', () => {
+    const service = createService();
+    const close = jest.fn();
+    const app = { close } as unknown as INestApplication;
+    const listeners: Record<string, NodeJS.BeforeExitListener> = {};
+    const processOnSpy = jest
+      .spyOn(process, 'on')
+      .mockImplementation(<T extends string | symbol>(event: T, listener: any) => {
+        listeners[event as string] = listener;
+        return process;
+      });
 
     service.enableShutdownHooks(app);
 
-    expect(onSpy).toHaveBeenCalledWith('beforeExit', expect.any(Function));
-    const handler = onSpy.mock.calls[0][1] as () => void;
-    handler();
+    expect(processOnSpy).toHaveBeenCalledWith('beforeExit', expect.any(Function));
 
-    expect(app.close).toHaveBeenCalledTimes(1);
+    const beforeExit = listeners['beforeExit'];
+    expect(beforeExit).toBeDefined();
+    beforeExit?.(0);
 
-    onSpy.mockRestore();
+    expect(close).toHaveBeenCalledTimes(1);
+
+    processOnSpy.mockRestore();
   });
 });

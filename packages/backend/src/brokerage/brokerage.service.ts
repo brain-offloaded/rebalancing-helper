@@ -5,16 +5,21 @@ import { BrokerageAccount, BrokerageHolding } from './brokerage.entities';
 import {
   CreateBrokerInput,
   CreateBrokerageAccountInput,
+  IncrementHoldingQuantityInput,
   UpdateBrokerInput,
   UpdateBrokerageAccountInput,
+  SetHoldingQuantityInput,
+  SyncHoldingPriceInput,
 } from './brokerage.dto';
 import { CredentialCryptoService } from './credential-crypto.service';
+import { MarketDataService } from './market-data.service';
 
 @Injectable()
 export class BrokerageService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly credentialCrypto: CredentialCryptoService,
+    private readonly marketData: MarketDataService,
   ) {}
 
   listBrokers(): Promise<BrokerModel[]> {
@@ -221,6 +226,26 @@ export class BrokerageService {
     });
   }
 
+  private async getHoldingForUser(
+    userId: string,
+    holdingId: string,
+  ): Promise<
+    Prisma.BrokerageHoldingGetPayload<{
+      include: { account: { select: { userId: true } } };
+    }>
+  > {
+    const holding = await this.prisma.brokerageHolding.findUnique({
+      where: { id: holdingId },
+      include: { account: { select: { userId: true } } },
+    });
+
+    if (!holding || holding.account.userId !== userId) {
+      throw new NotFoundException('Holding not found');
+    }
+
+    return holding;
+  }
+
   async refreshHoldings(
     userId: string,
     accountId: string,
@@ -278,5 +303,56 @@ export class BrokerageService {
     ]);
 
     return this.getHoldings(userId, accountId);
+  }
+
+  async incrementHoldingQuantity(
+    userId: string,
+    input: IncrementHoldingQuantityInput,
+  ): Promise<BrokerageHolding> {
+    const holding = await this.getHoldingForUser(userId, input.holdingId);
+    const nextQuantity = holding.quantity + input.quantityDelta;
+
+    return this.prisma.brokerageHolding.update({
+      where: { id: holding.id },
+      data: {
+        quantity: nextQuantity,
+        marketValue: nextQuantity * holding.currentPrice,
+        lastUpdated: new Date(),
+      },
+    });
+  }
+
+  async setHoldingQuantity(
+    userId: string,
+    input: SetHoldingQuantityInput,
+  ): Promise<BrokerageHolding> {
+    const holding = await this.getHoldingForUser(userId, input.holdingId);
+    const nextQuantity = input.quantity;
+
+    return this.prisma.brokerageHolding.update({
+      where: { id: holding.id },
+      data: {
+        quantity: nextQuantity,
+        marketValue: nextQuantity * holding.currentPrice,
+        lastUpdated: new Date(),
+      },
+    });
+  }
+
+  async syncHoldingPrice(
+    userId: string,
+    input: SyncHoldingPriceInput,
+  ): Promise<BrokerageHolding> {
+    const holding = await this.getHoldingForUser(userId, input.holdingId);
+    const latestPrice = await this.marketData.getLatestPrice(holding.symbol);
+
+    return this.prisma.brokerageHolding.update({
+      where: { id: holding.id },
+      data: {
+        currentPrice: latestPrice,
+        marketValue: latestPrice * holding.quantity,
+        lastUpdated: new Date(),
+      },
+    });
   }
 }
