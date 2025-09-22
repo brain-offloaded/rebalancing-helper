@@ -3,9 +3,6 @@ import { BrokerageService } from './brokerage.service';
 import {
   CreateBrokerInput,
   CreateBrokerageAccountInput,
-  PatchHoldingQuantityInput,
-  PutHoldingQuantityInput,
-  SyncHoldingPriceInput,
   UpdateBrokerInput,
   UpdateBrokerageAccountInput,
 } from './brokerage.dto';
@@ -88,9 +85,6 @@ describe('BrokerageResolver', () => {
       updateAccount: jest.fn(),
       deleteAccount: jest.fn(),
       refreshHoldings: jest.fn(),
-      patchHoldingQuantity: jest.fn(),
-      putHoldingQuantity: jest.fn(),
-      syncHoldingPrice: jest.fn(),
     } as unknown as jest.Mocked<BrokerageService>;
 
     resolver = new BrokerageResolver(service);
@@ -190,54 +184,6 @@ describe('BrokerageResolver', () => {
     expect(service.refreshHoldings).toHaveBeenCalledWith(
       mockUser.userId,
       'account-1',
-    );
-  });
-
-  it('patchBrokerageHoldingQuantity는 사용자 ID와 입력을 전달한다', async () => {
-    const input: PatchHoldingQuantityInput = {
-      holdingId: 'holding-1',
-      quantityDelta: 3,
-    };
-    const holding = createHolding({ id: 'holding-1', quantity: 8 });
-    service.patchHoldingQuantity.mockResolvedValue(holding);
-
-    await expect(
-      resolver.patchBrokerageHoldingQuantity(mockUser, input),
-    ).resolves.toBe(holding);
-    expect(service.patchHoldingQuantity).toHaveBeenCalledWith(
-      mockUser.userId,
-      input,
-    );
-  });
-
-  it('putBrokerageHoldingQuantity는 사용자 ID와 입력을 전달한다', async () => {
-    const input: PutHoldingQuantityInput = {
-      holdingId: 'holding-1',
-      quantity: 12,
-    };
-    const holding = createHolding({ id: 'holding-1', quantity: 12 });
-    service.putHoldingQuantity.mockResolvedValue(holding);
-
-    await expect(
-      resolver.putBrokerageHoldingQuantity(mockUser, input),
-    ).resolves.toBe(holding);
-    expect(service.putHoldingQuantity).toHaveBeenCalledWith(
-      mockUser.userId,
-      input,
-    );
-  });
-
-  it('syncBrokerageHoldingPrice는 사용자 ID와 입력을 전달한다', async () => {
-    const input: SyncHoldingPriceInput = { holdingId: 'holding-1' };
-    const holding = createHolding({ id: 'holding-1' });
-    service.syncHoldingPrice.mockResolvedValue(holding);
-
-    await expect(
-      resolver.syncBrokerageHoldingPrice(mockUser, input),
-    ).resolves.toBe(holding);
-    expect(service.syncHoldingPrice).toHaveBeenCalledWith(
-      mockUser.userId,
-      input,
     );
   });
 
