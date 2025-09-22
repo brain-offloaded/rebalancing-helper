@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "dev": "nest start --watch",
-    "predev": "pnpm prisma:generate",
+    "predev": "yarn prisma:generate",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
@@ -19,7 +19,7 @@
     "test": "jest --runInBand",
     "test:watch": "jest --watch --runInBand",
     "test:cov": "jest --coverage --runInBand",
-    "test:debug": "NODE_OPTIONS=\"--inspect-brk -r tsconfig-paths/register -r ts-node/register\" pnpm exec jest --runInBand",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register $(yarn bin jest) --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --create-only",
