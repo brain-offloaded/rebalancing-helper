@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { HoldingsService } from './holdings.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { HoldingTag } from './holdings.entities';
@@ -99,6 +100,34 @@ describe('HoldingsService', () => {
         },
       },
     });
+  });
+
+  it('removeTag는 Prisma P2025 오류 시 false를 반환한다', async () => {
+    const input: RemoveHoldingTagInput = {
+      holdingSymbol: 'AAPL',
+      tagId: 'tag-1',
+    };
+    prismaMock.holdingTag.delete.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('not found', {
+        clientVersion: 'test',
+        code: 'P2025',
+      }),
+    );
+
+    await expect(service.removeTag(USER_ID, input)).resolves.toBe(false);
+  });
+
+  it('removeTag는 예상치 못한 오류를 다시 던진다', async () => {
+    const input: RemoveHoldingTagInput = {
+      holdingSymbol: 'AAPL',
+      tagId: 'tag-1',
+    };
+    const unexpectedError = new Error('boom');
+    prismaMock.holdingTag.delete.mockRejectedValue(unexpectedError);
+
+    await expect(service.removeTag(USER_ID, input)).rejects.toBe(
+      unexpectedError,
+    );
   });
 
   it('setTags는 기존 태그를 삭제하고 새 태그를 생성한다', async () => {

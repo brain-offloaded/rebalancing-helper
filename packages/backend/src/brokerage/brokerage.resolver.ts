@@ -9,8 +9,11 @@ import {
 import {
   CreateBrokerInput,
   CreateBrokerageAccountInput,
+  IncrementHoldingQuantityInput,
   UpdateBrokerInput,
   UpdateBrokerageAccountInput,
+  SetHoldingQuantityInput,
+  SyncHoldingPriceInput,
 } from './brokerage.dto';
 import { GqlAuthGuard } from '../auth/gql-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -105,5 +108,29 @@ export class BrokerageResolver {
     @Args('accountId') accountId: string,
   ): Promise<BrokerageHolding[]> {
     return this.brokerageService.refreshHoldings(user.userId, accountId);
+  }
+
+  @Mutation(() => BrokerageHolding)
+  incrementBrokerageHoldingQuantity(
+    @CurrentUser() user: ActiveUserData,
+    @Args('input') input: IncrementHoldingQuantityInput,
+  ): Promise<BrokerageHolding> {
+    return this.brokerageService.incrementHoldingQuantity(user.userId, input);
+  }
+
+  @Mutation(() => BrokerageHolding)
+  setBrokerageHoldingQuantity(
+    @CurrentUser() user: ActiveUserData,
+    @Args('input') input: SetHoldingQuantityInput,
+  ): Promise<BrokerageHolding> {
+    return this.brokerageService.setHoldingQuantity(user.userId, input);
+  }
+
+  @Mutation(() => BrokerageHolding)
+  syncBrokerageHoldingPrice(
+    @CurrentUser() user: ActiveUserData,
+    @Args('input') input: SyncHoldingPriceInput,
+  ): Promise<BrokerageHolding> {
+    return this.brokerageService.syncHoldingPrice(user.userId, input);
   }
 }

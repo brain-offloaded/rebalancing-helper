@@ -144,3 +144,56 @@ export const REFRESH_BROKERAGE_HOLDINGS = gql`
     }
   }
 `;
+
+export const INCREMENT_BROKERAGE_HOLDING_QUANTITY = gql`
+  mutation IncrementBrokerageHoldingQuantity(
+    $input: IncrementHoldingQuantityInput!
+  ) {
+    incrementBrokerageHoldingQuantity(input: $input) {
+      id
+      symbol
+      name
+      quantity
+      currentPrice
+      marketValue
+      averageCost
+      currency
+      accountId
+      lastUpdated
+    }
+  }
+`;
+
+export const SET_BROKERAGE_HOLDING_QUANTITY = gql`
+  mutation SetBrokerageHoldingQuantity($input: SetHoldingQuantityInput!) {
+    setBrokerageHoldingQuantity(input: $input) {
+      id
+      symbol
+      name
+      quantity
+      currentPrice
+      marketValue
+      averageCost
+      currency
+      accountId
+      lastUpdated
+    }
+  }
+`;
+
+export const SYNC_BROKERAGE_HOLDING_PRICE = gql`
+  mutation SyncBrokerageHoldingPrice($input: SyncHoldingPriceInput!) {
+    syncBrokerageHoldingPrice(input: $input) {
+      id
+      symbol
+      name
+      quantity
+      currentPrice
+      marketValue
+      averageCost
+      currency
+      accountId
+      lastUpdated
+    }
+  }
+`;

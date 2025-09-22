@@ -85,6 +85,9 @@ describe('BrokerageResolver', () => {
       updateAccount: jest.fn(),
       deleteAccount: jest.fn(),
       refreshHoldings: jest.fn(),
+      incrementHoldingQuantity: jest.fn(),
+      setHoldingQuantity: jest.fn(),
+      syncHoldingPrice: jest.fn(),
     } as unknown as jest.Mocked<BrokerageService>;
 
     resolver = new BrokerageResolver(service);
@@ -184,6 +187,48 @@ describe('BrokerageResolver', () => {
     expect(service.refreshHoldings).toHaveBeenCalledWith(
       mockUser.userId,
       'account-1',
+    );
+  });
+
+  it('incrementBrokerageHoldingQuantity는 수량 증분 입력을 위임한다', async () => {
+    const input = { holdingId: 'holding-1', quantityDelta: 2.5 };
+    const holding = createHolding({ quantity: 3.5 });
+    service.incrementHoldingQuantity.mockResolvedValue(holding);
+
+    await expect(
+      resolver.incrementBrokerageHoldingQuantity(mockUser, input),
+    ).resolves.toBe(holding);
+    expect(service.incrementHoldingQuantity).toHaveBeenCalledWith(
+      mockUser.userId,
+      input,
+    );
+  });
+
+  it('setBrokerageHoldingQuantity는 절대 수량 입력을 위임한다', async () => {
+    const input = { holdingId: 'holding-1', quantity: 10 };
+    const holding = createHolding({ quantity: 10 });
+    service.setHoldingQuantity.mockResolvedValue(holding);
+
+    await expect(
+      resolver.setBrokerageHoldingQuantity(mockUser, input),
+    ).resolves.toBe(holding);
+    expect(service.setHoldingQuantity).toHaveBeenCalledWith(
+      mockUser.userId,
+      input,
+    );
+  });
+
+  it('syncBrokerageHoldingPrice는 가격 동기화를 위임한다', async () => {
+    const input = { holdingId: 'holding-1' };
+    const holding = createHolding({ currentPrice: 250 });
+    service.syncHoldingPrice.mockResolvedValue(holding);
+
+    await expect(
+      resolver.syncBrokerageHoldingPrice(mockUser, input),
+    ).resolves.toBe(holding);
+    expect(service.syncHoldingPrice).toHaveBeenCalledWith(
+      mockUser.userId,
+      input,
     );
   });
 

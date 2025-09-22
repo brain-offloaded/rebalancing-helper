@@ -3,7 +3,12 @@ import { screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../test-utils/render';
 import { Holdings } from '../Holdings';
-import { GET_BROKERAGE_HOLDINGS } from '../../graphql/brokerage';
+import {
+  GET_BROKERAGE_HOLDINGS,
+  INCREMENT_BROKERAGE_HOLDING_QUANTITY,
+  SET_BROKERAGE_HOLDING_QUANTITY,
+  SYNC_BROKERAGE_HOLDING_PRICE,
+} from '../../graphql/brokerage';
 import { GET_TAGS } from '../../graphql/tags';
 import { GET_TAGS_FOR_HOLDING, SET_HOLDING_TAGS } from '../../graphql/holdings';
 
@@ -36,7 +41,12 @@ describe('Holdings', () => {
   it('보유 종목을 불러오는 동안 로딩 메시지를 보여준다', () => {
     mockUseQuery.mockImplementation((query) => {
       if (query === GET_BROKERAGE_HOLDINGS) {
-        return { data: undefined, loading: true, error: undefined };
+        return {
+          data: undefined,
+          loading: true,
+          error: undefined,
+          refetch: vi.fn(),
+        };
       }
       if (query === GET_TAGS) {
         return { data: undefined, loading: false, error: undefined };
@@ -72,7 +82,11 @@ describe('Holdings', () => {
 
     mockUseQuery.mockImplementation((query) => {
       if (query === GET_BROKERAGE_HOLDINGS) {
-        return { data: { brokerageHoldings: holdings }, loading: false };
+        return {
+          data: { brokerageHoldings: holdings },
+          loading: false,
+          refetch: vi.fn(),
+        };
       }
       if (query === GET_TAGS) {
         return { data: { tags: [] }, loading: false };
@@ -119,7 +133,11 @@ describe('Holdings', () => {
 
     mockUseQuery.mockImplementation((query, options) => {
       if (query === GET_BROKERAGE_HOLDINGS) {
-        return { data: { brokerageHoldings: holdings }, loading: false };
+        return {
+          data: { brokerageHoldings: holdings },
+          loading: false,
+          refetch: vi.fn(),
+        };
       }
       if (query === GET_TAGS) {
         return { data: { tags }, loading: false };
@@ -202,7 +220,11 @@ describe('Holdings', () => {
 
     mockUseQuery.mockImplementation((query, options) => {
       if (query === GET_BROKERAGE_HOLDINGS) {
-        return { data: { brokerageHoldings: holdings }, loading: false };
+        return {
+          data: { brokerageHoldings: holdings },
+          loading: false,
+          refetch: vi.fn(),
+        };
       }
       if (query === GET_TAGS) {
         return { data: { tags }, loading: false };
@@ -226,5 +248,223 @@ describe('Holdings', () => {
     await user.click(screen.getByRole('button', { name: '태그 관리' }));
 
     expect(screen.getByText('태그를 불러오는 중...')).toBeInTheDocument();
+  });
+
+  it('수량 조정 모달에서 수량을 증가시킨다', async () => {
+    const holdings = [
+      {
+        id: 'holding-1',
+        symbol: 'AAPL',
+        name: '애플',
+        quantity: 5,
+        currentPrice: 180,
+        marketValue: 900,
+        averageCost: 150,
+        currency: 'USD',
+        accountId: 'acc-1',
+        lastUpdated: new Date().toISOString(),
+      },
+    ];
+    const refetchHoldings = vi.fn();
+    const incrementHolding = vi.fn().mockResolvedValue({});
+
+    mockUseQuery.mockImplementation((query, options) => {
+      if (query === GET_BROKERAGE_HOLDINGS) {
+        return {
+          data: { brokerageHoldings: holdings },
+          loading: false,
+          refetch: refetchHoldings,
+        };
+      }
+      if (query === GET_TAGS) {
+        return { data: { tags: [] }, loading: false };
+      }
+      if (query === GET_TAGS_FOR_HOLDING) {
+        if (options?.skip || !options?.variables?.holdingSymbol) {
+          return { data: undefined, loading: false, refetch: vi.fn() };
+        }
+
+        return { data: { tagsForHolding: [] }, loading: false, refetch: vi.fn() };
+      }
+
+      throw new Error('예상치 못한 쿼리 호출');
+    });
+    mockUseMutation.mockImplementation((document) => {
+      if (document === INCREMENT_BROKERAGE_HOLDING_QUANTITY) {
+        return [incrementHolding, { loading: false }];
+      }
+
+      return [vi.fn(), { loading: false }];
+    });
+
+    const user = userEvent.setup();
+
+    renderWithProviders(<Holdings />, { withApollo: false });
+
+    await user.click(screen.getByRole('button', { name: '수량 조정' }));
+
+    const incrementInput = screen.getByLabelText('추가 수량');
+    const incrementButton = screen.getByRole('button', { name: '수량 증가' });
+    expect(incrementButton).toBeDisabled();
+
+    await user.type(incrementInput, '3');
+    expect(incrementButton).not.toBeDisabled();
+
+    await user.click(incrementButton);
+
+    await waitFor(() => {
+      expect(incrementHolding).toHaveBeenCalledWith({
+        variables: {
+          input: {
+            holdingId: 'holding-1',
+            quantityDelta: 3,
+          },
+        },
+      });
+    });
+    expect(refetchHoldings).toHaveBeenCalled();
+  });
+
+  it('수량 조정 모달에서 절대 수량을 설정한다', async () => {
+    const holdings = [
+      {
+        id: 'holding-1',
+        symbol: 'AAPL',
+        name: '애플',
+        quantity: 5,
+        currentPrice: 180,
+        marketValue: 900,
+        averageCost: 150,
+        currency: 'USD',
+        accountId: 'acc-1',
+        lastUpdated: new Date().toISOString(),
+      },
+    ];
+    const refetchHoldings = vi.fn();
+    const setHoldingQuantity = vi.fn().mockResolvedValue({});
+
+    mockUseQuery.mockImplementation((query, options) => {
+      if (query === GET_BROKERAGE_HOLDINGS) {
+        return {
+          data: { brokerageHoldings: holdings },
+          loading: false,
+          refetch: refetchHoldings,
+        };
+      }
+      if (query === GET_TAGS) {
+        return { data: { tags: [] }, loading: false };
+      }
+      if (query === GET_TAGS_FOR_HOLDING) {
+        if (options?.skip || !options?.variables?.holdingSymbol) {
+          return { data: undefined, loading: false, refetch: vi.fn() };
+        }
+
+        return { data: { tagsForHolding: [] }, loading: false, refetch: vi.fn() };
+      }
+
+      throw new Error('예상치 못한 쿼리 호출');
+    });
+    mockUseMutation.mockImplementation((document) => {
+      if (document === SET_BROKERAGE_HOLDING_QUANTITY) {
+        return [setHoldingQuantity, { loading: false }];
+      }
+
+      return [vi.fn(), { loading: false }];
+    });
+
+    const user = userEvent.setup();
+
+    renderWithProviders(<Holdings />, { withApollo: false });
+
+    await user.click(screen.getByRole('button', { name: '수량 조정' }));
+
+    const setInput = screen.getByLabelText('설정 수량');
+    const setButton = screen.getByRole('button', { name: '수량 설정' });
+    expect(setButton).toBeDisabled();
+
+    await user.clear(setInput);
+    await user.type(setInput, '12.5');
+    expect(setButton).not.toBeDisabled();
+
+    await user.click(setButton);
+
+    await waitFor(() => {
+      expect(setHoldingQuantity).toHaveBeenCalledWith({
+        variables: {
+          input: {
+            holdingId: 'holding-1',
+            quantity: 12.5,
+          },
+        },
+      });
+    });
+    expect(refetchHoldings).toHaveBeenCalled();
+  });
+
+  it('수량 조정 모달에서 현재가를 동기화한다', async () => {
+    const holdings = [
+      {
+        id: 'holding-1',
+        symbol: 'AAPL',
+        name: '애플',
+        quantity: 5,
+        currentPrice: 180,
+        marketValue: 900,
+        averageCost: 150,
+        currency: 'USD',
+        accountId: 'acc-1',
+        lastUpdated: new Date().toISOString(),
+      },
+    ];
+    const refetchHoldings = vi.fn();
+    const syncHoldingPrice = vi.fn().mockResolvedValue({});
+
+    mockUseQuery.mockImplementation((query, options) => {
+      if (query === GET_BROKERAGE_HOLDINGS) {
+        return {
+          data: { brokerageHoldings: holdings },
+          loading: false,
+          refetch: refetchHoldings,
+        };
+      }
+      if (query === GET_TAGS) {
+        return { data: { tags: [] }, loading: false };
+      }
+      if (query === GET_TAGS_FOR_HOLDING) {
+        if (options?.skip || !options?.variables?.holdingSymbol) {
+          return { data: undefined, loading: false, refetch: vi.fn() };
+        }
+
+        return { data: { tagsForHolding: [] }, loading: false, refetch: vi.fn() };
+      }
+
+      throw new Error('예상치 못한 쿼리 호출');
+    });
+    mockUseMutation.mockImplementation((document) => {
+      if (document === SYNC_BROKERAGE_HOLDING_PRICE) {
+        return [syncHoldingPrice, { loading: false }];
+      }
+
+      return [vi.fn(), { loading: false }];
+    });
+
+    const user = userEvent.setup();
+
+    renderWithProviders(<Holdings />, { withApollo: false });
+
+    await user.click(screen.getByRole('button', { name: '수량 조정' }));
+
+    await user.click(screen.getByRole('button', { name: '현재가 동기화' }));
+
+    await waitFor(() => {
+      expect(syncHoldingPrice).toHaveBeenCalledWith({
+        variables: {
+          input: {
+            holdingId: 'holding-1',
+          },
+        },
+      });
+    });
+    expect(refetchHoldings).toHaveBeenCalled();
   });
 });
