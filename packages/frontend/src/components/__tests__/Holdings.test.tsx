@@ -5,7 +5,16 @@ import { renderWithProviders } from '../../test-utils/render';
 import { Holdings } from '../Holdings';
 import { GET_BROKERAGE_HOLDINGS } from '../../graphql/brokerage';
 import { GET_TAGS } from '../../graphql/tags';
-import { GET_TAGS_FOR_HOLDING, SET_HOLDING_TAGS } from '../../graphql/holdings';
+import {
+  GET_TAGS_FOR_HOLDING,
+  SET_HOLDING_TAGS,
+  GET_MANUAL_HOLDINGS,
+  CREATE_MANUAL_HOLDING,
+  INCREASE_MANUAL_HOLDING,
+  SET_MANUAL_HOLDING_QUANTITY,
+  DELETE_MANUAL_HOLDING,
+  SYNC_MANUAL_HOLDING_PRICE,
+} from '../../graphql/holdings';
 
 const mockUseQuery = vi.fn();
 const mockUseMutation = vi.fn();
@@ -37,6 +46,13 @@ describe('Holdings', () => {
     mockUseQuery.mockImplementation((query) => {
       if (query === GET_BROKERAGE_HOLDINGS) {
         return { data: undefined, loading: true, error: undefined };
+      }
+      if (query === GET_MANUAL_HOLDINGS) {
+        return {
+          data: { manualHoldings: [] },
+          loading: false,
+          refetch: vi.fn(),
+        };
       }
       if (query === GET_TAGS) {
         return { data: undefined, loading: false, error: undefined };
@@ -73,6 +89,13 @@ describe('Holdings', () => {
     mockUseQuery.mockImplementation((query) => {
       if (query === GET_BROKERAGE_HOLDINGS) {
         return { data: { brokerageHoldings: holdings }, loading: false };
+      }
+      if (query === GET_MANUAL_HOLDINGS) {
+        return {
+          data: { manualHoldings: [] },
+          loading: false,
+          refetch: vi.fn(),
+        };
       }
       if (query === GET_TAGS) {
         return { data: { tags: [] }, loading: false };
@@ -120,6 +143,13 @@ describe('Holdings', () => {
     mockUseQuery.mockImplementation((query, options) => {
       if (query === GET_BROKERAGE_HOLDINGS) {
         return { data: { brokerageHoldings: holdings }, loading: false };
+      }
+      if (query === GET_MANUAL_HOLDINGS) {
+        return {
+          data: { manualHoldings: [] },
+          loading: false,
+          refetch: vi.fn(),
+        };
       }
       if (query === GET_TAGS) {
         return { data: { tags }, loading: false };
@@ -204,6 +234,13 @@ describe('Holdings', () => {
       if (query === GET_BROKERAGE_HOLDINGS) {
         return { data: { brokerageHoldings: holdings }, loading: false };
       }
+      if (query === GET_MANUAL_HOLDINGS) {
+        return {
+          data: { manualHoldings: [] },
+          loading: false,
+          refetch: vi.fn(),
+        };
+      }
       if (query === GET_TAGS) {
         return { data: { tags }, loading: false };
       }
@@ -226,5 +263,377 @@ describe('Holdings', () => {
     await user.click(screen.getByRole('button', { name: '태그 관리' }));
 
     expect(screen.getByText('태그를 불러오는 중...')).toBeInTheDocument();
+  });
+
+  describe('수동 보유 종목 관리', () => {
+    it('수동 보유 종목을 테이블에 표시한다', () => {
+      const holdings = [
+        {
+          id: 'manual-1',
+          market: 'US',
+          symbol: 'VOO',
+          name: 'Vanguard S&P 500 ETF',
+          quantity: 2,
+          currentPrice: 412.35,
+          marketValue: 824.7,
+          currency: 'USD',
+          lastUpdated: new Date('2024-01-01T00:00:00Z').toISOString(),
+        },
+      ];
+
+      mockUseQuery.mockImplementation((query) => {
+        if (query === GET_BROKERAGE_HOLDINGS) {
+          return { data: { brokerageHoldings: [] }, loading: false };
+        }
+        if (query === GET_MANUAL_HOLDINGS) {
+          return {
+            data: { manualHoldings: holdings },
+            loading: false,
+            refetch: vi.fn(),
+          };
+        }
+        if (query === GET_TAGS) {
+          return { data: { tags: [] }, loading: false };
+        }
+        if (query === GET_TAGS_FOR_HOLDING) {
+          return { data: undefined, loading: false, refetch: vi.fn() };
+        }
+
+        throw new Error('예상치 못한 쿼리 호출');
+      });
+      mockUseMutation.mockImplementation(() => [vi.fn(), { loading: false }]);
+
+      renderWithProviders(<Holdings />, { withApollo: false });
+
+      expect(screen.getByText('수동 보유 종목')).toBeInTheDocument();
+      expect(screen.getByText('VOO')).toBeInTheDocument();
+      expect(screen.getByText('US')).toBeInTheDocument();
+      expect(screen.getByText('2')).toBeInTheDocument();
+      expect(screen.getByText('$412.35')).toBeInTheDocument();
+    });
+
+    it('새로운 수동 보유 종목을 등록한다', async () => {
+      const user = userEvent.setup();
+      const refetchManualHoldings = vi.fn();
+      const createManualHolding = vi.fn().mockResolvedValue({});
+
+      mockUseQuery.mockImplementation((query) => {
+        if (query === GET_BROKERAGE_HOLDINGS) {
+          return { data: { brokerageHoldings: [] }, loading: false };
+        }
+        if (query === GET_MANUAL_HOLDINGS) {
+          return {
+            data: { manualHoldings: [] },
+            loading: false,
+            refetch: refetchManualHoldings,
+          };
+        }
+        if (query === GET_TAGS) {
+          return { data: { tags: [] }, loading: false };
+        }
+        if (query === GET_TAGS_FOR_HOLDING) {
+          return { data: undefined, loading: false, refetch: vi.fn() };
+        }
+
+        throw new Error('예상치 못한 쿼리 호출');
+      });
+      mockUseMutation.mockImplementation((document) => {
+        if (document === CREATE_MANUAL_HOLDING) {
+          return [createManualHolding, { loading: false }];
+        }
+
+        return [vi.fn(), { loading: false }];
+      });
+
+      renderWithProviders(<Holdings />, { withApollo: false });
+
+      await user.type(screen.getByLabelText('시장'), 'US');
+      await user.type(screen.getByLabelText('종목 코드'), 'VOO');
+      await user.type(screen.getByLabelText('수량'), '2');
+      await user.click(screen.getByRole('button', { name: '수동 추가' }));
+
+      await waitFor(() => {
+        expect(createManualHolding).toHaveBeenCalledWith({
+          variables: {
+            input: {
+              market: 'US',
+              symbol: 'VOO',
+              quantity: 2,
+            },
+          },
+        });
+      });
+
+      expect(refetchManualHoldings).toHaveBeenCalled();
+    });
+
+    it('수동 보유 종목 수량을 증가시킨다', async () => {
+      const user = userEvent.setup();
+      const refetchManualHoldings = vi.fn();
+      const increaseManualHolding = vi.fn().mockResolvedValue({});
+      const originalPrompt = window.prompt;
+      window.prompt = vi.fn().mockReturnValue('3');
+
+      mockUseQuery.mockImplementation((query) => {
+        if (query === GET_BROKERAGE_HOLDINGS) {
+          return { data: { brokerageHoldings: [] }, loading: false };
+        }
+        if (query === GET_MANUAL_HOLDINGS) {
+          return {
+            data: {
+              manualHoldings: [
+                {
+                  id: 'manual-1',
+                  market: 'US',
+                  symbol: 'VOO',
+                  name: 'VOO',
+                  quantity: 2,
+                  currentPrice: 400,
+                  marketValue: 800,
+                  currency: 'USD',
+                  lastUpdated: new Date().toISOString(),
+                },
+              ],
+            },
+            loading: false,
+            refetch: refetchManualHoldings,
+          };
+        }
+        if (query === GET_TAGS) {
+          return { data: { tags: [] }, loading: false };
+        }
+        if (query === GET_TAGS_FOR_HOLDING) {
+          return { data: undefined, loading: false, refetch: vi.fn() };
+        }
+
+        throw new Error('예상치 못한 쿼리 호출');
+      });
+      mockUseMutation.mockImplementation((document) => {
+        if (document === INCREASE_MANUAL_HOLDING) {
+          return [increaseManualHolding, { loading: false }];
+        }
+
+        return [vi.fn(), { loading: false }];
+      });
+
+      renderWithProviders(<Holdings />, { withApollo: false });
+
+      await user.click(screen.getByRole('button', { name: '수량 증가' }));
+
+      await waitFor(() => {
+        expect(window.prompt).toHaveBeenCalled();
+        expect(increaseManualHolding).toHaveBeenCalledWith({
+          variables: {
+            input: {
+              market: 'US',
+              symbol: 'VOO',
+              quantityDelta: 3,
+            },
+          },
+        });
+      });
+
+      expect(refetchManualHoldings).toHaveBeenCalled();
+      window.prompt = originalPrompt;
+    });
+
+    it('수동 보유 종목 수량을 설정한다', async () => {
+      const user = userEvent.setup();
+      const refetchManualHoldings = vi.fn();
+      const setManualHoldingQuantity = vi.fn().mockResolvedValue({});
+      const originalPrompt = window.prompt;
+      window.prompt = vi.fn().mockReturnValue('5');
+
+      mockUseQuery.mockImplementation((query) => {
+        if (query === GET_BROKERAGE_HOLDINGS) {
+          return { data: { brokerageHoldings: [] }, loading: false };
+        }
+        if (query === GET_MANUAL_HOLDINGS) {
+          return {
+            data: {
+              manualHoldings: [
+                {
+                  id: 'manual-2',
+                  market: 'US',
+                  symbol: 'VOO',
+                  name: 'VOO',
+                  quantity: 2,
+                  currentPrice: 400,
+                  marketValue: 800,
+                  currency: 'USD',
+                  lastUpdated: new Date().toISOString(),
+                },
+              ],
+            },
+            loading: false,
+            refetch: refetchManualHoldings,
+          };
+        }
+        if (query === GET_TAGS) {
+          return { data: { tags: [] }, loading: false };
+        }
+        if (query === GET_TAGS_FOR_HOLDING) {
+          return { data: undefined, loading: false, refetch: vi.fn() };
+        }
+
+        throw new Error('예상치 못한 쿼리 호출');
+      });
+      mockUseMutation.mockImplementation((document) => {
+        if (document === SET_MANUAL_HOLDING_QUANTITY) {
+          return [setManualHoldingQuantity, { loading: false }];
+        }
+
+        return [vi.fn(), { loading: false }];
+      });
+
+      renderWithProviders(<Holdings />, { withApollo: false });
+
+      await user.click(screen.getByRole('button', { name: '수량 설정' }));
+
+      await waitFor(() => {
+        expect(setManualHoldingQuantity).toHaveBeenCalledWith({
+          variables: {
+            input: {
+              market: 'US',
+              symbol: 'VOO',
+              quantity: 5,
+            },
+          },
+        });
+      });
+
+      expect(refetchManualHoldings).toHaveBeenCalled();
+      window.prompt = originalPrompt;
+    });
+
+    it('수동 보유 종목을 삭제한다', async () => {
+      const user = userEvent.setup();
+      const refetchManualHoldings = vi.fn();
+      const deleteManualHolding = vi.fn().mockResolvedValue({});
+
+      mockUseQuery.mockImplementation((query) => {
+        if (query === GET_BROKERAGE_HOLDINGS) {
+          return { data: { brokerageHoldings: [] }, loading: false };
+        }
+        if (query === GET_MANUAL_HOLDINGS) {
+          return {
+            data: {
+              manualHoldings: [
+                {
+                  id: 'manual-3',
+                  market: 'US',
+                  symbol: 'VOO',
+                  name: 'VOO',
+                  quantity: 2,
+                  currentPrice: 400,
+                  marketValue: 800,
+                  currency: 'USD',
+                  lastUpdated: new Date().toISOString(),
+                },
+              ],
+            },
+            loading: false,
+            refetch: refetchManualHoldings,
+          };
+        }
+        if (query === GET_TAGS) {
+          return { data: { tags: [] }, loading: false };
+        }
+        if (query === GET_TAGS_FOR_HOLDING) {
+          return { data: undefined, loading: false, refetch: vi.fn() };
+        }
+
+        throw new Error('예상치 못한 쿼리 호출');
+      });
+      mockUseMutation.mockImplementation((document) => {
+        if (document === DELETE_MANUAL_HOLDING) {
+          return [deleteManualHolding, { loading: false }];
+        }
+
+        return [vi.fn(), { loading: false }];
+      });
+
+      renderWithProviders(<Holdings />, { withApollo: false });
+
+      await user.click(screen.getByRole('button', { name: '삭제' }));
+
+      await waitFor(() => {
+        expect(deleteManualHolding).toHaveBeenCalledWith({
+          variables: {
+            input: {
+              market: 'US',
+              symbol: 'VOO',
+            },
+          },
+        });
+      });
+
+      expect(refetchManualHoldings).toHaveBeenCalled();
+    });
+
+    it('수동 보유 종목 가격을 동기화한다', async () => {
+      const user = userEvent.setup();
+      const refetchManualHoldings = vi.fn();
+      const syncManualHoldingPrice = vi.fn().mockResolvedValue({});
+
+      mockUseQuery.mockImplementation((query) => {
+        if (query === GET_BROKERAGE_HOLDINGS) {
+          return { data: { brokerageHoldings: [] }, loading: false };
+        }
+        if (query === GET_MANUAL_HOLDINGS) {
+          return {
+            data: {
+              manualHoldings: [
+                {
+                  id: 'manual-4',
+                  market: 'US',
+                  symbol: 'VOO',
+                  name: 'VOO',
+                  quantity: 2,
+                  currentPrice: 400,
+                  marketValue: 800,
+                  currency: 'USD',
+                  lastUpdated: new Date().toISOString(),
+                },
+              ],
+            },
+            loading: false,
+            refetch: refetchManualHoldings,
+          };
+        }
+        if (query === GET_TAGS) {
+          return { data: { tags: [] }, loading: false };
+        }
+        if (query === GET_TAGS_FOR_HOLDING) {
+          return { data: undefined, loading: false, refetch: vi.fn() };
+        }
+
+        throw new Error('예상치 못한 쿼리 호출');
+      });
+      mockUseMutation.mockImplementation((document) => {
+        if (document === SYNC_MANUAL_HOLDING_PRICE) {
+          return [syncManualHoldingPrice, { loading: false }];
+        }
+
+        return [vi.fn(), { loading: false }];
+      });
+
+      renderWithProviders(<Holdings />, { withApollo: false });
+
+      await user.click(screen.getByRole('button', { name: '현재가 동기화' }));
+
+      await waitFor(() => {
+        expect(syncManualHoldingPrice).toHaveBeenCalledWith({
+          variables: {
+            input: {
+              market: 'US',
+              symbol: 'VOO',
+            },
+          },
+        });
+      });
+
+      expect(refetchManualHoldings).toHaveBeenCalled();
+    });
   });
 });

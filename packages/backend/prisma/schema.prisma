@@ -59,6 +59,38 @@ model BrokerageHolding {
   @@unique([accountId, symbol])
 }
 
+model MarketSecurity {
+  id           String   @id @default(cuid())
+  market       String
+  symbol       String
+  name         String
+  currency     String
+  currentPrice Float
+  lastUpdated  DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([market, symbol], name: "market_symbol")
+}
+
+model ManualHolding {
+  id           String   @id @default(cuid())
+  userId       String
+  market       String
+  symbol       String
+  name         String
+  quantity     Float
+  currentPrice Float
+  marketValue  Float
+  currency     String
+  lastUpdated  DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, market, symbol], name: "userId_market_symbol")
+}
+
 model Tag {
   id                String                 @id @default(cuid())
   name              String
@@ -132,5 +164,6 @@ model User {
   brokerageAccounts  BrokerageAccount[]
   tags               Tag[]
   holdingTags        HoldingTag[]
+  manualHoldings     ManualHolding[]
   rebalancingGroups  RebalancingGroup[]
 }

@@ -16,6 +16,42 @@ export class HoldingTag {
 }
 
 @ObjectType()
+export class ManualHolding {
+  @Field(() => ID)
+  id: string;
+
+  @Field(() => String)
+  market: string;
+
+  @Field(() => String)
+  symbol: string;
+
+  @Field(() => String)
+  name: string;
+
+  @Field(() => Number)
+  quantity: number;
+
+  @Field(() => Number)
+  currentPrice: number;
+
+  @Field(() => Number)
+  marketValue: number;
+
+  @Field(() => String)
+  currency: string;
+
+  @Field(() => Date)
+  lastUpdated: Date;
+
+  @Field(() => Date)
+  createdAt: Date;
+
+  @Field(() => Date)
+  updatedAt: Date;
+}
+
+@ObjectType()
 export class EnrichedHolding {
   @Field(() => ID)
   id: string;

@@ -10,7 +10,7 @@ import { HoldingsService } from '../src/holdings/holdings.service';
 import { TagsService } from '../src/tags/tags.service';
 import { RebalancingService } from '../src/rebalancing/rebalancing.service';
 import { BrokerageAccount } from '../src/brokerage/brokerage.entities';
-import { HoldingTag } from '../src/holdings/holdings.entities';
+import { HoldingTag, ManualHolding } from '../src/holdings/holdings.entities';
 import { Tag } from '../src/tags/tags.entities';
 import {
   RebalancingAnalysis,
@@ -43,6 +43,12 @@ const holdingsServiceMock = {
   addTag: jest.fn(),
   removeTag: jest.fn(),
   setTags: jest.fn(),
+  getManualHoldings: jest.fn(),
+  createManualHolding: jest.fn(),
+  increaseManualHolding: jest.fn(),
+  setManualHoldingQuantity: jest.fn(),
+  deleteManualHolding: jest.fn(),
+  syncManualHoldingPrice: jest.fn(),
 } as unknown as jest.Mocked<HoldingsService>;
 
 const tagsServiceMock = {
@@ -276,6 +282,303 @@ describe('GraphQL API (e2e)', () => {
       ],
     });
     expect(holdingsServiceMock.setTags).toHaveBeenCalledWith(variables.input);
+  });
+
+  it('manualHoldings 쿼리는 수동 보유 종목을 반환한다', async () => {
+    const holdings: ManualHolding[] = [
+      {
+        id: 'manual-1',
+        market: 'US',
+        symbol: 'VOO',
+        name: 'Vanguard S&P 500 ETF',
+        quantity: 3,
+        currentPrice: 410.2,
+        marketValue: 1230.6,
+        currency: 'USD',
+        lastUpdated: new Date('2024-01-03T00:00:00Z'),
+        createdAt: new Date('2024-01-01T00:00:00Z'),
+        updatedAt: new Date('2024-01-03T00:00:00Z'),
+      } as ManualHolding,
+    ];
+    holdingsServiceMock.getManualHoldings.mockResolvedValue(holdings);
+
+    const query = `
+      query {
+        manualHoldings {
+          id
+          market
+          symbol
+          name
+          quantity
+          currentPrice
+          marketValue
+          currency
+          lastUpdated
+        }
+      }
+    `;
+
+    const response = await request(httpServer).post('/graphql').send({ query });
+
+    expect(response.status).toBe(200);
+    expect(response.body.errors).toBeUndefined();
+    expect(response.body.data).toEqual({
+      manualHoldings: [
+        {
+          id: 'manual-1',
+          market: 'US',
+          symbol: 'VOO',
+          name: 'Vanguard S&P 500 ETF',
+          quantity: 3,
+          currentPrice: 410.2,
+          marketValue: 1230.6,
+          currency: 'USD',
+          lastUpdated: '2024-01-03T00:00:00.000Z',
+        },
+      ],
+    });
+    expect(holdingsServiceMock.getManualHoldings).toHaveBeenCalled();
+  });
+
+  it('createManualHolding 뮤테이션은 보유 종목을 생성한다', async () => {
+    const holding: ManualHolding = {
+      id: 'manual-2',
+      market: 'US',
+      symbol: 'SPY',
+      name: 'SPDR S&P 500 ETF Trust',
+      quantity: 2,
+      currentPrice: 430.4,
+      marketValue: 860.8,
+      currency: 'USD',
+      lastUpdated: new Date('2024-01-04T00:00:00Z'),
+      createdAt: new Date('2024-01-04T00:00:00Z'),
+      updatedAt: new Date('2024-01-04T00:00:00Z'),
+    } as ManualHolding;
+    holdingsServiceMock.createManualHolding.mockResolvedValue(holding);
+
+    const mutation = `
+      mutation ($input: CreateManualHoldingInput!) {
+        createManualHolding(input: $input) {
+          id
+          market
+          symbol
+          quantity
+          currentPrice
+        }
+      }
+    `;
+    const variables = {
+      input: {
+        market: 'US',
+        symbol: 'SPY',
+        quantity: 2,
+      },
+    };
+
+    const response = await request(httpServer)
+      .post('/graphql')
+      .send({ query: mutation, variables });
+
+    expect(response.status).toBe(200);
+    expect(response.body.errors).toBeUndefined();
+    expect(response.body.data).toEqual({
+      createManualHolding: {
+        id: 'manual-2',
+        market: 'US',
+        symbol: 'SPY',
+        quantity: 2,
+        currentPrice: 430.4,
+      },
+    });
+    expect(holdingsServiceMock.createManualHolding).toHaveBeenCalled();
+    const [, createInput] =
+      holdingsServiceMock.createManualHolding.mock.calls.at(-1) ?? [];
+    expect(createInput).toEqual(variables.input);
+  });
+
+  it('increaseManualHolding 뮤테이션은 수량을 증가시킨다', async () => {
+    const holding: ManualHolding = {
+      id: 'manual-3',
+      market: 'US',
+      symbol: 'VOO',
+      name: 'Vanguard S&P 500 ETF',
+      quantity: 4,
+      currentPrice: 412.35,
+      marketValue: 1649.4,
+      currency: 'USD',
+      lastUpdated: new Date('2024-01-05T00:00:00Z'),
+      createdAt: new Date('2024-01-03T00:00:00Z'),
+      updatedAt: new Date('2024-01-05T00:00:00Z'),
+    } as ManualHolding;
+    holdingsServiceMock.increaseManualHolding.mockResolvedValue(holding);
+
+    const mutation = `
+      mutation ($input: IncreaseManualHoldingInput!) {
+        increaseManualHolding(input: $input) {
+          symbol
+          quantity
+          marketValue
+        }
+      }
+    `;
+    const variables = {
+      input: {
+        market: 'US',
+        symbol: 'VOO',
+        quantityDelta: 1,
+      },
+    };
+
+    const response = await request(httpServer)
+      .post('/graphql')
+      .send({ query: mutation, variables });
+
+    expect(response.status).toBe(200);
+    expect(response.body.errors).toBeUndefined();
+    expect(response.body.data).toEqual({
+      increaseManualHolding: {
+        symbol: 'VOO',
+        quantity: 4,
+        marketValue: 1649.4,
+      },
+    });
+    expect(holdingsServiceMock.increaseManualHolding).toHaveBeenCalled();
+    const [, increaseInput] =
+      holdingsServiceMock.increaseManualHolding.mock.calls.at(-1) ?? [];
+    expect(increaseInput).toEqual(variables.input);
+  });
+
+  it('setManualHoldingQuantity 뮤테이션은 수량을 설정한다', async () => {
+    const holding: ManualHolding = {
+      id: 'manual-4',
+      market: 'US',
+      symbol: 'QQQ',
+      name: 'Invesco QQQ Trust',
+      quantity: 5,
+      currentPrice: 360.1,
+      marketValue: 1800.5,
+      currency: 'USD',
+      lastUpdated: new Date('2024-01-06T00:00:00Z'),
+      createdAt: new Date('2024-01-05T00:00:00Z'),
+      updatedAt: new Date('2024-01-06T00:00:00Z'),
+    } as ManualHolding;
+    holdingsServiceMock.setManualHoldingQuantity.mockResolvedValue(holding);
+
+    const mutation = `
+      mutation ($input: SetManualHoldingQuantityInput!) {
+        setManualHoldingQuantity(input: $input) {
+          symbol
+          quantity
+          marketValue
+        }
+      }
+    `;
+    const variables = {
+      input: {
+        market: 'US',
+        symbol: 'QQQ',
+        quantity: 5,
+      },
+    };
+
+    const response = await request(httpServer)
+      .post('/graphql')
+      .send({ query: mutation, variables });
+
+    expect(response.status).toBe(200);
+    expect(response.body.errors).toBeUndefined();
+    expect(response.body.data).toEqual({
+      setManualHoldingQuantity: {
+        symbol: 'QQQ',
+        quantity: 5,
+        marketValue: 1800.5,
+      },
+    });
+    expect(holdingsServiceMock.setManualHoldingQuantity).toHaveBeenCalled();
+    const [, setInput] =
+      holdingsServiceMock.setManualHoldingQuantity.mock.calls.at(-1) ?? [];
+    expect(setInput).toEqual(variables.input);
+  });
+
+  it('deleteManualHolding 뮤테이션은 삭제 여부를 반환한다', async () => {
+    holdingsServiceMock.deleteManualHolding.mockResolvedValue(true);
+
+    const mutation = `
+      mutation ($input: ManualHoldingIdentifierInput!) {
+        deleteManualHolding(input: $input)
+      }
+    `;
+    const variables = {
+      input: {
+        market: 'US',
+        symbol: 'VOO',
+      },
+    };
+
+    const response = await request(httpServer)
+      .post('/graphql')
+      .send({ query: mutation, variables });
+
+    expect(response.status).toBe(200);
+    expect(response.body.errors).toBeUndefined();
+    expect(response.body.data).toEqual({
+      deleteManualHolding: true,
+    });
+    expect(holdingsServiceMock.deleteManualHolding).toHaveBeenCalled();
+    const [, deleteInput] =
+      holdingsServiceMock.deleteManualHolding.mock.calls.at(-1) ?? [];
+    expect(deleteInput).toEqual(variables.input);
+  });
+
+  it('syncManualHoldingPrice 뮤테이션은 현재가를 갱신한다', async () => {
+    const holding: ManualHolding = {
+      id: 'manual-5',
+      market: 'US',
+      symbol: 'VOO',
+      name: 'Vanguard S&P 500 ETF',
+      quantity: 3,
+      currentPrice: 418.2,
+      marketValue: 1254.6,
+      currency: 'USD',
+      lastUpdated: new Date('2024-01-07T00:00:00Z'),
+      createdAt: new Date('2024-01-03T00:00:00Z'),
+      updatedAt: new Date('2024-01-07T00:00:00Z'),
+    } as ManualHolding;
+    holdingsServiceMock.syncManualHoldingPrice.mockResolvedValue(holding);
+
+    const mutation = `
+      mutation ($input: ManualHoldingIdentifierInput!) {
+        syncManualHoldingPrice(input: $input) {
+          symbol
+          currentPrice
+          marketValue
+        }
+      }
+    `;
+    const variables = {
+      input: {
+        market: 'US',
+        symbol: 'VOO',
+      },
+    };
+
+    const response = await request(httpServer)
+      .post('/graphql')
+      .send({ query: mutation, variables });
+
+    expect(response.status).toBe(200);
+    expect(response.body.errors).toBeUndefined();
+    expect(response.body.data).toEqual({
+      syncManualHoldingPrice: {
+        symbol: 'VOO',
+        currentPrice: 418.2,
+        marketValue: 1254.6,
+      },
+    });
+    expect(holdingsServiceMock.syncManualHoldingPrice).toHaveBeenCalled();
+    const [, syncInput] =
+      holdingsServiceMock.syncManualHoldingPrice.mock.calls.at(-1) ?? [];
+    expect(syncInput).toEqual(variables.input);
   });
 
   it('rebalancingAnalysis 쿼리는 리밸런싱 분석 정보를 반환한다', async () => {

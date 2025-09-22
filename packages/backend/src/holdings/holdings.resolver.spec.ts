@@ -4,8 +4,12 @@ import {
   AddHoldingTagInput,
   RemoveHoldingTagInput,
   SetHoldingTagsInput,
+  CreateManualHoldingInput,
+  IncreaseManualHoldingInput,
+  SetManualHoldingQuantityInput,
+  ManualHoldingIdentifierInput,
 } from './holdings.dto';
-import { HoldingTag } from './holdings.entities';
+import { HoldingTag, ManualHolding } from './holdings.entities';
 import { ActiveUserData } from '../auth/auth.types';
 
 const mockUser: ActiveUserData = {
@@ -20,6 +24,24 @@ const createHoldingTag = (overrides: Partial<HoldingTag> = {}): HoldingTag => ({
   createdAt: overrides.createdAt ?? new Date('2024-01-01T00:00:00Z'),
 });
 
+const createManualHolding = (
+  overrides: Partial<ManualHolding> = {},
+): ManualHolding => ({
+  id: overrides.id ?? 'manual-1',
+  market: overrides.market ?? 'US',
+  symbol: overrides.symbol ?? 'VOO',
+  name: overrides.name ?? 'Vanguard S&P 500 ETF',
+  quantity: overrides.quantity ?? 3,
+  currentPrice: overrides.currentPrice ?? 410.2,
+  marketValue:
+    overrides.marketValue ?? (overrides.quantity ?? 3) * (overrides.currentPrice ?? 410.2),
+  currency: overrides.currency ?? 'USD',
+  lastUpdated:
+    overrides.lastUpdated ?? new Date('2024-01-03T00:00:00Z'),
+  createdAt: overrides.createdAt ?? new Date('2024-01-02T00:00:00Z'),
+  updatedAt: overrides.updatedAt ?? new Date('2024-01-03T00:00:00Z'),
+});
+
 describe('HoldingsResolver', () => {
   let resolver: HoldingsResolver;
   let service: jest.Mocked<HoldingsService>;
@@ -32,6 +54,12 @@ describe('HoldingsResolver', () => {
       addTag: jest.fn(),
       removeTag: jest.fn(),
       setTags: jest.fn(),
+      getManualHoldings: jest.fn(),
+      createManualHolding: jest.fn(),
+      increaseManualHolding: jest.fn(),
+      setManualHoldingQuantity: jest.fn(),
+      deleteManualHolding: jest.fn(),
+      syncManualHoldingPrice: jest.fn(),
     } as unknown as jest.Mocked<HoldingsService>;
 
     resolver = new HoldingsResolver(service);
@@ -120,5 +148,100 @@ describe('HoldingsResolver', () => {
 
     await expect(resolver.setHoldingTags(mockUser, input)).resolves.toBe(tags);
     expect(service.setTags).toHaveBeenCalledWith(mockUser.userId, input);
+  });
+
+  it('manualHoldings는 사용자 ID로 수동 보유 종목을 조회한다', async () => {
+    const holdings = [createManualHolding()];
+    service.getManualHoldings.mockResolvedValue(holdings);
+
+    await expect(resolver.manualHoldings(mockUser)).resolves.toBe(holdings);
+    expect(service.getManualHoldings).toHaveBeenCalledWith(mockUser.userId);
+  });
+
+  it('createManualHolding은 사용자 ID와 입력값을 전달한다', async () => {
+    const input: CreateManualHoldingInput = {
+      market: 'US',
+      symbol: 'VOO',
+      quantity: 2,
+    };
+    const manualHolding = createManualHolding({ quantity: 2 });
+    service.createManualHolding.mockResolvedValue(manualHolding);
+
+    await expect(resolver.createManualHolding(mockUser, input)).resolves.toBe(
+      manualHolding,
+    );
+    expect(service.createManualHolding).toHaveBeenCalledWith(
+      mockUser.userId,
+      input,
+    );
+  });
+
+  it('increaseManualHolding은 사용자 ID와 입력값을 전달한다', async () => {
+    const input: IncreaseManualHoldingInput = {
+      market: 'US',
+      symbol: 'VOO',
+      quantityDelta: 1,
+    };
+    const manualHolding = createManualHolding({ quantity: 4 });
+    service.increaseManualHolding.mockResolvedValue(manualHolding);
+
+    await expect(resolver.increaseManualHolding(mockUser, input)).resolves.toBe(
+      manualHolding,
+    );
+    expect(service.increaseManualHolding).toHaveBeenCalledWith(
+      mockUser.userId,
+      input,
+    );
+  });
+
+  it('setManualHoldingQuantity는 사용자 ID와 입력값을 전달한다', async () => {
+    const input: SetManualHoldingQuantityInput = {
+      market: 'US',
+      symbol: 'VOO',
+      quantity: 5,
+    };
+    const manualHolding = createManualHolding({ quantity: 5 });
+    service.setManualHoldingQuantity.mockResolvedValue(manualHolding);
+
+    await expect(
+      resolver.setManualHoldingQuantity(mockUser, input),
+    ).resolves.toBe(manualHolding);
+    expect(service.setManualHoldingQuantity).toHaveBeenCalledWith(
+      mockUser.userId,
+      input,
+    );
+  });
+
+  it('deleteManualHolding은 사용자 ID와 식별자를 전달한다', async () => {
+    const input: ManualHoldingIdentifierInput = {
+      market: 'US',
+      symbol: 'VOO',
+    };
+    service.deleteManualHolding.mockResolvedValue(true);
+
+    await expect(resolver.deleteManualHolding(mockUser, input)).resolves.toBe(
+      true,
+    );
+    expect(service.deleteManualHolding).toHaveBeenCalledWith(
+      mockUser.userId,
+      input,
+    );
+  });
+
+  it('syncManualHoldingPrice는 사용자 ID와 식별자를 전달한다', async () => {
+    const input: ManualHoldingIdentifierInput = {
+      market: 'US',
+      symbol: 'VOO',
+    };
+    const manualHolding = createManualHolding({ currentPrice: 420 });
+    service.syncManualHoldingPrice.mockResolvedValue(manualHolding);
+
+    await expect(resolver.syncManualHoldingPrice(mockUser, input)).resolves.toBe(
+      manualHolding,
+    );
+    expect(service.syncManualHoldingPrice).toHaveBeenCalledWith(
+      mockUser.userId,
+      input,
+    );
   });
 });

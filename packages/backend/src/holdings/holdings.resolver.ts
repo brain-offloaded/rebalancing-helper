@@ -1,11 +1,15 @@
 import { UseGuards } from '@nestjs/common';
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import { HoldingsService } from './holdings.service';
-import { HoldingTag } from './holdings.entities';
+import { HoldingTag, ManualHolding } from './holdings.entities';
 import {
   AddHoldingTagInput,
   RemoveHoldingTagInput,
   SetHoldingTagsInput,
+  CreateManualHoldingInput,
+  IncreaseManualHoldingInput,
+  SetManualHoldingQuantityInput,
+  ManualHoldingIdentifierInput,
 } from './holdings.dto';
 import { GqlAuthGuard } from '../auth/gql-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -64,5 +68,50 @@ export class HoldingsResolver {
     @Args('input') input: SetHoldingTagsInput,
   ): Promise<HoldingTag[]> {
     return this.holdingsService.setTags(user.userId, input);
+  }
+
+  @Query(() => [ManualHolding])
+  manualHoldings(@CurrentUser() user: ActiveUserData): Promise<ManualHolding[]> {
+    return this.holdingsService.getManualHoldings(user.userId);
+  }
+
+  @Mutation(() => ManualHolding)
+  createManualHolding(
+    @CurrentUser() user: ActiveUserData,
+    @Args('input') input: CreateManualHoldingInput,
+  ): Promise<ManualHolding> {
+    return this.holdingsService.createManualHolding(user.userId, input);
+  }
+
+  @Mutation(() => ManualHolding)
+  increaseManualHolding(
+    @CurrentUser() user: ActiveUserData,
+    @Args('input') input: IncreaseManualHoldingInput,
+  ): Promise<ManualHolding> {
+    return this.holdingsService.increaseManualHolding(user.userId, input);
+  }
+
+  @Mutation(() => ManualHolding)
+  setManualHoldingQuantity(
+    @CurrentUser() user: ActiveUserData,
+    @Args('input') input: SetManualHoldingQuantityInput,
+  ): Promise<ManualHolding> {
+    return this.holdingsService.setManualHoldingQuantity(user.userId, input);
+  }
+
+  @Mutation(() => Boolean)
+  deleteManualHolding(
+    @CurrentUser() user: ActiveUserData,
+    @Args('input') input: ManualHoldingIdentifierInput,
+  ): Promise<boolean> {
+    return this.holdingsService.deleteManualHolding(user.userId, input);
+  }
+
+  @Mutation(() => ManualHolding)
+  syncManualHoldingPrice(
+    @CurrentUser() user: ActiveUserData,
+    @Args('input') input: ManualHoldingIdentifierInput,
+  ): Promise<ManualHolding> {
+    return this.holdingsService.syncManualHoldingPrice(user.userId, input);
   }
 }
