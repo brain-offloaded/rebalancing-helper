@@ -53,47 +53,47 @@ rebalancing-helper/
 
 ### 전체 애플리케이션 실행
 ```bash
-yarn install
-yarn dev
+pnpm install
+pnpm dev
 ```
 
 ### 개별 실행
 ```bash
 # 백엔드만 실행
-yarn dev:backend
+pnpm dev:backend
 
 # 프론트엔드만 실행
-yarn dev:frontend
+pnpm dev:frontend
 ```
 
 ### 빌드
 ```bash
-yarn build
+pnpm build
 ```
 
 ### 테스트 및 커버리지
 ```bash
 # 단위 테스트 실행
-yarn test
+pnpm test
 
 # 백엔드 단위 테스트 커버리지 리포트 생성
-yarn workspace backend test:cov
+pnpm --filter backend test:cov
 
 # 프론트엔드 단위 테스트 실행
-yarn workspace frontend test
+pnpm --filter frontend test
 
 # 프론트엔드 단위 테스트 커버리지 리포트 생성
-yarn workspace frontend test:cov
+pnpm --filter frontend test:cov
 
 # 모든 워크스페이스 커버리지 리포트 실행
-yarn test:cov
+pnpm test:cov
 ```
 
 ### 모노레포 작업 흐름
 
 - **Turbo**를 사용해 공통 스크립트를 실행합니다.
-- `yarn dev`는 `turbo run dev --parallel`을 통해 백엔드와 프론트엔드를 동시에 실행합니다.
-- `yarn lint`, `yarn build`, `yarn test`는 각 패키지의 스크립트를 Turbo 파이프라인에서 일괄 실행합니다.
+- `pnpm dev`는 `turbo run dev --parallel`을 통해 백엔드와 프론트엔드를 동시에 실행합니다.
+- `pnpm lint`, `pnpm build`, `pnpm test`는 각 패키지의 스크립트를 Turbo 파이프라인에서 일괄 실행합니다.
 
 ## 📡 API 엔드포인트
 
