@@ -21,6 +21,12 @@ export default defineConfig(
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+      parserOptions: {
+        // Disambiguate TS config root when running ESLint from monorepo root
+        tsconfigRootDir: import.meta.dirname,
+        projectService: true,
+      },
     },
+    ignores: ['coverage/**/*', 'node_modules/**/*', 'dist/**/*'],
   },
 )
