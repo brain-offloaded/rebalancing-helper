@@ -8,9 +8,7 @@ describe('MarketDataService', () => {
   let httpServiceMock: jest.Mocked<HttpService>;
   let service: MarketDataService;
 
-  const mockResponse = (
-    override: Partial<Record<string, unknown>> = {},
-  ) =>
+  const mockResponse = (override: Partial<Record<string, unknown>> = {}) =>
     of({
       data: {
         quoteResponse: {
