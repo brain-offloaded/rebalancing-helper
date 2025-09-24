@@ -1,7 +1,9 @@
+import { NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { HoldingsService } from './holdings.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { HoldingTag, ManualHolding } from './holdings.entities';
+import { MarketDataService, MarketQuote } from './market-data.service';
 import {
   AddHoldingTagInput,
   RemoveHoldingTagInput,
@@ -32,15 +34,13 @@ type MockedPrisma = {
     update: jest.Mock;
     delete: jest.Mock;
   };
-  marketSecurity: {
-    findUnique: jest.Mock;
-  };
   $transaction: jest.Mock;
 };
 
 describe('HoldingsService', () => {
   let prismaMock: MockedPrisma;
   let service: HoldingsService;
+  let marketDataServiceMock: jest.Mocked<MarketDataService>;
 
   beforeEach(() => {
     prismaMock = {
@@ -61,13 +61,17 @@ describe('HoldingsService', () => {
         update: jest.fn(),
         delete: jest.fn(),
       },
-      marketSecurity: {
-        findUnique: jest.fn(),
-      },
       $transaction: jest.fn(),
     };
 
-    service = new HoldingsService(prismaMock as unknown as PrismaService);
+    marketDataServiceMock = {
+      getQuote: jest.fn(),
+    } as unknown as jest.Mocked<MarketDataService>;
+
+    service = new HoldingsService(
+      prismaMock as unknown as PrismaService,
+      marketDataServiceMock,
+    );
   });
 
   it('addTag는 사용자 소유 태그인지 확인한 후 upsert를 수행한다', async () => {
@@ -239,16 +243,15 @@ describe('HoldingsService', () => {
   });
 
   describe('수동 보유 종목', () => {
-    const security = {
-      id: 'security-1',
-      market: 'US',
+    const quote: MarketQuote = {
       symbol: 'VOO',
+      displaySymbol: 'VOO',
       name: 'Vanguard S&P 500 ETF',
+      price: 412.35,
       currency: 'USD',
-      currentPrice: 412.35,
+      market: 'US',
+      exchange: 'NYSEArca',
       lastUpdated: new Date('2024-01-01T00:00:00Z'),
-      createdAt: new Date('2024-01-01T00:00:00Z'),
-      updatedAt: new Date('2024-01-01T00:00:00Z'),
     };
 
     const manualHolding: ManualHolding = {
@@ -271,12 +274,12 @@ describe('HoldingsService', () => {
     };
 
     beforeEach(() => {
-      prismaMock.marketSecurity.findUnique.mockReset();
       prismaMock.manualHolding.findUnique.mockReset();
       prismaMock.manualHolding.create.mockReset();
       prismaMock.manualHolding.update.mockReset();
       prismaMock.manualHolding.delete.mockReset();
       prismaMock.manualHolding.findMany.mockReset();
+      marketDataServiceMock.getQuote.mockReset();
     });
 
     it('createManualHolding는 시장 종목을 검증한 뒤 생성한다', async () => {
@@ -285,39 +288,33 @@ describe('HoldingsService', () => {
         symbol: 'VOO',
         quantity: 2,
       };
-      prismaMock.marketSecurity.findUnique.mockResolvedValue(security);
+      marketDataServiceMock.getQuote.mockResolvedValue(quote);
       prismaMock.manualHolding.create.mockResolvedValue({
         ...manualHolding,
         quantity: input.quantity,
-        marketValue: input.quantity * security.currentPrice,
+        marketValue: input.quantity * quote.price,
       });
 
       const result = await service.createManualHolding(USER_ID, input);
 
-      expect(prismaMock.marketSecurity.findUnique).toHaveBeenCalledWith({
-        where: {
-          market_symbol: {
-            market: input.market,
-            symbol: input.symbol,
-          },
-        },
-      });
+      expect(marketDataServiceMock.getQuote).toHaveBeenCalledWith(
+        input.market,
+        input.symbol,
+      );
       expect(prismaMock.manualHolding.create).toHaveBeenCalledWith({
         data: {
           userId: USER_ID,
           market: input.market,
           symbol: input.symbol,
-          name: security.name,
+          name: quote.name,
           quantity: input.quantity,
-          currentPrice: security.currentPrice,
-          marketValue: input.quantity * security.currentPrice,
-          currency: security.currency,
-          lastUpdated: security.lastUpdated,
+          currentPrice: quote.price,
+          marketValue: input.quantity * quote.price,
+          currency: quote.currency,
+          lastUpdated: quote.lastUpdated,
         },
       });
-      expect(result.marketValue).toBeCloseTo(
-        input.quantity * security.currentPrice,
-      );
+      expect(result.marketValue).toBeCloseTo(input.quantity * quote.price);
     });
 
     it('createManualHolding는 존재하지 않는 종목이면 예외를 던진다', async () => {
@@ -326,10 +323,10 @@ describe('HoldingsService', () => {
         symbol: 'VOO',
         quantity: 1,
       };
-      prismaMock.marketSecurity.findUnique.mockResolvedValue(null);
+      marketDataServiceMock.getQuote.mockRejectedValue(new NotFoundException());
 
       await expect(service.createManualHolding(USER_ID, input)).rejects.toThrow(
-        'Market security not found',
+        NotFoundException,
       );
       expect(prismaMock.manualHolding.create).not.toHaveBeenCalled();
     });
@@ -490,35 +487,35 @@ describe('HoldingsService', () => {
         name: manualHolding.name,
         lastUpdated: manualHolding.lastUpdated,
       });
-      prismaMock.marketSecurity.findUnique.mockResolvedValue(security);
+      marketDataServiceMock.getQuote.mockResolvedValue({
+        ...quote,
+        price: 500,
+        lastUpdated: new Date('2024-01-03T00:00:00Z'),
+      });
       prismaMock.manualHolding.update.mockResolvedValue({
         ...manualHolding,
-        currentPrice: security.currentPrice,
-        marketValue: manualHolding.quantity * security.currentPrice,
-        lastUpdated: security.lastUpdated,
+        currentPrice: 500,
+        marketValue: manualHolding.quantity * 500,
+        lastUpdated: new Date('2024-01-03T00:00:00Z'),
       });
 
       const result = await service.syncManualHoldingPrice(USER_ID, identifier);
 
-      expect(prismaMock.marketSecurity.findUnique).toHaveBeenCalledWith({
-        where: {
-          market_symbol: {
-            market: identifier.market,
-            symbol: identifier.symbol,
-          },
-        },
-      });
+      expect(marketDataServiceMock.getQuote).toHaveBeenCalledWith(
+        identifier.market,
+        identifier.symbol,
+      );
       expect(prismaMock.manualHolding.update).toHaveBeenCalledWith({
         where: { id: manualHolding.id },
         data: {
-          currentPrice: security.currentPrice,
-          marketValue: manualHolding.quantity * security.currentPrice,
-          name: security.name,
-          currency: security.currency,
-          lastUpdated: security.lastUpdated,
+          currentPrice: 500,
+          marketValue: manualHolding.quantity * 500,
+          name: quote.name,
+          currency: quote.currency,
+          lastUpdated: new Date('2024-01-03T00:00:00Z'),
         },
       });
-      expect(result.currentPrice).toBe(security.currentPrice);
+      expect(result.currentPrice).toBe(500);
     });
 
     it('syncManualHoldingPrice는 보유 내역이 없으면 예외를 던진다', async () => {
@@ -527,7 +524,7 @@ describe('HoldingsService', () => {
       await expect(
         service.syncManualHoldingPrice(USER_ID, identifier),
       ).rejects.toThrow('Manual holding not found');
-      expect(prismaMock.marketSecurity.findUnique).not.toHaveBeenCalled();
+      expect(marketDataServiceMock.getQuote).not.toHaveBeenCalled();
     });
 
     it('syncManualHoldingPrice는 시장 데이터가 없으면 예외를 던진다', async () => {
@@ -543,11 +540,11 @@ describe('HoldingsService', () => {
         name: manualHolding.name,
         lastUpdated: manualHolding.lastUpdated,
       });
-      prismaMock.marketSecurity.findUnique.mockResolvedValue(null);
+      marketDataServiceMock.getQuote.mockRejectedValue(new NotFoundException());
 
       await expect(
         service.syncManualHoldingPrice(USER_ID, identifier),
-      ).rejects.toThrow('Market security not found');
+      ).rejects.toThrow(NotFoundException);
       expect(prismaMock.manualHolding.update).not.toHaveBeenCalled();
     });
 

@@ -11,10 +11,14 @@ import {
   SetManualHoldingQuantityInput,
   ManualHoldingIdentifierInput,
 } from './holdings.dto';
+import { MarketDataService } from './market-data.service';
 
 @Injectable()
 export class HoldingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly marketDataService: MarketDataService,
+  ) {}
 
   private async assertTagBelongsToUser(
     userId: string,
@@ -151,23 +155,6 @@ export class HoldingsService {
     return holdings.map((holding) => holding.holdingSymbol);
   }
 
-  private async getMarketSecurityOrThrow(market: string, symbol: string) {
-    const security = await this.prisma.marketSecurity.findUnique({
-      where: {
-        market_symbol: {
-          market,
-          symbol,
-        },
-      },
-    });
-
-    if (!security) {
-      throw new NotFoundException('Market security not found');
-    }
-
-    return security;
-  }
-
   private async getManualHoldingOrThrow(
     userId: string,
     identifier: ManualHoldingIdentifierInput,
@@ -200,7 +187,7 @@ export class HoldingsService {
     userId: string,
     input: CreateManualHoldingInput,
   ): Promise<ManualHolding> {
-    const security = await this.getMarketSecurityOrThrow(
+    const quote = await this.marketDataService.getQuote(
       input.market,
       input.symbol,
     );
@@ -208,14 +195,14 @@ export class HoldingsService {
     return this.prisma.manualHolding.create({
       data: {
         userId,
-        market: input.market,
-        symbol: input.symbol,
-        name: security.name,
+        market: quote.market,
+        symbol: quote.symbol,
+        name: quote.name,
         quantity: input.quantity,
-        currentPrice: security.currentPrice,
-        marketValue: input.quantity * security.currentPrice,
-        currency: security.currency,
-        lastUpdated: security.lastUpdated,
+        currentPrice: quote.price,
+        marketValue: input.quantity * quote.price,
+        currency: quote.currency,
+        lastUpdated: quote.lastUpdated,
       },
     });
   }
@@ -283,7 +270,7 @@ export class HoldingsService {
     input: ManualHoldingIdentifierInput,
   ): Promise<ManualHolding> {
     const holding = await this.getManualHoldingOrThrow(userId, input);
-    const security = await this.getMarketSecurityOrThrow(
+    const quote = await this.marketDataService.getQuote(
       input.market,
       input.symbol,
     );
@@ -291,11 +278,11 @@ export class HoldingsService {
     return this.prisma.manualHolding.update({
       where: { id: holding.id },
       data: {
-        currentPrice: security.currentPrice,
-        marketValue: holding.quantity * security.currentPrice,
-        name: security.name,
-        currency: security.currency,
-        lastUpdated: security.lastUpdated,
+        currentPrice: quote.price,
+        marketValue: holding.quantity * quote.price,
+        name: quote.name,
+        currency: quote.currency,
+        lastUpdated: quote.lastUpdated,
       },
     });
   }
