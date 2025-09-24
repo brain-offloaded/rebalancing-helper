@@ -387,9 +387,9 @@ describe('HoldingsService', () => {
       };
       prismaMock.manualHolding.findUnique.mockResolvedValue(null);
 
-      await expect(service.increaseManualHolding(USER_ID, input)).rejects.toThrow(
-        'Manual holding not found',
-      );
+      await expect(
+        service.increaseManualHolding(USER_ID, input),
+      ).rejects.toThrow('Manual holding not found');
       expect(prismaMock.manualHolding.update).not.toHaveBeenCalled();
     });
 
@@ -444,11 +444,13 @@ describe('HoldingsService', () => {
     });
 
     it('deleteManualHolding는 삭제 성공 여부를 반환한다', async () => {
-      prismaMock.manualHolding.delete.mockResolvedValue({ id: manualHolding.id });
+      prismaMock.manualHolding.delete.mockResolvedValue({
+        id: manualHolding.id,
+      });
 
-      await expect(service.deleteManualHolding(USER_ID, identifier)).resolves.toBe(
-        true,
-      );
+      await expect(
+        service.deleteManualHolding(USER_ID, identifier),
+      ).resolves.toBe(true);
       expect(prismaMock.manualHolding.delete).toHaveBeenCalledWith({
         where: {
           userId_market_symbol: {
@@ -470,9 +472,9 @@ describe('HoldingsService', () => {
       );
       prismaMock.manualHolding.delete.mockRejectedValue(prismaError);
 
-      await expect(service.deleteManualHolding(USER_ID, identifier)).resolves.toBe(
-        false,
-      );
+      await expect(
+        service.deleteManualHolding(USER_ID, identifier),
+      ).resolves.toBe(false);
     });
 
     it('syncManualHoldingPrice는 현재가를 갱신하고 시장가치를 재계산한다', async () => {

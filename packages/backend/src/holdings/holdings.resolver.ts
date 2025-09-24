@@ -71,7 +71,9 @@ export class HoldingsResolver {
   }
 
   @Query(() => [ManualHolding])
-  manualHoldings(@CurrentUser() user: ActiveUserData): Promise<ManualHolding[]> {
+  manualHoldings(
+    @CurrentUser() user: ActiveUserData,
+  ): Promise<ManualHolding[]> {
     return this.holdingsService.getManualHoldings(user.userId);
   }
 

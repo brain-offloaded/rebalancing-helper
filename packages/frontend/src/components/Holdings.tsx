@@ -227,9 +227,7 @@ export const Holdings: React.FC = () => {
   const [setHoldingTags] = useMutation(SET_HOLDING_TAGS);
   const [createManualHoldingMutation, { loading: creatingManualHolding }] =
     useMutation(CREATE_MANUAL_HOLDING);
-  const [increaseManualHoldingMutation] = useMutation(
-    INCREASE_MANUAL_HOLDING,
-  );
+  const [increaseManualHoldingMutation] = useMutation(INCREASE_MANUAL_HOLDING);
   const [setManualHoldingQuantityMutation] = useMutation(
     SET_MANUAL_HOLDING_QUANTITY,
   );
@@ -305,7 +303,12 @@ export const Holdings: React.FC = () => {
     const symbol = manualSymbol.trim().toUpperCase();
     const quantityValue = Number(manualQuantity);
 
-    if (!market || !symbol || !Number.isFinite(quantityValue) || quantityValue <= 0) {
+    if (
+      !market ||
+      !symbol ||
+      !Number.isFinite(quantityValue) ||
+      quantityValue <= 0
+    ) {
       return;
     }
 
@@ -482,7 +485,8 @@ export const Holdings: React.FC = () => {
       <Section>
         <SectionTitle>수동 보유 종목</SectionTitle>
         <SectionDescription>
-          시장에 등록된 종목을 직접 추가하고 수량 및 현재가를 관리할 수 있습니다.
+          시장에 등록된 종목을 직접 추가하고 수량 및 현재가를 관리할 수
+          있습니다.
         </SectionDescription>
 
         <ManualForm onSubmit={handleManualSubmit}>
@@ -549,7 +553,10 @@ export const Holdings: React.FC = () => {
                   <Td>{holding.name}</Td>
                   <Td>{holding.quantity.toLocaleString()}</Td>
                   <Td>
-                    {formatCurrencyValue(holding.currentPrice, holding.currency)}
+                    {formatCurrencyValue(
+                      holding.currentPrice,
+                      holding.currency,
+                    )}
                   </Td>
                   <Td>
                     {formatCurrencyValue(holding.marketValue, holding.currency)}

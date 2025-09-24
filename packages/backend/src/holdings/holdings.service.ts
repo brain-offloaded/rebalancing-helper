@@ -151,10 +151,7 @@ export class HoldingsService {
     return holdings.map((holding) => holding.holdingSymbol);
   }
 
-  private async getMarketSecurityOrThrow(
-    market: string,
-    symbol: string,
-  ) {
+  private async getMarketSecurityOrThrow(market: string, symbol: string) {
     const security = await this.prisma.marketSecurity.findUnique({
       where: {
         market_symbol: {

@@ -34,10 +34,10 @@ const createManualHolding = (
   quantity: overrides.quantity ?? 3,
   currentPrice: overrides.currentPrice ?? 410.2,
   marketValue:
-    overrides.marketValue ?? (overrides.quantity ?? 3) * (overrides.currentPrice ?? 410.2),
+    overrides.marketValue ??
+    (overrides.quantity ?? 3) * (overrides.currentPrice ?? 410.2),
   currency: overrides.currency ?? 'USD',
-  lastUpdated:
-    overrides.lastUpdated ?? new Date('2024-01-03T00:00:00Z'),
+  lastUpdated: overrides.lastUpdated ?? new Date('2024-01-03T00:00:00Z'),
   createdAt: overrides.createdAt ?? new Date('2024-01-02T00:00:00Z'),
   updatedAt: overrides.updatedAt ?? new Date('2024-01-03T00:00:00Z'),
 });
@@ -236,9 +236,9 @@ describe('HoldingsResolver', () => {
     const manualHolding = createManualHolding({ currentPrice: 420 });
     service.syncManualHoldingPrice.mockResolvedValue(manualHolding);
 
-    await expect(resolver.syncManualHoldingPrice(mockUser, input)).resolves.toBe(
-      manualHolding,
-    );
+    await expect(
+      resolver.syncManualHoldingPrice(mockUser, input),
+    ).resolves.toBe(manualHolding);
     expect(service.syncManualHoldingPrice).toHaveBeenCalledWith(
       mockUser.userId,
       input,
