@@ -1,8 +1,8 @@
-import { ConfigService } from '@nestjs/config';
 import {
   CredentialCryptoService,
   EncryptedPayload,
 } from './credential-crypto.service';
+import { TypedConfigService } from '../typed-config';
 
 const BASE64_KEY = Buffer.alloc(32, 1).toString('base64');
 const HEX_KEY = Buffer.alloc(32, 2).toString('hex');
@@ -11,7 +11,7 @@ describe('CredentialCryptoService', () => {
   const createService = (key: string | undefined) =>
     new CredentialCryptoService({
       get: jest.fn().mockReturnValue(key),
-    } as unknown as ConfigService);
+    } as unknown as TypedConfigService);
 
   it('encrypt와 decrypt가 원문을 보존한다', () => {
     const service = createService(BASE64_KEY);

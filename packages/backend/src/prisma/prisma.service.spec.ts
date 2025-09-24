@@ -18,18 +18,18 @@ jest.mock('@prisma/client', () => {
 });
 
 import { INestApplication } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { PrismaService } from './prisma.service';
+import { TypedConfigService } from '../typed-config';
 
 describe('PrismaService', () => {
   const createConfigService = (databaseUrl?: string) => {
     const get = jest.fn().mockImplementation((key: string) => {
       if (key === 'DATABASE_URL') {
-        return databaseUrl;
+        return databaseUrl ?? 'file:./prisma/dev.db';
       }
       return undefined;
     });
-    return { get } as unknown as ConfigService;
+    return { get } as unknown as TypedConfigService;
   };
 
   beforeEach(() => {
@@ -38,7 +38,7 @@ describe('PrismaService', () => {
 
   it('DATABASE_URL 환경 변수를 활용해 Prisma 클라이언트를 초기화한다', () => {
     const get = jest.fn().mockReturnValue('postgres://example');
-    const config = { get } as unknown as ConfigService;
+    const config = { get } as unknown as TypedConfigService;
 
     const service = new PrismaService(config);
     const internal = service as unknown as { options: unknown };

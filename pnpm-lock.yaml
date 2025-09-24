@@ -62,6 +62,9 @@ importers:
       graphql:
         specifier: ^16.11.0
         version: 16.11.0
+      joi:
+        specifier: ^17.13.3
+        version: 17.13.3
       nestjs-typed-config:
         specifier: ^0.3.1
         version: 0.3.1(@nestjs/common@11.1.6(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/config@4.0.2(@nestjs/common@11.1.6(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2))(joi@17.13.3)(typescript@5.8.3)
