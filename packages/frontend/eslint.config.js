@@ -9,6 +9,7 @@ import tseslint from 'typescript-eslint'
 export default tseslint.config(
   globalIgnores(['dist', 'eslint.config.js']),
   {
+    tsconfigRootDir: __dirname,
     files: ['**/*.{ts,tsx,js,jsx}'],
     extends: [
       js.configs.recommended,
