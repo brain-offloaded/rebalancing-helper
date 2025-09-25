@@ -11,10 +11,8 @@ const schema = {
   BROKER_CREDENTIAL_ENCRYPTION_KEY: Joi.string().min(1).required(),
 } satisfies Joi.SchemaMap;
 
-const {
-  TypedConfigService: TypedConfigServiceClass,
-  TypedConfigModule,
-} = createTypedConfig(schema);
+const { TypedConfigService: TypedConfigServiceClass, TypedConfigModule } =
+  createTypedConfig(schema);
 
 export { TypedConfigModule };
 export const TypedConfigService = TypedConfigServiceClass;
