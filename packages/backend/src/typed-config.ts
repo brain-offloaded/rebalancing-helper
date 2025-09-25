@@ -1,4 +1,4 @@
-import { createTypedConfig, ResolveJoiSchema } from 'nestjs-typed-config';
+import { createTypedConfig } from 'nestjs-typed-config';
 import * as Joi from 'joi';
 
 const schema = {
@@ -15,6 +15,6 @@ const { TypedConfigService: TypedConfigServiceClass, TypedConfigModule } =
   createTypedConfig(schema);
 
 export { TypedConfigModule };
+
 export const TypedConfigService = TypedConfigServiceClass;
 export type TypedConfigService = InstanceType<typeof TypedConfigServiceClass>;
-export type AppConfig = ResolveJoiSchema<typeof schema>;
