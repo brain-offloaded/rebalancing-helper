@@ -86,6 +86,62 @@ async function main() {
     });
   }
 
+  const defaultMarkets = [
+    {
+      code: 'US',
+      displayName: '미국',
+      yahooSuffix: null,
+      yahooMarketIdentifiers: 'us_market',
+    },
+    {
+      code: 'NYSE',
+      displayName: '뉴욕 증권거래소',
+      yahooSuffix: null,
+      yahooMarketIdentifiers: 'us_market',
+    },
+    {
+      code: 'NASDAQ',
+      displayName: '나스닥',
+      yahooSuffix: null,
+      yahooMarketIdentifiers: 'us_market',
+    },
+    {
+      code: 'AMEX',
+      displayName: '아멕스',
+      yahooSuffix: null,
+      yahooMarketIdentifiers: 'us_market',
+    },
+    {
+      code: 'KOSPI',
+      displayName: '코스피',
+      yahooSuffix: '.KS',
+      yahooMarketIdentifiers: 'krx_market',
+    },
+    {
+      code: 'KOSDAQ',
+      displayName: '코스닥',
+      yahooSuffix: '.KQ',
+      yahooMarketIdentifiers: 'krx_market',
+    },
+  ];
+
+  for (const market of defaultMarkets) {
+    await prisma.market.upsert({
+      where: { code: market.code },
+      update: {
+        displayName: market.displayName,
+        yahooSuffix: market.yahooSuffix,
+        yahooMarketIdentifiers: market.yahooMarketIdentifiers,
+      },
+      create: {
+        code: market.code,
+        displayName: market.displayName,
+        yahooSuffix: market.yahooSuffix,
+        yahooMarketIdentifiers: market.yahooMarketIdentifiers,
+      },
+    });
+  }
+
   const defaultSecurities = [
     {
       market: 'US',

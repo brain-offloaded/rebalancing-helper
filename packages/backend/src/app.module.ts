@@ -16,6 +16,7 @@ import { GraphqlContext } from './common/graphql/graphql-context.type';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { TypedConfigModule } from './typed-config';
+import { MarketsModule } from './markets/markets.module';
 
 export type GraphqlContextFactoryArgs = {
   req: Request;
@@ -61,6 +62,7 @@ export function createGraphqlContext({
     HoldingsModule,
     TagsModule,
     RebalancingModule,
+    MarketsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

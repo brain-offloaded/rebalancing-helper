@@ -73,6 +73,16 @@ model MarketSecurity {
   @@unique([market, symbol], name: "market_symbol")
 }
 
+model Market {
+  id                     String   @id @default(cuid())
+  code                   String   @unique
+  displayName            String
+  yahooSuffix            String?
+  yahooMarketIdentifiers String
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
 model ManualHolding {
   id           String   @id @default(cuid())
   userId       String
