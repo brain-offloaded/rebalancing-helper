@@ -22,7 +22,8 @@
     "test:debug": "NODE_OPTIONS=\"--inspect-brk -r tsconfig-paths/register -r ts-node/register\" pnpm exec jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev --create-only",
+    "prisma:migrate": "sh -c 'n=${npm_config_name-}; if [ -z \"$n\" ]; then echo \"Error: Missing --name. Usage: pnpm prisma:migrate --name <migration_name>\"; exit 1; fi; prisma migrate dev --create-only --name \"$n\"'",
+    "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "prisma db seed"
   },
   "dependencies": {
