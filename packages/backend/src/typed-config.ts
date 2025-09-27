@@ -1,6 +1,16 @@
 import { createTypedConfig } from 'nestjs-typed-config';
 import * as Joi from 'joi';
 
+// CI 환경(예: 공개 PR)의 경우에는 암호화 키 시크릿이 존재하지 않을 수 있으므로
+// 안전한 고정 더미 값을 미리 주입해 검증 단계가 실패하지 않도록 한다.
+if (
+  !process.env.BROKER_CREDENTIAL_ENCRYPTION_KEY &&
+  process.env.CI === 'true'
+) {
+  process.env.BROKER_CREDENTIAL_ENCRYPTION_KEY =
+    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
+}
+
 const schema = {
   NODE_ENV: Joi.string()
     .valid('development', 'test', 'production', 'staging')
@@ -8,15 +18,7 @@ const schema = {
   PORT: Joi.number().port().default(3000),
   DATABASE_URL: Joi.string().min(1).default('file:./prisma/dev.db'),
   JWT_SECRET: Joi.string().min(1).default('local-dev-secret'),
-  // 테스트 환경(CI 포크 PR 등)에서는 시크릿이 없을 수 있으므로 안전하지만 고정된 더미 키를 기본값으로 제공
-  BROKER_CREDENTIAL_ENCRYPTION_KEY: Joi.string()
-    .min(1)
-    .default(
-      process.env.CI === 'true'
-        ? 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
-        : undefined,
-    )
-    .required(),
+  BROKER_CREDENTIAL_ENCRYPTION_KEY: Joi.string().min(1).required(),
 } satisfies Joi.SchemaMap;
 
 const { TypedConfigService: TypedConfigServiceClass, TypedConfigModule } =
