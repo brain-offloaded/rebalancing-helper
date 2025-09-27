@@ -1,0 +1,34 @@
+import type { CodegenConfig } from '@graphql-codegen/cli';
+
+// Assumption: backend server runs locally at 3000 (same as apollo-client.ts)
+// If you deploy or change port, adjust the schema endpoint or point to a saved SDL file.
+// We output the generated types + hooks into src/graphql/__generated__.ts
+
+const config: CodegenConfig = {
+  schema: 'http://localhost:3000/graphql',
+  documents: 'src/graphql/**/*.{ts,tsx}',
+  generates: {
+    'src/graphql/__generated__/index.ts': {
+      plugins: [
+        'typescript',
+        'typescript-operations',
+        'typescript-react-apollo'
+      ],
+      config: {
+        withHooks: true,
+        withHOC: false,
+        withComponent: false,
+        dedupeOperationSuffix: true,
+        avoidOptionals: true,
+        enumsAsTypes: true,
+        defaultScalarType: 'unknown',
+        scalars: {
+          DateTime: 'string'
+        }
+      }
+    }
+  },
+  hooks: { afterAllFileWrite: ['prettier --write'] }
+};
+
+export default config;
