@@ -12,7 +12,7 @@ const schema = {
   BROKER_CREDENTIAL_ENCRYPTION_KEY: Joi.string()
     .min(1)
     .default(
-      process.env.NODE_ENV === 'test'
+      process.env.CI === 'true'
         ? 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
         : undefined,
     )
