@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation } from '@apollo/client';
+// switch to generated hooks
+import {
+  useGetTagsQuery,
+  useCreateTagMutation,
+  useUpdateTagMutation,
+  useDeleteTagMutation,
+} from '../graphql/__generated__';
+import type { GetTagsQuery } from '../graphql/__generated__';
 import styled from 'styled-components';
-import { GET_TAGS, CREATE_TAG, UPDATE_TAG, DELETE_TAG } from '../graphql/tags';
 
 const Container = styled.div`
   padding: ${(props) => props.theme.spacing.lg};
@@ -118,14 +124,7 @@ const TagDescription = styled.p`
   font-size: ${(props) => props.theme.typography.fontSize.sm};
 `;
 
-interface Tag {
-  id: string;
-  name: string;
-  description: string | null;
-  color: string;
-  createdAt: string;
-  updatedAt: string;
-}
+// Tag type now comes from generated types via query result (no manual interface needed)
 
 const DEFAULT_COLORS = [
   '#007bff',
@@ -142,17 +141,19 @@ const DEFAULT_COLORS = [
 
 export const Tags: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
-  const [editingTag, setEditingTag] = useState<Tag | null>(null);
+  const [editingTag, setEditingTag] = useState<
+    GetTagsQuery['tags'][number] | null
+  >(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     color: DEFAULT_COLORS[0],
   });
 
-  const { data, loading, error, refetch } = useQuery(GET_TAGS);
-  const [createTag] = useMutation(CREATE_TAG);
-  const [updateTag] = useMutation(UPDATE_TAG);
-  const [deleteTag] = useMutation(DELETE_TAG);
+  const { data, loading, error, refetch } = useGetTagsQuery();
+  const [createTag] = useCreateTagMutation();
+  const [updateTag] = useUpdateTagMutation();
+  const [deleteTag] = useDeleteTagMutation();
 
   const resetForm = () => {
     setFormData({
@@ -169,17 +170,10 @@ export const Tags: React.FC = () => {
     try {
       if (editingTag) {
         await updateTag({
-          variables: {
-            input: {
-              id: editingTag.id,
-              ...formData,
-            },
-          },
+          variables: { input: { id: editingTag.id, ...formData } },
         });
       } else {
-        await createTag({
-          variables: { input: formData },
-        });
+        await createTag({ variables: { input: formData } });
       }
       resetForm();
       refetch();
@@ -188,7 +182,7 @@ export const Tags: React.FC = () => {
     }
   };
 
-  const handleEdit = (tag: Tag) => {
+  const handleEdit = (tag: GetTagsQuery['tags'][number]) => {
     setEditingTag(tag);
     setFormData({
       name: tag.name,
@@ -292,7 +286,7 @@ export const Tags: React.FC = () => {
       )}
 
       <TagGrid>
-        {data?.tags?.map((tag: Tag) => (
+        {data?.tags?.map((tag) => (
           <TagCard key={tag.id}>
             <TagHeader>
               <TagColorBox color={tag.color} />

@@ -1,13 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useQuery, useMutation } from '@apollo/client';
 import styled from 'styled-components';
 import {
-  GET_BROKERAGE_ACCOUNTS,
-  GET_BROKERS,
-  CREATE_BROKERAGE_ACCOUNT,
-  DELETE_BROKERAGE_ACCOUNT,
-  REFRESH_BROKERAGE_HOLDINGS,
-} from '../graphql/brokerage';
+  useGetBrokerageAccountsQuery,
+  useGetBrokersQuery,
+  useCreateBrokerageAccountMutation,
+  useDeleteBrokerageAccountMutation,
+  useRefreshBrokerageHoldingsMutation,
+} from '../graphql/__generated__';
 
 const Container = styled.div`
   padding: ${(props) => props.theme.spacing.lg};
@@ -150,24 +149,6 @@ const Label2 = styled.span`
   color: ${(props) => props.theme.colors.textLight};
 `;
 
-interface BrokerInfo {
-  id: string;
-  name: string;
-  code: string;
-  isActive: boolean;
-}
-
-interface BrokerageAccount {
-  id: string;
-  name: string;
-  brokerId: string;
-  broker: BrokerInfo | null;
-  description: string | null;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export const BrokerageAccounts: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -178,20 +159,17 @@ export const BrokerageAccounts: React.FC = () => {
     description: '',
   });
 
-  const { data, loading, error, refetch } = useQuery(GET_BROKERAGE_ACCOUNTS);
+  const { data, loading, error, refetch } = useGetBrokerageAccountsQuery();
   const {
     data: brokersData,
     loading: brokersLoading,
     error: brokersError,
-  } = useQuery(GET_BROKERS);
-  const [createAccount] = useMutation(CREATE_BROKERAGE_ACCOUNT);
-  const [deleteAccount] = useMutation(DELETE_BROKERAGE_ACCOUNT);
-  const [refreshHoldings] = useMutation(REFRESH_BROKERAGE_HOLDINGS);
+  } = useGetBrokersQuery();
+  const [createAccount] = useCreateBrokerageAccountMutation();
+  const [deleteAccount] = useDeleteBrokerageAccountMutation();
+  const [refreshHoldings] = useRefreshBrokerageHoldingsMutation();
 
-  const brokers: BrokerInfo[] = useMemo(
-    () => brokersData?.brokers ?? [],
-    [brokersData],
-  );
+  const brokers = useMemo(() => brokersData?.brokers ?? [], [brokersData]);
 
   useEffect(() => {
     if (!formData.brokerId && brokers.length > 0) {
@@ -212,8 +190,9 @@ export const BrokerageAccounts: React.FC = () => {
             name: formData.name,
             brokerId: formData.brokerId,
             apiKey: formData.apiKey,
-            apiSecret: formData.apiSecret || undefined,
-            description: formData.description || undefined,
+            apiSecret: formData.apiSecret ? formData.apiSecret : null,
+            description: formData.description ? formData.description : null,
+            isActive: true,
           },
         },
       });
@@ -353,7 +332,7 @@ export const BrokerageAccounts: React.FC = () => {
         )}
 
         <AccountGrid>
-          {data?.brokerageAccounts?.map((account: BrokerageAccount) => (
+          {data?.brokerageAccounts?.map((account) => (
             <AccountCard key={account.id}>
               <AccountHeader>
                 <AccountTitle>{account.name}</AccountTitle>

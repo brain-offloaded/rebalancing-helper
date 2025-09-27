@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { useMutation, useQuery } from '@apollo/client';
 import styled from 'styled-components';
 import {
-  CREATE_BROKER,
-  DELETE_BROKER,
-  GET_BROKERS,
-  UPDATE_BROKER,
-} from '../graphql/brokerage';
+  useGetBrokersQuery,
+  useCreateBrokerMutation,
+  useUpdateBrokerMutation,
+  useDeleteBrokerMutation,
+  type GetBrokersQuery,
+} from '../graphql/__generated__';
 
 const Container = styled.div`
   padding: ${(props) => props.theme.spacing.lg};
@@ -123,14 +123,8 @@ const InfoLabel = styled.span`
   color: ${(props) => props.theme.colors.textLight};
 `;
 
-type Broker = {
-  id: string;
-  code: string;
-  name: string;
-  description: string | null;
-  apiBaseUrl: string | null;
-  isActive: boolean;
-};
+// Broker type derived from codegen output
+type Broker = GetBrokersQuery['brokers'][number];
 
 export const Brokers: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -141,10 +135,10 @@ export const Brokers: React.FC = () => {
     apiBaseUrl: '',
   });
 
-  const { data, loading, error, refetch } = useQuery(GET_BROKERS);
-  const [createBroker] = useMutation(CREATE_BROKER);
-  const [updateBroker] = useMutation(UPDATE_BROKER);
-  const [deleteBroker] = useMutation(DELETE_BROKER);
+  const { data, loading, error, refetch } = useGetBrokersQuery();
+  const [createBroker] = useCreateBrokerMutation();
+  const [updateBroker] = useUpdateBrokerMutation();
+  const [deleteBroker] = useDeleteBrokerMutation();
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,8 +148,8 @@ export const Brokers: React.FC = () => {
           input: {
             code: formData.code,
             name: formData.name,
-            description: formData.description || undefined,
-            apiBaseUrl: formData.apiBaseUrl || undefined,
+            description: formData.description || null,
+            apiBaseUrl: formData.apiBaseUrl || null,
           },
         },
       });
@@ -171,7 +165,15 @@ export const Brokers: React.FC = () => {
     try {
       await updateBroker({
         variables: {
-          input: { id: broker.id, isActive: !broker.isActive },
+          input: {
+            id: broker.id,
+            isActive: !broker.isActive,
+            // Explicit nulls for untouched optional fields to align with avoidOptionals config
+            code: null,
+            name: null,
+            description: null,
+            apiBaseUrl: null,
+          },
         },
       });
       refetch();

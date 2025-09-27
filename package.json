@@ -17,7 +17,10 @@
     "prisma:migrate": "pnpm --filter backend prisma:migrate",
     "prisma:deploy": "pnpm --filter backend prisma:deploy",
     "prisma:seed": "pnpm --filter backend prisma:seed",
-    "prisma:studio": "pnpm --filter backend prisma:studio"
+    "prisma:studio": "pnpm --filter backend prisma:studio",
+    "schema:gen": "pnpm --filter backend schema:gen",
+    "gql:codegen": "pnpm --filter frontend codegen",
+    "gql:all": "pnpm schema:gen && pnpm gql:codegen"
   },
   "devDependencies": {
     "turbo": "^2.4.4"
