@@ -335,6 +335,21 @@ describe('RebalancingGroups', () => {
     expect(screen.queryByText('목표 비율 적용')).not.toBeInTheDocument();
   });
 
+  it('목표 비율 설정 폼은 기존 목표 비율을 초기값으로 채운다', async () => {
+    setupMocks();
+    const user = userEvent.setup();
+
+    renderWithProviders(<RebalancingGroups />, { withApollo: false });
+
+    await user.click(screen.getByRole('button', { name: '분석 보기' }));
+    await user.click(screen.getByRole('button', { name: '목표 비율 설정' }));
+
+    const inputs = screen.getAllByRole('spinbutton');
+
+    expect(inputs[0]).toHaveValue(50);
+    expect(inputs[1]).toHaveValue(50);
+  });
+
   it('태그 관리에서 추가 및 제거를 처리한다', async () => {
     const extraTag = { id: 'tag-3', name: '가치주', color: '#0000ff' };
     const { addTags, removeTags, refetchGroups } = setupMocks({

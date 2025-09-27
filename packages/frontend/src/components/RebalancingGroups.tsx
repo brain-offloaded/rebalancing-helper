@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import styled from 'styled-components';
 import {
@@ -234,9 +234,7 @@ export const RebalancingGroups: React.FC = () => {
   const [createGroup] = useMutation(CREATE_REBALANCING_GROUP);
   const [setTargets] = useMutation(SET_TARGET_ALLOCATIONS);
   const [addTagsToGroup] = useMutation(ADD_TAGS_TO_REBALANCING_GROUP);
-  const [removeTagsFromGroup] = useMutation(
-    REMOVE_TAGS_FROM_REBALANCING_GROUP,
-  );
+  const [removeTagsFromGroup] = useMutation(REMOVE_TAGS_FROM_REBALANCING_GROUP);
   const [renameGroupMutation] = useMutation(RENAME_REBALANCING_GROUP);
   const [deleteGroupMutation] = useMutation(DELETE_REBALANCING_GROUP);
 
@@ -337,7 +335,9 @@ export const RebalancingGroups: React.FC = () => {
     const tagsToAdd = Array.from(selectedSet).filter(
       (tagId) => !originalSet.has(tagId),
     );
-    const tagsToRemove = group.tagIds.filter((tagId) => !selectedSet.has(tagId));
+    const tagsToRemove = group.tagIds.filter(
+      (tagId) => !selectedSet.has(tagId),
+    );
 
     const operations: Promise<unknown>[] = [];
     if (tagsToAdd.length > 0) {
@@ -449,6 +449,50 @@ export const RebalancingGroups: React.FC = () => {
   const selectedGroupData = groupsData?.rebalancingGroups?.find(
     (g: RebalancingGroup) => g.id === selectedGroup,
   );
+
+  useEffect(() => {
+    if (showTargetForm) {
+      return;
+    }
+
+    if (!selectedGroupData) {
+      setTargetAllocations((prev) => {
+        if (Object.keys(prev).length === 0) {
+          return prev;
+        }
+        return {};
+      });
+      return;
+    }
+
+    const allocations = analysisData?.rebalancingAnalysis?.allocations ?? [];
+    const allocationMap = new Map<string, number>();
+    for (const allocation of allocations) {
+      allocationMap.set(allocation.tagId, allocation.targetPercentage);
+    }
+
+    setTargetAllocations((prev) => {
+      const next: Record<string, number> = {};
+      for (const tagId of selectedGroupData.tagIds) {
+        const existing = allocationMap.get(tagId);
+        next[tagId] = typeof existing === 'number' ? existing : 0;
+      }
+
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(next);
+      const unchanged =
+        prevKeys.length === nextKeys.length &&
+        nextKeys.every(
+          (key) => Math.abs((prev[key] ?? 0) - next[key]) < 0.0001,
+        );
+
+      return unchanged ? prev : next;
+    });
+  }, [
+    showTargetForm,
+    selectedGroupData,
+    analysisData?.rebalancingAnalysis?.allocations,
+  ]);
 
   if (groupsLoading) return <div>로딩 중...</div>;
 
@@ -593,10 +637,15 @@ export const RebalancingGroups: React.FC = () => {
                       }}
                     >
                       {tagsData?.tags?.map((tag: Tag) => (
-                        <label key={tag.id} style={{ display: 'flex', gap: '8px' }}>
+                        <label
+                          key={tag.id}
+                          style={{ display: 'flex', gap: '8px' }}
+                        >
                           <input
                             type="checkbox"
-                            checked={tagManagement.selectedTagIds.includes(tag.id)}
+                            checked={tagManagement.selectedTagIds.includes(
+                              tag.id,
+                            )}
                             onChange={() => handleManagedTagToggle(tag.id)}
                           />
                           {tag.name}
@@ -645,7 +694,9 @@ export const RebalancingGroups: React.FC = () => {
                     </Button>
                     <Button
                       type="button"
-                      onClick={() => setRenameState({ groupId: null, name: '' })}
+                      onClick={() =>
+                        setRenameState({ groupId: null, name: '' })
+                      }
                     >
                       취소
                     </Button>
