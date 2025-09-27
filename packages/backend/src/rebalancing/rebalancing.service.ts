@@ -317,7 +317,21 @@ export class RebalancingService {
     });
     const tagMap = new Map(tags.map((tag) => [tag.id, tag]));
 
-    const allHoldings = await this.brokerageService.getHoldings(userId);
+    const [brokerageHoldings, manualHoldings] = await Promise.all([
+      this.brokerageService.getHoldings(userId),
+      this.holdingsService.getManualHoldings(userId),
+    ]);
+
+    const holdingsForValue = [
+      ...brokerageHoldings.map((holding) => ({
+        symbol: holding.symbol,
+        marketValue: holding.marketValue,
+      })),
+      ...manualHoldings.map((holding) => ({
+        symbol: holding.symbol,
+        marketValue: holding.marketValue,
+      })),
+    ];
     const targetAllocations = await this.prisma.targetAllocation.findMany({
       where: { groupId },
     });
@@ -334,7 +348,7 @@ export class RebalancingService {
     const marketValueBySymbol = new Map<string, number>();
     const tagValueByTag = new Map<string, number>();
 
-    for (const holding of allHoldings) {
+    for (const holding of holdingsForValue) {
       const currentValue = marketValueBySymbol.get(holding.symbol) ?? 0;
       marketValueBySymbol.set(
         holding.symbol,

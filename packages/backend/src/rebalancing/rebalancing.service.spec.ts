@@ -96,7 +96,10 @@ describe('RebalancingService', () => {
 
     holdingsServiceMock = {
       getHoldingsForTag: jest.fn(),
+      getManualHoldings: jest.fn(),
     } as unknown as jest.Mocked<HoldingsService>;
+
+    holdingsServiceMock.getManualHoldings.mockResolvedValue([]);
 
     service = new RebalancingService(
       prismaMock as unknown as PrismaService,
@@ -259,7 +262,15 @@ describe('RebalancingService', () => {
       name: '수정된 그룹',
       tagIds: ['tag-2', 'tag-3'],
     };
-    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue({
+      id: 'group-1',
+      name: '성장 포트폴리오',
+      description: '기본 설명',
+      createdAt: baseDate,
+      updatedAt: baseDate,
+      userId: USER_ID,
+      tags: [{ groupId: 'group-1', tagId: 'tag-1', createdAt: baseDate }],
+    });
     prismaMock.tag.count.mockResolvedValue(2);
     prismaMock.rebalancingGroup.update.mockResolvedValue(
       buildGroup({
@@ -298,7 +309,11 @@ describe('RebalancingService', () => {
   });
 
   it('updateGroup은 description을 null로 설정할 수 있다', async () => {
-    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(
+      buildGroup({
+        tags: [{ groupId: 'group-1', tagId: 'tag-1', createdAt: baseDate }],
+      }),
+    );
     prismaMock.rebalancingGroup.update.mockResolvedValue(
       buildGroup({ description: null }),
     );
@@ -453,6 +468,8 @@ describe('RebalancingService', () => {
   });
 
   it('getRebalancingAnalysis는 사용자 데이터를 기반으로 분석을 생성한다', async () => {
+    holdingsServiceMock.getManualHoldings.mockResolvedValue([]);
+
     prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
     prismaMock.tag.findMany.mockResolvedValue([
       {
@@ -578,6 +595,61 @@ describe('RebalancingService', () => {
     expect(
       analysis.allocations.every((item) => item.currentPercentage === 0),
     ).toBe(true);
+  });
+
+  it('getRebalancingAnalysis는 수동 보유 종목 가치를 포함한다', async () => {
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
+    prismaMock.tag.findMany.mockResolvedValue([
+      {
+        id: 'tag-1',
+        name: 'ETF',
+        description: null,
+        color: '#123456',
+        createdAt: baseDate,
+        updatedAt: baseDate,
+      },
+    ]);
+    brokerageServiceMock.getHoldings.mockResolvedValue([]);
+    holdingsServiceMock.getManualHoldings.mockResolvedValue([
+      {
+        id: 'manual-1',
+        market: 'US',
+        symbol: 'VOO',
+        name: 'VOO',
+        quantity: 2,
+        currentPrice: 400,
+        marketValue: 800,
+        currency: 'USD',
+        lastUpdated: baseDate,
+        createdAt: baseDate,
+        updatedAt: baseDate,
+      },
+    ]);
+    const requestedTagIds: string[] = [];
+    holdingsServiceMock.getHoldingsForTag.mockImplementation(
+      async (_user, tagId) => {
+        requestedTagIds.push(tagId);
+        return tagId === 'tag-1' ? ['VOO'] : [];
+      },
+    );
+    prismaMock.targetAllocation.findMany.mockResolvedValue([
+      {
+        id: 'alloc-1',
+        groupId: 'group-1',
+        tagId: 'tag-1',
+        targetPercentage: 100,
+        createdAt: baseDate,
+        updatedAt: baseDate,
+      },
+    ]);
+
+    const analysis = await service.getRebalancingAnalysis(USER_ID, 'group-1');
+
+    expect(analysis.totalValue).toBe(800);
+    expect(analysis.allocations).toHaveLength(1);
+    expect(analysis.allocations[0].currentValue).toBe(800);
+    expect(analysis.allocations[0].currentPercentage).toBe(100);
+    expect(requestedTagIds).toContain('tag-1');
   });
 
   it('calculateInvestmentRecommendation는 분석 결과를 기반으로 추천을 생성한다', async () => {

@@ -604,6 +604,13 @@ export const Holdings: React.FC = () => {
                   <Td>
                     <ManualActions>
                       <Button
+                        variant="primary"
+                        type="button"
+                        onClick={() => handleTagManagement(holding.symbol)}
+                      >
+                        태그 관리
+                      </Button>
+                      <Button
                         type="button"
                         onClick={() => handleManualIncrease(holding)}
                       >
