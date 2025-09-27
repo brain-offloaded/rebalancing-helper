@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useQuery, useMutation } from '@apollo/client';
 import styled from 'styled-components';
 import {
   PieChart,
@@ -15,17 +14,17 @@ import {
   Legend,
 } from 'recharts';
 import {
-  GET_REBALANCING_GROUPS,
-  GET_REBALANCING_ANALYSIS,
-  GET_INVESTMENT_RECOMMENDATION,
-  CREATE_REBALANCING_GROUP,
-  SET_TARGET_ALLOCATIONS,
-  ADD_TAGS_TO_REBALANCING_GROUP,
-  REMOVE_TAGS_FROM_REBALANCING_GROUP,
-  RENAME_REBALANCING_GROUP,
-  DELETE_REBALANCING_GROUP,
-} from '../graphql/rebalancing';
-import { GET_TAGS } from '../graphql/tags';
+  useGetRebalancingGroupsQuery,
+  useGetRebalancingAnalysisQuery,
+  useGetInvestmentRecommendationQuery,
+  useCreateRebalancingGroupMutation,
+  useSetTargetAllocationsMutation,
+  useAddTagsToRebalancingGroupMutation,
+  useRemoveTagsFromRebalancingGroupMutation,
+  useRenameRebalancingGroupMutation,
+  useDeleteRebalancingGroupMutation,
+  useGetTagsQuery,
+} from '../graphql/__generated__';
 
 const Container = styled.div`
   padding: ${(props) => props.theme.spacing.lg};
@@ -274,28 +273,26 @@ export const RebalancingGroups: React.FC = () => {
     data: groupsData,
     loading: groupsLoading,
     refetch: refetchGroups,
-  } = useQuery(GET_REBALANCING_GROUPS);
-  const { data: tagsData } = useQuery<{ tags: Tag[] }>(GET_TAGS);
-  const { data: analysisData, refetch: refetchAnalysis } = useQuery(
-    GET_REBALANCING_ANALYSIS,
-    {
-      variables: { groupId: selectedGroup },
+  } = useGetRebalancingGroupsQuery();
+  const { data: tagsData } = useGetTagsQuery();
+  const { data: analysisData, refetch: refetchAnalysis } =
+    useGetRebalancingAnalysisQuery({
+      variables: { groupId: selectedGroup as string },
       skip: !selectedGroup,
+    });
+  const { data: recommendationData } = useGetInvestmentRecommendationQuery({
+    variables: {
+      input: { groupId: selectedGroup as string, investmentAmount },
     },
-  );
-  const { data: recommendationData } = useQuery<{
-    investmentRecommendation: InvestmentRecommendation[];
-  }>(GET_INVESTMENT_RECOMMENDATION, {
-    variables: { input: { groupId: selectedGroup, investmentAmount } },
     skip: !selectedGroup,
   });
 
-  const [createGroup] = useMutation(CREATE_REBALANCING_GROUP);
-  const [setTargets] = useMutation(SET_TARGET_ALLOCATIONS);
-  const [addTagsToGroup] = useMutation(ADD_TAGS_TO_REBALANCING_GROUP);
-  const [removeTagsFromGroup] = useMutation(REMOVE_TAGS_FROM_REBALANCING_GROUP);
-  const [renameGroupMutation] = useMutation(RENAME_REBALANCING_GROUP);
-  const [deleteGroupMutation] = useMutation(DELETE_REBALANCING_GROUP);
+  const [createGroup] = useCreateRebalancingGroupMutation();
+  const [setTargets] = useSetTargetAllocationsMutation();
+  const [addTagsToGroup] = useAddTagsToRebalancingGroupMutation();
+  const [removeTagsFromGroup] = useRemoveTagsFromRebalancingGroupMutation();
+  const [renameGroupMutation] = useRenameRebalancingGroupMutation();
+  const [deleteGroupMutation] = useDeleteRebalancingGroupMutation();
 
   const analysis = analysisData?.rebalancingAnalysis as
     | RebalancingAnalysis
@@ -1014,11 +1011,11 @@ export const RebalancingGroups: React.FC = () => {
                       margin={{ top: 16, right: 32, bottom: 16, left: 32 }}
                     >
                       <Pie
-                        data={chartData}
+                        data={chartData as unknown as Record<string, unknown>[]}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={renderPieLabel}
+                        label={renderPieLabel as unknown as undefined}
                         outerRadius={80}
                         fill="#8884d8"
                         dataKey="pieValue"
