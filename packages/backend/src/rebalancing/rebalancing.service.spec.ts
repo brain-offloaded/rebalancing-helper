@@ -22,6 +22,10 @@ type MockedPrisma = {
     findMany: jest.Mock;
     findFirst: jest.Mock;
   };
+  rebalancingGroupTag: {
+    createMany: jest.Mock;
+    deleteMany: jest.Mock;
+  };
   tag: {
     count: jest.Mock;
     findMany: jest.Mock;
@@ -70,6 +74,10 @@ describe('RebalancingService', () => {
         findMany: jest.fn(),
         findFirst: jest.fn(),
       },
+      rebalancingGroupTag: {
+        createMany: jest.fn(),
+        deleteMany: jest.fn(),
+      },
       tag: {
         count: jest.fn(),
         findMany: jest.fn(),
@@ -95,6 +103,87 @@ describe('RebalancingService', () => {
       brokerageServiceMock,
       holdingsServiceMock,
     );
+  });
+
+  it('addTagsToGroup은 신규 태그를 추가하고 최신 그룹을 반환한다', async () => {
+    const existingGroup = buildGroup();
+    const updatedGroup = buildGroup({
+      tags: [
+        { groupId: 'group-1', tagId: 'tag-1', createdAt: baseDate },
+        { groupId: 'group-1', tagId: 'tag-2', createdAt: baseDate },
+        { groupId: 'group-1', tagId: 'tag-3', createdAt: baseDate },
+      ],
+    });
+    prismaMock.rebalancingGroup.findFirst
+      .mockResolvedValueOnce(existingGroup)
+      .mockResolvedValueOnce(updatedGroup);
+    prismaMock.tag.count.mockResolvedValue(1);
+    prismaMock.rebalancingGroupTag.createMany.mockResolvedValue({ count: 1 });
+
+    const result = await service.addTagsToGroup(USER_ID, {
+      groupId: 'group-1',
+      tagIds: ['tag-2', 'tag-3', 'tag-3'],
+    });
+
+    expect(prismaMock.rebalancingGroupTag.createMany).toHaveBeenCalledWith({
+      data: [{ groupId: 'group-1', tagId: 'tag-3' }],
+    });
+    expect(prismaMock.tag.count).toHaveBeenCalledWith({
+      where: { id: { in: ['tag-3'] }, userId: USER_ID },
+    });
+    expect(result.tagIds).toEqual(['tag-1', 'tag-2', 'tag-3']);
+  });
+
+  it('removeTagsFromGroup은 태그와 관련 목표를 제거한다', async () => {
+    const existingGroup = buildGroup({
+      tags: [
+        { groupId: 'group-1', tagId: 'tag-1', createdAt: baseDate },
+        { groupId: 'group-1', tagId: 'tag-2', createdAt: baseDate },
+        { groupId: 'group-1', tagId: 'tag-3', createdAt: baseDate },
+      ],
+    });
+    const updatedGroup = buildGroup({
+      tags: [
+        { groupId: 'group-1', tagId: 'tag-1', createdAt: baseDate },
+      ],
+    });
+    prismaMock.rebalancingGroup.findFirst
+      .mockResolvedValueOnce(existingGroup)
+      .mockResolvedValueOnce(updatedGroup);
+    prismaMock.rebalancingGroupTag.deleteMany.mockResolvedValue({ count: 2 });
+    prismaMock.targetAllocation.deleteMany.mockResolvedValue({ count: 2 });
+
+    const result = await service.removeTagsFromGroup(USER_ID, {
+      groupId: 'group-1',
+      tagIds: ['tag-2', 'tag-3', 'tag-unknown'],
+    });
+
+    expect(prismaMock.rebalancingGroupTag.deleteMany).toHaveBeenCalledWith({
+      where: { groupId: 'group-1', tagId: { in: ['tag-2', 'tag-3'] } },
+    });
+    expect(prismaMock.targetAllocation.deleteMany).toHaveBeenCalledWith({
+      where: { groupId: 'group-1', tagId: { in: ['tag-2', 'tag-3'] } },
+    });
+    expect(result.tagIds).toEqual(['tag-1']);
+  });
+
+  it('renameGroup은 그룹 이름을 변경한다', async () => {
+    const existingGroup = buildGroup();
+    const updatedGroup = buildGroup({ name: '새 이름' });
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValueOnce(existingGroup);
+    prismaMock.rebalancingGroup.update.mockResolvedValue(updatedGroup);
+
+    const result = await service.renameGroup(USER_ID, {
+      groupId: 'group-1',
+      name: '새 이름',
+    });
+
+    expect(prismaMock.rebalancingGroup.update).toHaveBeenCalledWith({
+      where: { id: 'group-1' },
+      data: { name: '새 이름' },
+      include: { tags: true },
+    });
+    expect(result.name).toBe('새 이름');
   });
 
   it('createGroup는 사용자 태그 소유 여부를 확인하고 그룹을 생성한다', async () => {

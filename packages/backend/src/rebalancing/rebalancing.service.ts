@@ -16,6 +16,9 @@ import {
   UpdateRebalancingGroupInput,
   SetTargetAllocationsInput,
   CalculateInvestmentInput,
+  AddTagsToRebalancingGroupInput,
+  RemoveTagsFromRebalancingGroupInput,
+  RenameRebalancingGroupInput,
 } from './rebalancing.dto';
 import { BrokerageService } from '../brokerage/brokerage.service';
 import { HoldingsService } from '../holdings/holdings.service';
@@ -234,6 +237,72 @@ export class RebalancingService {
     });
 
     return true;
+  }
+
+  async addTagsToGroup(
+    userId: string,
+    input: AddTagsToRebalancingGroupInput,
+  ): Promise<RebalancingGroup> {
+    const group = await this.getGroupForUser(userId, input.groupId);
+    const existingTagIds = new Set(group.tags.map((tag) => tag.tagId));
+    const requestedTagIds = Array.from(new Set(input.tagIds));
+    const newTagIds = requestedTagIds.filter((tagId) => {
+      return !existingTagIds.has(tagId);
+    });
+
+    if (newTagIds.length === 0) {
+      return this.mapGroup(group);
+    }
+
+    await this.assertTagsBelongToUser(userId, newTagIds);
+    await this.prisma.rebalancingGroupTag.createMany({
+      data: newTagIds.map((tagId) => ({
+        groupId: input.groupId,
+        tagId,
+      })),
+    });
+
+    const updatedGroup = await this.getGroupForUser(userId, input.groupId);
+    return this.mapGroup(updatedGroup);
+  }
+
+  async removeTagsFromGroup(
+    userId: string,
+    input: RemoveTagsFromRebalancingGroupInput,
+  ): Promise<RebalancingGroup> {
+    const group = await this.getGroupForUser(userId, input.groupId);
+    const existingTagIds = new Set(group.tags.map((tag) => tag.tagId));
+    const tagsToRemove = Array.from(new Set(input.tagIds)).filter((tagId) =>
+      existingTagIds.has(tagId),
+    );
+
+    if (tagsToRemove.length === 0) {
+      return this.mapGroup(group);
+    }
+
+    await this.prisma.rebalancingGroupTag.deleteMany({
+      where: { groupId: input.groupId, tagId: { in: tagsToRemove } },
+    });
+    await this.prisma.targetAllocation.deleteMany({
+      where: { groupId: input.groupId, tagId: { in: tagsToRemove } },
+    });
+
+    const updatedGroup = await this.getGroupForUser(userId, input.groupId);
+    return this.mapGroup(updatedGroup);
+  }
+
+  async renameGroup(
+    userId: string,
+    input: RenameRebalancingGroupInput,
+  ): Promise<RebalancingGroup> {
+    await this.getGroupForUser(userId, input.groupId);
+    const updatedGroup = await this.prisma.rebalancingGroup.update({
+      where: { id: input.groupId },
+      data: { name: input.name },
+      include: { tags: true },
+    });
+
+    return this.mapGroup(updatedGroup);
   }
 
   async getRebalancingAnalysis(

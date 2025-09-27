@@ -78,6 +78,45 @@ export class SetTargetAllocationsInput {
 }
 
 @InputType()
+export class AddTagsToRebalancingGroupInput {
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  groupId: string;
+
+  @Field(() => [String])
+  @IsArray()
+  @IsString({ each: true })
+  tagIds: string[];
+}
+
+@InputType()
+export class RemoveTagsFromRebalancingGroupInput {
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  groupId: string;
+
+  @Field(() => [String])
+  @IsArray()
+  @IsString({ each: true })
+  tagIds: string[];
+}
+
+@InputType()
+export class RenameRebalancingGroupInput {
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  groupId: string;
+
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+}
+
+@InputType()
 export class CalculateInvestmentInput {
   @Field()
   @IsString()

@@ -5,6 +5,9 @@ import {
   UpdateRebalancingGroupInput,
   SetTargetAllocationsInput,
   CalculateInvestmentInput,
+  AddTagsToRebalancingGroupInput,
+  RemoveTagsFromRebalancingGroupInput,
+  RenameRebalancingGroupInput,
 } from './rebalancing.dto';
 import {
   InvestmentRecommendation,
@@ -71,6 +74,9 @@ describe('RebalancingResolver', () => {
       createGroup: jest.fn(),
       updateGroup: jest.fn(),
       deleteGroup: jest.fn(),
+      addTagsToGroup: jest.fn(),
+      removeTagsFromGroup: jest.fn(),
+      renameGroup: jest.fn(),
       setTargetAllocations: jest.fn(),
       calculateInvestmentRecommendation: jest.fn(),
     } as unknown as jest.Mocked<RebalancingService>;
@@ -147,6 +153,57 @@ describe('RebalancingResolver', () => {
     expect(service.deleteGroup).toHaveBeenCalledWith(
       mockUser.userId,
       'group-1',
+    );
+  });
+
+  it('addTagsToRebalancingGroup은 사용자 ID와 입력을 전달한다', async () => {
+    const input: AddTagsToRebalancingGroupInput = {
+      groupId: 'group-1',
+      tagIds: ['tag-3'],
+    };
+    const group = createGroup({ tagIds: ['tag-1', 'tag-3'] });
+    service.addTagsToGroup.mockResolvedValue(group);
+
+    await expect(
+      resolver.addTagsToRebalancingGroup(mockUser, input),
+    ).resolves.toBe(group);
+    expect(service.addTagsToGroup).toHaveBeenCalledWith(
+      mockUser.userId,
+      input,
+    );
+  });
+
+  it('removeTagsFromRebalancingGroup은 사용자 ID와 입력을 전달한다', async () => {
+    const input: RemoveTagsFromRebalancingGroupInput = {
+      groupId: 'group-1',
+      tagIds: ['tag-2'],
+    };
+    const group = createGroup({ tagIds: ['tag-1'] });
+    service.removeTagsFromGroup.mockResolvedValue(group);
+
+    await expect(
+      resolver.removeTagsFromRebalancingGroup(mockUser, input),
+    ).resolves.toBe(group);
+    expect(service.removeTagsFromGroup).toHaveBeenCalledWith(
+      mockUser.userId,
+      input,
+    );
+  });
+
+  it('renameRebalancingGroup은 사용자 ID와 입력을 전달한다', async () => {
+    const input: RenameRebalancingGroupInput = {
+      groupId: 'group-1',
+      name: '새 이름',
+    };
+    const group = createGroup({ name: input.name });
+    service.renameGroup.mockResolvedValue(group);
+
+    await expect(
+      resolver.renameRebalancingGroup(mockUser, input),
+    ).resolves.toBe(group);
+    expect(service.renameGroup).toHaveBeenCalledWith(
+      mockUser.userId,
+      input,
     );
   });
 
