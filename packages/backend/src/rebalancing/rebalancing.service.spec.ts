@@ -704,6 +704,78 @@ describe('RebalancingService', () => {
     expect(recommendations[0].suggestedSymbols).toEqual(['SPY']);
   });
 
+  it('calculateInvestmentRecommendation는 투자 예정 금액을 초과하지 않도록 분배한다', async () => {
+    const analysis = {
+      groupId: 'group-1',
+      groupName: '다중 포트폴리오',
+      totalValue: 300,
+      lastUpdated: baseDate,
+      allocations: [
+        {
+          tagId: 'tag-1',
+          tagName: 'S&P 500',
+          tagColor: '#ff0000',
+          currentValue: 120,
+          currentPercentage: 40,
+          targetPercentage: 60,
+          difference: 20,
+        },
+        {
+          tagId: 'tag-2',
+          tagName: '나스닥 100',
+          tagColor: '#00ff00',
+          currentValue: 90,
+          currentPercentage: 30,
+          targetPercentage: 40,
+          difference: 10,
+        },
+        {
+          tagId: 'tag-3',
+          tagName: '채권',
+          tagColor: '#0000ff',
+          currentValue: 90,
+          currentPercentage: 30,
+          targetPercentage: 0,
+          difference: -30,
+        },
+      ],
+    };
+    jest
+      .spyOn(service, 'getRebalancingAnalysis')
+      .mockResolvedValue(analysis as never);
+    holdingsServiceMock.getHoldingsForTag
+      .mockResolvedValueOnce(['VOO'])
+      .mockResolvedValueOnce(['QQQ'])
+      .mockResolvedValueOnce(['BND']);
+
+    const input: CalculateInvestmentInput = {
+      groupId: 'group-1',
+      investmentAmount: 50,
+    };
+
+    const recommendations = await service.calculateInvestmentRecommendation(
+      USER_ID,
+      input,
+    );
+
+    const totalRecommended = recommendations.reduce(
+      (sum, item) => sum + item.recommendedAmount,
+      0,
+    );
+    const tag1 = recommendations.find((item) => item.tagId === 'tag-1');
+    const tag2 = recommendations.find((item) => item.tagId === 'tag-2');
+    const tag3 = recommendations.find((item) => item.tagId === 'tag-3');
+
+    expect(totalRecommended).toBeCloseTo(50, 3);
+    expect(tag1?.recommendedAmount ?? 0).toBeCloseTo(32.143, 2);
+    expect(tag2?.recommendedAmount ?? 0).toBeCloseTo(17.857, 2);
+    expect(tag3?.recommendedAmount ?? 0).toBe(0);
+    expect((tag1?.recommendedPercentage ?? 0) + (tag2?.recommendedPercentage ?? 0)).toBeCloseTo(
+      100,
+      3,
+    );
+  });
+
   it('calculateInvestmentRecommendation는 투자금이 0이면 비율을 0으로 만든다', async () => {
     const analysis = {
       groupId: 'group-1',

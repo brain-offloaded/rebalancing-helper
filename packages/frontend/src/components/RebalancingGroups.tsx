@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import styled from 'styled-components';
 import {
@@ -129,6 +129,26 @@ const ChartContainer = styled.div`
   margin: ${(props) => props.theme.spacing.lg} 0;
 `;
 
+const ChartToggle = styled.div`
+  display: inline-flex;
+  gap: ${(props) => props.theme.spacing.xs};
+  margin-left: ${(props) => props.theme.spacing.md};
+`;
+
+const ToggleButton = styled.button<{ $active: boolean }>`
+  padding: ${(props) => props.theme.spacing.xs}
+    ${(props) => props.theme.spacing.sm};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
+  border: 1px solid
+    ${(props) =>
+      props.$active ? props.theme.colors.primary : props.theme.colors.border};
+  background-color: ${(props) =>
+    props.$active ? props.theme.colors.primary : 'transparent'};
+  color: ${(props) => (props.$active ? 'white' : props.theme.colors.text)};
+  font-size: ${(props) => props.theme.typography.fontSize.sm};
+  cursor: pointer;
+`;
+
 const AllocationTable = styled.table`
   width: 100%;
   border-collapse: collapse;
@@ -202,6 +222,9 @@ export const RebalancingGroups: React.FC = () => {
   const [targetAllocations, setTargetAllocations] = useState<{
     [key: string]: number;
   }>({});
+  const [chartMode, setChartMode] = useState<'percentage' | 'value'>(
+    'percentage',
+  );
   const [tagManagement, setTagManagement] = useState<{
     groupId: string | null;
     selectedTagIds: string[];
@@ -449,6 +472,22 @@ export const RebalancingGroups: React.FC = () => {
   const selectedGroupData = groupsData?.rebalancingGroups?.find(
     (g: RebalancingGroup) => g.id === selectedGroup,
   );
+
+  const chartData = useMemo(() => {
+    if (!analysisData?.rebalancingAnalysis) {
+      return [] as TagAllocation[];
+    }
+
+    return analysisData.rebalancingAnalysis.allocations.map((item) => ({
+      ...item,
+      pieValue:
+        chartMode === 'percentage' ? item.currentPercentage : item.currentValue,
+      pieLabel:
+        chartMode === 'percentage'
+          ? `${item.tagName} ${item.currentPercentage.toFixed(1)}%`
+          : `${item.tagName} $${item.currentValue.toLocaleString()}`,
+    }));
+  }, [analysisData?.rebalancingAnalysis, chartMode]);
 
   useEffect(() => {
     if (showTargetForm) {
@@ -769,22 +808,51 @@ export const RebalancingGroups: React.FC = () => {
                 <ChartContainer>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={analysisData.rebalancingAnalysis.allocations}
+                      data={analysisData.rebalancingAnalysis.allocations.map(
+                        (item) => ({
+                          ...item,
+                          barCurrent:
+                            chartMode === 'percentage'
+                              ? item.currentPercentage
+                              : item.currentValue,
+                          barTarget:
+                            chartMode === 'percentage'
+                              ? item.targetPercentage
+                              : (item.targetPercentage / 100) *
+                                analysisData.rebalancingAnalysis.totalValue,
+                        }),
+                      )}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="tagName" />
-                      <YAxis />
-                      <Tooltip />
+                      <YAxis
+                        tickFormatter={(value) =>
+                          chartMode === 'percentage'
+                            ? `${value}%`
+                            : `$${Number(value).toLocaleString()}`
+                        }
+                      />
+                      <Tooltip
+                        formatter={(value: number) =>
+                          chartMode === 'percentage'
+                            ? [`${value.toFixed(1)}%`, '']
+                            : [`$${value.toLocaleString()}`, '']
+                        }
+                      />
                       <Legend />
                       <Bar
-                        dataKey="currentPercentage"
+                        dataKey="barCurrent"
                         fill="#8884d8"
-                        name="현재 비율"
+                        name={
+                          chartMode === 'percentage' ? '현재 비율' : '현재 금액'
+                        }
                       />
                       <Bar
-                        dataKey="targetPercentage"
+                        dataKey="barTarget"
                         fill="#82ca9d"
-                        name="목표 비율"
+                        name={
+                          chartMode === 'percentage' ? '목표 비율' : '목표 금액'
+                        }
                       />
                     </BarChart>
                   </ResponsiveContainer>
@@ -792,29 +860,56 @@ export const RebalancingGroups: React.FC = () => {
               </div>
 
               <div>
-                <h4>현재 자산 배분</h4>
+                <h4>
+                  현재 자산 배분
+                  <ChartToggle>
+                    <ToggleButton
+                      type="button"
+                      $active={chartMode === 'percentage'}
+                      aria-pressed={chartMode === 'percentage'}
+                      onClick={() => setChartMode('percentage')}
+                    >
+                      비율
+                    </ToggleButton>
+                    <ToggleButton
+                      type="button"
+                      $active={chartMode === 'value'}
+                      aria-pressed={chartMode === 'value'}
+                      onClick={() => setChartMode('value')}
+                    >
+                      금액
+                    </ToggleButton>
+                  </ChartToggle>
+                </h4>
                 <ChartContainer>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={analysisData.rebalancingAnalysis.allocations}
+                        data={chartData}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ tagName, currentPercentage }) =>
-                          `${tagName} ${currentPercentage.toFixed(1)}%`
-                        }
+                        label={({ pieLabel }) => pieLabel}
                         outerRadius={80}
                         fill="#8884d8"
-                        dataKey="currentValue"
+                        dataKey="pieValue"
                       >
-                        {analysisData.rebalancingAnalysis.allocations.map(
+                        {chartData.map(
                           (entry: TagAllocation, index: number) => (
                             <Cell key={`cell-${index}`} fill={entry.tagColor} />
                           ),
                         )}
                       </Pie>
-                      <Tooltip />
+                      <Tooltip
+                        formatter={(value: number, _name: string, payload) =>
+                          chartMode === 'percentage'
+                            ? [`${value.toFixed(2)}%`, payload.payload.tagName]
+                            : [
+                                `$${value.toLocaleString()}`,
+                                payload.payload.tagName,
+                              ]
+                        }
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </ChartContainer>

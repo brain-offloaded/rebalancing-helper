@@ -350,6 +350,26 @@ describe('RebalancingGroups', () => {
     expect(inputs[1]).toHaveValue(50);
   });
 
+  it('차트 토글로 비율/금액을 전환할 수 있다', async () => {
+    setupMocks();
+    const user = userEvent.setup();
+
+    renderWithProviders(<RebalancingGroups />, { withApollo: false });
+
+    await user.click(screen.getByRole('button', { name: '분석 보기' }));
+
+    const percentageButton = screen.getByRole('button', { name: '비율' });
+    const valueButton = screen.getByRole('button', { name: '금액' });
+
+    expect(percentageButton).toHaveAttribute('aria-pressed', 'true');
+    expect(valueButton).toHaveAttribute('aria-pressed', 'false');
+
+    await user.click(valueButton);
+
+    expect(percentageButton).toHaveAttribute('aria-pressed', 'false');
+    expect(valueButton).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('태그 관리에서 추가 및 제거를 처리한다', async () => {
     const extraTag = { id: 'tag-3', name: '가치주', color: '#0000ff' };
     const { addTags, removeTags, refetchGroups } = setupMocks({

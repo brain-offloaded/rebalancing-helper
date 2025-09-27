@@ -409,15 +409,44 @@ export class RebalancingService {
     const analysis = await this.getRebalancingAnalysis(userId, input.groupId);
     const newTotalValue = analysis.totalValue + input.investmentAmount;
 
-    const recommendations: InvestmentRecommendation[] = [];
-
-    for (const allocation of analysis.allocations) {
+    const investmentBudget = input.investmentAmount;
+    const allocationNeeds = analysis.allocations.map((allocation) => {
       const targetValue = (allocation.targetPercentage / 100) * newTotalValue;
-      const neededValue = targetValue - allocation.currentValue;
-      const recommendedAmount = Math.max(0, neededValue);
+      const neededValue = Math.max(0, targetValue - allocation.currentValue);
+      return { allocation, neededValue };
+    });
+
+    const totalNeededValue = allocationNeeds.reduce(
+      (sum, item) => sum + item.neededValue,
+      0,
+    );
+
+    const recommendations: InvestmentRecommendation[] = [];
+    let remainingAmount = investmentBudget;
+
+    for (let index = 0; index < allocationNeeds.length; index++) {
+      const { allocation, neededValue } = allocationNeeds[index];
+      let recommendedAmount = 0;
+
+      if (neededValue > 0 && investmentBudget > 0) {
+        if (totalNeededValue <= investmentBudget) {
+          recommendedAmount = Math.min(neededValue, remainingAmount);
+        } else {
+          const proportion = neededValue / totalNeededValue;
+          recommendedAmount = proportion * investmentBudget;
+          if (index === allocationNeeds.length - 1) {
+            recommendedAmount = remainingAmount;
+          } else {
+            recommendedAmount = Math.min(recommendedAmount, remainingAmount);
+          }
+        }
+      }
+
+      remainingAmount = Math.max(0, remainingAmount - recommendedAmount);
+
       const recommendedPercentage =
-        input.investmentAmount > 0
-          ? (recommendedAmount / input.investmentAmount) * 100
+        investmentBudget > 0
+          ? (recommendedAmount / investmentBudget) * 100
           : 0;
       const suggestedSymbols = await this.holdingsService.getHoldingsForTag(
         userId,
