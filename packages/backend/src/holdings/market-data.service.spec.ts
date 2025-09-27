@@ -1,42 +1,41 @@
-import { HttpService } from '@nestjs/axios';
 import { NotFoundException } from '@nestjs/common';
-import { AxiosResponse } from 'axios';
-import { of } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { MarketDataService } from './market-data.service';
+import yahooFinance from 'yahoo-finance2';
+
+jest.mock('yahoo-finance2', () => ({
+  __esModule: true,
+  default: {
+    quote: jest.fn(),
+  },
+}));
 
 describe('MarketDataService', () => {
-  let httpServiceMock: jest.Mocked<HttpService>;
   let prismaMock: { market: { findUnique: jest.Mock } };
   let service: MarketDataService;
+  let quoteMock: jest.Mock;
 
-  const mockResponse = (override: Partial<Record<string, unknown>> = {}) =>
-    of({
-      data: {
-        quoteResponse: {
-          result: [
-            {
-              symbol: override.symbol ?? 'VOO',
-              longName:
-                (override.longName as string | undefined) ??
-                'Vanguard S&P 500 ETF',
-              regularMarketPrice:
-                (override.regularMarketPrice as number | undefined) ?? 410.5,
-              currency: override.currency ?? 'USD',
-              market: override.market ?? 'us_market',
-              exchange: override.exchange ?? 'NYSEArca',
-              regularMarketTime: 1_700_000_000,
-            },
-          ],
-        },
-      },
-    } as AxiosResponse);
+  const mockQuote = (override: Partial<Record<string, unknown>> = {}) =>
+    ({
+      symbol: override.symbol ?? 'VOO',
+      longName:
+        (override.longName as string | undefined) ?? 'Vanguard S&P 500 ETF',
+      regularMarketPrice:
+        (override.regularMarketPrice as number | undefined) ?? 410.5,
+      currency: override.currency ?? 'USD',
+      financialCurrency: override.financialCurrency ?? 'USD',
+      market: override.market ?? 'us_market',
+      exchange: override.exchange ?? 'NYSEArca',
+      fullExchangeName:
+        (override.fullExchangeName as string | undefined) ?? 'NYSEArca',
+      regularMarketTime:
+        override.regularMarketTime ?? new Date(1_700_000_000_000),
+      shortName: override.shortName ?? undefined,
+    } as unknown);
 
   beforeEach(() => {
-    httpServiceMock = {
-      get: jest.fn(),
-    } as unknown as jest.Mocked<HttpService>;
-
+    quoteMock = yahooFinance.quote as unknown as jest.Mock;
+    quoteMock.mockReset();
     prismaMock = {
       market: {
         findUnique: jest.fn(),
@@ -48,21 +47,15 @@ describe('MarketDataService', () => {
       yahooMarketIdentifiers: 'us_market',
     });
 
-    service = new MarketDataService(
-      httpServiceMock,
-      prismaMock as unknown as PrismaService,
-    );
+    service = new MarketDataService(prismaMock as unknown as PrismaService);
   });
 
   it('미국 시장 종목을 조회하고 정보를 반환한다', async () => {
-    httpServiceMock.get.mockReturnValue(mockResponse());
+    quoteMock.mockResolvedValue(mockQuote());
 
     const quote = await service.getQuote('US', 'VOO');
 
-    expect(httpServiceMock.get).toHaveBeenCalledWith(
-      'https://query1.finance.yahoo.com/v7/finance/quote',
-      { params: { symbols: 'VOO' } },
-    );
+    expect(quoteMock).toHaveBeenCalledWith('VOO');
     expect(quote).toMatchObject({
       symbol: 'VOO',
       price: 410.5,
@@ -72,8 +65,8 @@ describe('MarketDataService', () => {
   });
 
   it('한국 시장 종목은 접미사를 붙여 조회한다', async () => {
-    httpServiceMock.get.mockReturnValue(
-      mockResponse({ symbol: '005930.KS', market: 'krx_market' }),
+    quoteMock.mockResolvedValue(
+      mockQuote({ symbol: '005930.KS', market: 'krx_market' }),
     );
 
     prismaMock.market.findUnique.mockResolvedValueOnce({
@@ -83,10 +76,7 @@ describe('MarketDataService', () => {
 
     const quote = await service.getQuote('KOSPI', '005930');
 
-    expect(httpServiceMock.get).toHaveBeenCalledWith(
-      'https://query1.finance.yahoo.com/v7/finance/quote',
-      { params: { symbols: '005930.KS' } },
-    );
+    expect(quoteMock).toHaveBeenCalledWith('005930.KS');
     expect(quote.market).toBe('KOSPI');
     expect(quote.symbol).toBe('005930');
   });
@@ -100,9 +90,7 @@ describe('MarketDataService', () => {
   });
 
   it('응답 결과가 없으면 NotFoundException을 던진다', async () => {
-    httpServiceMock.get.mockReturnValue(
-      of({ data: { quoteResponse: { result: [] } } } as AxiosResponse),
-    );
+    quoteMock.mockResolvedValue(undefined);
 
     await expect(service.getQuote('US', 'UNKNOWN')).rejects.toThrow(
       NotFoundException,
@@ -110,11 +98,11 @@ describe('MarketDataService', () => {
   });
 
   it('캐시된 결과를 재사용한다', async () => {
-    httpServiceMock.get.mockReturnValue(mockResponse());
+    quoteMock.mockResolvedValue(mockQuote());
 
     await service.getQuote('US', 'VOO');
     await service.getQuote('US', 'VOO');
 
-    expect(httpServiceMock.get).toHaveBeenCalledTimes(1);
+    expect(quoteMock).toHaveBeenCalledTimes(1);
   });
 });

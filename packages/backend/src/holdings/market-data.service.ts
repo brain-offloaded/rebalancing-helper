@@ -1,8 +1,8 @@
-import { HttpService } from '@nestjs/axios';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { AxiosResponse } from 'axios';
-import { lastValueFrom } from 'rxjs';
+import yahooFinance from 'yahoo-finance2';
 import { PrismaService } from '../prisma/prisma.service';
+
+yahooFinance.suppressNotices?.(['yahooSurvey']);
 
 export interface MarketQuote {
   symbol: string;
@@ -14,26 +14,6 @@ export interface MarketQuote {
   exchange: string;
   lastUpdated: Date;
 }
-
-type YahooQuote = {
-  symbol: string;
-  longName?: string;
-  shortName?: string;
-  regularMarketPrice?: number;
-  currency?: string;
-  market?: string;
-  exchange?: string;
-  fullExchangeName?: string;
-  regularMarketTime?: number;
-};
-
-type YahooQuoteResponse = {
-  quoteResponse: {
-    result: YahooQuote[];
-  };
-};
-
-const YAHOO_ENDPOINT = 'https://query1.finance.yahoo.com/v7/finance/quote';
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5분 캐시 유지
 
@@ -48,12 +28,9 @@ export class MarketDataService {
     string,
     { value: MarketQuote; expiresAt: number }
   >();
-  private readonly marketConfigCache = new Map<string, MarketConfig>();
+  // private readonly marketConfigCache = new Map<string, MarketConfig>();
 
-  constructor(
-    private readonly httpService: HttpService,
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async getQuote(market: string, symbol: string): Promise<MarketQuote> {
     const normalizedMarket = market.trim().toUpperCase();
@@ -67,15 +44,10 @@ export class MarketDataService {
     }
 
     const marketConfig = await this.getMarketConfig(normalizedMarket);
+    console.log(marketConfig);
     const yahooSymbol = this.toYahooSymbol(normalizedSymbol, marketConfig);
 
-    const response = await lastValueFrom<AxiosResponse<YahooQuoteResponse>>(
-      this.httpService.get<YahooQuoteResponse>(YAHOO_ENDPOINT, {
-        params: { symbols: yahooSymbol },
-      }),
-    );
-
-    const [rawQuote] = response.data.quoteResponse?.result ?? [];
+    const rawQuote = await this.fetchQuote(yahooSymbol);
 
     if (!rawQuote) {
       throw new NotFoundException('Market quote not found');
@@ -89,16 +61,14 @@ export class MarketDataService {
 
     const quote: MarketQuote = {
       symbol: normalizedSymbol,
-      displaySymbol: rawQuote.symbol,
+      displaySymbol: rawQuote.symbol ?? normalizedSymbol,
       name:
         rawQuote.longName ?? rawQuote.shortName ?? normalizedSymbol ?? symbol,
       price: rawQuote.regularMarketPrice ?? 0,
-      currency: rawQuote.currency ?? 'USD',
+      currency: rawQuote.currency ?? rawQuote.financialCurrency ?? 'USD',
       market: normalizedMarket,
       exchange: rawQuote.fullExchangeName ?? rawQuote.exchange ?? 'UNKNOWN',
-      lastUpdated: rawQuote.regularMarketTime
-        ? new Date(rawQuote.regularMarketTime * 1000)
-        : new Date(),
+      lastUpdated: this.toLastUpdated(rawQuote.regularMarketTime),
     };
 
     this.cache.set(cacheKey, {
@@ -111,6 +81,25 @@ export class MarketDataService {
 
   private toYahooSymbol(symbol: string, config: MarketConfig): string {
     return config.yahooSuffix ? `${symbol}${config.yahooSuffix}` : symbol;
+  }
+
+  private async fetchQuote(symbol: string): Promise<YahooQuote | null> {
+    console.log(symbol);
+    const quote = await yahooFinance.quote(symbol);
+    console.log(quote);
+    return quote ?? null;
+  }
+
+  private toLastUpdated(value: YahooQuote['regularMarketTime']): Date {
+    if (value instanceof Date) {
+      return value;
+    }
+
+    if (typeof value === 'number') {
+      return new Date(value * 1000);
+    }
+
+    return new Date();
   }
 
   private assertMarketMatch(
@@ -128,10 +117,10 @@ export class MarketDataService {
   }
 
   private async getMarketConfig(market: string): Promise<MarketConfig> {
-    const cached = this.marketConfigCache.get(market);
-    if (cached) {
-      return cached;
-    }
+    // const cached = this.marketConfigCache.get(market);
+    // if (cached) {
+    //   return cached;
+    // }
 
     const marketRecord = await this.prisma.market.findUnique({
       where: { code: market },
@@ -153,7 +142,7 @@ export class MarketDataService {
       expectedYahooMarkets: expectedMarkets,
     };
 
-    this.marketConfigCache.set(market, config);
+    // this.marketConfigCache.set(market, config);
     return config;
   }
 
@@ -164,3 +153,8 @@ export class MarketDataService {
       .filter((item): item is string => item.length > 0);
   }
 }
+
+type YahooQuote = Exclude<
+  Awaited<ReturnType<typeof yahooFinance.quote>>,
+  undefined
+>;
