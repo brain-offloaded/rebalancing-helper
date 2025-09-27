@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import styled from 'styled-components';
 import {
@@ -175,6 +175,31 @@ const TagColor = styled.div<{ color: string }>`
   display: inline-block;
   margin-right: ${(props) => props.theme.spacing.xs};
 `;
+
+const RADIAN = Math.PI / 180;
+
+const getReadableTextColor = (hexColor: string) => {
+  const fallback = '#1f2933';
+  if (!hexColor) {
+    return fallback;
+  }
+
+  const normalized = hexColor.replace('#', '');
+  if (normalized.length !== 6) {
+    return fallback;
+  }
+
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) {
+    return fallback;
+  }
+
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return luminance > 0.6 ? fallback : '#ffffff';
+};
 
 interface RebalancingGroup {
   id: string;
@@ -488,6 +513,56 @@ export const RebalancingGroups: React.FC = () => {
           : `${item.tagName} $${item.currentValue.toLocaleString()}`,
     }));
   }, [analysisData?.rebalancingAnalysis, chartMode]);
+
+  const renderPieLabel = useCallback(
+    ({
+      cx,
+      cy,
+      midAngle,
+      innerRadius,
+      outerRadius,
+      payload,
+    }: {
+      cx: number;
+      cy: number;
+      midAngle: number;
+      innerRadius: number;
+      outerRadius: number;
+      payload: TagAllocation;
+    }) => {
+      if (!payload) {
+        return null;
+      }
+
+      const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
+      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+      const textColor = getReadableTextColor(payload.tagColor);
+      const valueText =
+        chartMode === 'percentage'
+          ? `${payload.currentPercentage.toFixed(1)}%`
+          : `$${payload.currentValue.toLocaleString()}`;
+
+      return (
+        <text
+          x={x}
+          y={y}
+          fill={textColor}
+          fontSize={12}
+          textAnchor="middle"
+          dominantBaseline="central"
+        >
+          <tspan x={x} dy="-0.2em">
+            {payload.tagName}
+          </tspan>
+          <tspan x={x} dy="1.2em">
+            {valueText}
+          </tspan>
+        </text>
+      );
+    },
+    [chartMode],
+  );
 
   useEffect(() => {
     if (showTargetForm) {
@@ -822,6 +897,7 @@ export const RebalancingGroups: React.FC = () => {
                                 analysisData.rebalancingAnalysis.totalValue,
                         }),
                       )}
+                      margin={{ top: 16, right: 24, left: 56, bottom: 16 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="tagName" />
@@ -883,16 +959,17 @@ export const RebalancingGroups: React.FC = () => {
                 </h4>
                 <ChartContainer>
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+                    <PieChart margin={{ top: 16, right: 32, bottom: 16, left: 32 }}>
                       <Pie
                         data={chartData}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ pieLabel }) => pieLabel}
+                        label={renderPieLabel}
                         outerRadius={80}
                         fill="#8884d8"
                         dataKey="pieValue"
+                        paddingAngle={1}
                       >
                         {chartData.map(
                           (entry: TagAllocation, index: number) => (
