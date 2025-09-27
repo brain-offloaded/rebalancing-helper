@@ -27,9 +27,6 @@
       ]
     },
     "test:cov": {
-      "dependsOn": [
-        "^test:cov"
-      ],
       "outputs": [
         "coverage/**"
       ]
