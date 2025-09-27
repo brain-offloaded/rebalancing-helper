@@ -13,6 +13,7 @@ import {
   DELETE_MANUAL_HOLDING,
   SYNC_MANUAL_HOLDING_PRICE,
 } from '../graphql/holdings';
+import { GET_MARKETS } from '../graphql/markets';
 
 const Container = styled.div`
   padding: ${(props) => props.theme.spacing.lg};
@@ -151,6 +152,14 @@ const ManualInput = styled.input`
   min-width: 120px;
 `;
 
+const ManualSelect = styled.select`
+  margin-top: ${(props) => props.theme.spacing.xs};
+  padding: ${(props) => props.theme.spacing.xs};
+  border: 1px solid ${(props) => props.theme.colors.border};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
+  min-width: 160px;
+`;
+
 const ManualActions = styled.div`
   display: flex;
   align-items: center;
@@ -197,6 +206,13 @@ interface ManualHolding {
   lastUpdated: string;
 }
 
+interface MarketOption {
+  id: string;
+  code: string;
+  displayName: string;
+  yahooSuffix: string | null;
+}
+
 export const Holdings: React.FC = () => {
   const [selectedHolding, setSelectedHolding] = useState<string | null>(null);
   const [showTagModal, setShowTagModal] = useState(false);
@@ -208,6 +224,9 @@ export const Holdings: React.FC = () => {
     GET_BROKERAGE_HOLDINGS,
   );
   const { data: tagsData } = useQuery<{ tags: Tag[] }>(GET_TAGS);
+  const { data: marketsData, loading: marketsLoading } = useQuery<{
+    markets: MarketOption[];
+  }>(GET_MARKETS);
   const {
     data: manualHoldingsData,
     loading: manualHoldingsLoading,
@@ -280,6 +299,13 @@ export const Holdings: React.FC = () => {
   };
 
   const manualHoldings = manualHoldingsData?.manualHoldings ?? [];
+  const markets = marketsData?.markets ?? [];
+
+  useEffect(() => {
+    if (markets.length > 0 && !manualMarket) {
+      setManualMarket(markets[0].code);
+    }
+  }, [markets, manualMarket]);
 
   const formatCurrencyValue = (value: number, currency: string) => {
     if (!Number.isFinite(value)) {
@@ -492,11 +518,20 @@ export const Holdings: React.FC = () => {
         <ManualForm onSubmit={handleManualSubmit}>
           <ManualFormGroup>
             시장
-            <ManualInput
+            <ManualSelect
               value={manualMarket}
               onChange={(event) => setManualMarket(event.target.value)}
-              placeholder="예: US"
-            />
+              disabled={marketsLoading || markets.length === 0}
+            >
+              <option value="" disabled>
+                {marketsLoading ? '시장 불러오는 중...' : '시장 선택'}
+              </option>
+              {markets.map((market) => (
+                <option key={market.id} value={market.code}>
+                  {`${market.displayName} (${market.code})`}
+                </option>
+              ))}
+            </ManualSelect>
           </ManualFormGroup>
           <ManualFormGroup>
             종목 코드
@@ -520,7 +555,7 @@ export const Holdings: React.FC = () => {
           <PrimaryButton
             type="submit"
             variant="primary"
-            disabled={creatingManualHolding}
+            disabled={creatingManualHolding || !manualMarket}
           >
             수동 추가
           </PrimaryButton>
