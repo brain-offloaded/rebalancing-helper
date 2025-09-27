@@ -11,6 +11,8 @@ jobs:
     env:
       CI: true
       DATABASE_URL: file:${{ github.workspace }}/packages/backend/prisma/dev.db
+      # 시크릿이 있는 내부 PR이면 시크릿을, 포크 PR이면 빈 문자열이 들어와 fallback 단계에서 채워집니다.
+      BROKER_CREDENTIAL_ENCRYPTION_KEY: ${{ secrets.BROKER_CREDENTIAL_ENCRYPTION_KEY }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -50,6 +52,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Set fallback encryption key for forked PRs
+        if: env.BROKER_CREDENTIAL_ENCRYPTION_KEY == ''
+        # 32바이트 0x00 값의 base64 (length 44) => aes-256-gcm 키 길이 요구사항 충족
+        run: echo "BROKER_CREDENTIAL_ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" >> $GITHUB_ENV
+
       - name: Generate Prisma Client
         run: pnpm --filter backend prisma:generate
 
@@ -60,6 +67,4 @@ jobs:
         run: pnpm build
 
       - name: Test with coverage thresholds
-        env:
-          BROKER_CREDENTIAL_ENCRYPTION_KEY: ${{ secrets.BROKER_CREDENTIAL_ENCRYPTION_KEY }}
         run: pnpm test:cov
