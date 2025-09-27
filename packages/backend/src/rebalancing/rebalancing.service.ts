@@ -23,7 +23,7 @@ import {
 } from './rebalancing.dto';
 import { BrokerageService } from '../brokerage/brokerage.service';
 import { HoldingsService } from '../holdings/holdings.service';
-import { CurrencyConversionService } from '../holdings/currency-conversion.service';
+import { CurrencyConversionService } from '../yahoo/currency-conversion.service';
 import { TypedConfigService } from '../typed-config';
 
 const PERCENTAGE_TOLERANCE = 0.01;

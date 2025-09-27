@@ -3,7 +3,7 @@ import { RebalancingService } from './rebalancing.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BrokerageService } from '../brokerage/brokerage.service';
 import { HoldingsService } from '../holdings/holdings.service';
-import { CurrencyConversionService } from '../holdings/currency-conversion.service';
+import { CurrencyConversionService } from '../yahoo/currency-conversion.service';
 import { TypedConfigService } from '../typed-config';
 import {
   CreateRebalancingGroupInput,

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { YahooFinanceService } from './yahoo-finance.service';
-import type { YahooFinanceQuote } from './yahoo-finance.types';
+import { YahooFinanceService } from '../yahoo/yahoo-finance.service';
+import type { YahooFinanceQuote } from '../yahoo/yahoo-finance.types';
 import type { MarketQuote, MarketQuoteSource } from './market-quote.dto';
 
 export type { MarketQuote } from './market-quote.dto';
