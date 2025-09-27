@@ -8,7 +8,15 @@ const schema = {
   PORT: Joi.number().port().default(3000),
   DATABASE_URL: Joi.string().min(1).default('file:./prisma/dev.db'),
   JWT_SECRET: Joi.string().min(1).default('local-dev-secret'),
-  BROKER_CREDENTIAL_ENCRYPTION_KEY: Joi.string().min(1).required(),
+  // 테스트 환경(CI 포크 PR 등)에서는 시크릿이 없을 수 있으므로 안전하지만 고정된 더미 키를 기본값으로 제공
+  BROKER_CREDENTIAL_ENCRYPTION_KEY: Joi.string()
+    .min(1)
+    .default(
+      process.env.NODE_ENV === 'test'
+        ? 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+        : undefined,
+    )
+    .required(),
 } satisfies Joi.SchemaMap;
 
 const { TypedConfigService: TypedConfigServiceClass, TypedConfigModule } =

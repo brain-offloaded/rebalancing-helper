@@ -52,10 +52,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Set fallback encryption key for forked PRs
-        if: env.BROKER_CREDENTIAL_ENCRYPTION_KEY == ''
+      - name: Ensure encryption key (fallback for fork PRs)
         # 32바이트 0x00 값의 base64 (length 44) => aes-256-gcm 키 길이 요구사항 충족
-        run: echo "BROKER_CREDENTIAL_ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" >> $GITHUB_ENV
+        run: |
+          if [ -z "${BROKER_CREDENTIAL_ENCRYPTION_KEY}" ]; then
+            echo "Using fallback BROKER_CREDENTIAL_ENCRYPTION_KEY"
+            echo "BROKER_CREDENTIAL_ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" >> "$GITHUB_ENV"
+          else
+            echo "Custom BROKER_CREDENTIAL_ENCRYPTION_KEY supplied"
+          fi
 
       - name: Generate Prisma Client
         run: pnpm --filter backend prisma:generate
