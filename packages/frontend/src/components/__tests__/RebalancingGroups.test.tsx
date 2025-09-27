@@ -359,7 +359,7 @@ describe('RebalancingGroups', () => {
     await user.click(screen.getByRole('button', { name: '분석 보기' }));
 
     const percentageButton = screen.getByRole('button', { name: '비율' });
-    const valueButton = screen.getByRole('button', { name: '금액' });
+    const valueButton = screen.getByRole('button', { name: /금액/ });
 
     expect(percentageButton).toHaveAttribute('aria-pressed', 'true');
     expect(valueButton).toHaveAttribute('aria-pressed', 'false');

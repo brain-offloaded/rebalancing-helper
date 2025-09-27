@@ -3,6 +3,8 @@ import { RebalancingService } from './rebalancing.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BrokerageService } from '../brokerage/brokerage.service';
 import { HoldingsService } from '../holdings/holdings.service';
+import { CurrencyConversionService } from '../holdings/currency-conversion.service';
+import { TypedConfigService } from '../typed-config';
 import {
   CreateRebalancingGroupInput,
   UpdateRebalancingGroupInput,
@@ -63,6 +65,8 @@ describe('RebalancingService', () => {
   let prismaMock: MockedPrisma;
   let brokerageServiceMock: jest.Mocked<BrokerageService>;
   let holdingsServiceMock: jest.Mocked<HoldingsService>;
+  let currencyConversionServiceMock: jest.Mocked<CurrencyConversionService>;
+  let configServiceMock: jest.Mocked<TypedConfigService>;
   let service: RebalancingService;
 
   beforeEach(() => {
@@ -101,10 +105,23 @@ describe('RebalancingService', () => {
 
     holdingsServiceMock.getManualHoldings.mockResolvedValue([]);
 
+    currencyConversionServiceMock = {
+      getRate: jest.fn().mockResolvedValue(1),
+      convert: jest
+        .fn()
+        .mockImplementation(async (amount: number) => amount),
+    } as unknown as jest.Mocked<CurrencyConversionService>;
+
+    configServiceMock = {
+      get: jest.fn().mockReturnValue('USD'),
+    } as unknown as jest.Mocked<TypedConfigService>;
+
     service = new RebalancingService(
       prismaMock as unknown as PrismaService,
       brokerageServiceMock,
       holdingsServiceMock,
+      currencyConversionServiceMock,
+      configServiceMock,
     );
   });
 
@@ -525,6 +542,7 @@ describe('RebalancingService', () => {
 
     expect(brokerageServiceMock.getHoldings).toHaveBeenCalledWith(USER_ID);
     expect(analysis.totalValue).toBe(100);
+    expect(analysis.baseCurrency).toBe('USD');
     expect(analysis.allocations).toHaveLength(2);
   });
 
@@ -592,6 +610,7 @@ describe('RebalancingService', () => {
     const analysis = await service.getRebalancingAnalysis(USER_ID, 'group-1');
 
     expect(analysis.totalValue).toBe(0);
+    expect(analysis.baseCurrency).toBe('USD');
     expect(
       analysis.allocations.every((item) => item.currentPercentage === 0),
     ).toBe(true);
@@ -646,10 +665,65 @@ describe('RebalancingService', () => {
     const analysis = await service.getRebalancingAnalysis(USER_ID, 'group-1');
 
     expect(analysis.totalValue).toBe(800);
+    expect(analysis.baseCurrency).toBe('USD');
     expect(analysis.allocations).toHaveLength(1);
     expect(analysis.allocations[0].currentValue).toBe(800);
     expect(analysis.allocations[0].currentPercentage).toBe(100);
     expect(requestedTagIds).toContain('tag-1');
+  });
+
+  it('getRebalancingAnalysis는 다른 통화를 기준 통화로 환산한다', async () => {
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
+    prismaMock.tag.findMany.mockResolvedValue([
+      {
+        id: 'tag-1',
+        name: 'ETF',
+        description: null,
+        color: '#abcdef',
+        createdAt: baseDate,
+        updatedAt: baseDate,
+      },
+    ]);
+    brokerageServiceMock.getHoldings.mockResolvedValue([
+      {
+        id: 'holding-krw',
+        symbol: 'SPY',
+        name: 'SPY',
+        quantity: 10,
+        currentPrice: 100000,
+        marketValue: 1000000,
+        averageCost: null,
+        currency: 'KRW',
+        accountId: 'acc-1',
+        lastUpdated: baseDate,
+      },
+    ]);
+    holdingsServiceMock.getManualHoldings.mockResolvedValue([]);
+    holdingsServiceMock.getHoldingsForTag.mockImplementation(
+      async (_user, tagId) => (tagId === 'tag-1' ? ['SPY'] : []),
+    );
+    prismaMock.targetAllocation.findMany.mockResolvedValue([
+      {
+        id: 'alloc-krw',
+        groupId: 'group-1',
+        tagId: 'tag-1',
+        targetPercentage: 100,
+        createdAt: baseDate,
+        updatedAt: baseDate,
+      },
+    ]);
+    currencyConversionServiceMock.getRate.mockResolvedValue(0.00075);
+
+    const analysis = await service.getRebalancingAnalysis(USER_ID, 'group-1');
+
+    expect(currencyConversionServiceMock.getRate).toHaveBeenCalledWith(
+      'KRW',
+      'USD',
+    );
+    expect(currencyConversionServiceMock.getRate).toHaveBeenCalledTimes(1);
+    expect(analysis.baseCurrency).toBe('USD');
+    expect(analysis.totalValue).toBeCloseTo(750, 5);
+    expect(analysis.allocations[0].currentValue).toBeCloseTo(750, 5);
   });
 
   it('calculateInvestmentRecommendation는 분석 결과를 기반으로 추천을 생성한다', async () => {
@@ -657,6 +731,7 @@ describe('RebalancingService', () => {
       groupId: 'group-1',
       groupName: '성장 포트폴리오',
       totalValue: 100,
+      baseCurrency: 'USD',
       lastUpdated: baseDate,
       allocations: [
         {
@@ -702,6 +777,9 @@ describe('RebalancingService', () => {
     );
     expect(recommendations).toHaveLength(2);
     expect(recommendations[0].suggestedSymbols).toEqual(['SPY']);
+    expect(
+      recommendations.every((item) => item.baseCurrency === 'USD'),
+    ).toBe(true);
   });
 
   it('calculateInvestmentRecommendation는 투자 예정 금액을 초과하지 않도록 분배한다', async () => {
@@ -709,6 +787,7 @@ describe('RebalancingService', () => {
       groupId: 'group-1',
       groupName: '다중 포트폴리오',
       totalValue: 300,
+      baseCurrency: 'USD',
       lastUpdated: baseDate,
       allocations: [
         {
@@ -774,6 +853,9 @@ describe('RebalancingService', () => {
       100,
       3,
     );
+    expect(
+      recommendations.every((item) => item.baseCurrency === 'USD'),
+    ).toBe(true);
   });
 
   it('calculateInvestmentRecommendation는 투자금이 0이면 비율을 0으로 만든다', async () => {
@@ -781,6 +863,7 @@ describe('RebalancingService', () => {
       groupId: 'group-1',
       groupName: '성장 포트폴리오',
       totalValue: 200,
+      baseCurrency: 'USD',
       lastUpdated: baseDate,
       allocations: [
         {
@@ -811,6 +894,7 @@ describe('RebalancingService', () => {
         recommendedAmount: 0,
         recommendedPercentage: 0,
         suggestedSymbols: ['SPY'],
+        baseCurrency: 'USD',
       },
     ]);
   });

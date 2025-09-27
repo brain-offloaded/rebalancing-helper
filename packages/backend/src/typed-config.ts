@@ -9,6 +9,7 @@ const schema = {
   DATABASE_URL: Joi.string().min(1).default('file:./prisma/dev.db'),
   JWT_SECRET: Joi.string().min(1).default('local-dev-secret'),
   BROKER_CREDENTIAL_ENCRYPTION_KEY: Joi.string().min(1).required(),
+  BASE_CURRENCY: Joi.string().uppercase().length(3).default('USD'),
 } satisfies Joi.SchemaMap;
 
 const { TypedConfigService: TypedConfigServiceClass, TypedConfigModule } =
