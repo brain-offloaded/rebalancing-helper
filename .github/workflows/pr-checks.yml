@@ -50,19 +50,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Restore Prisma Client cache
-        id: prisma-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            node_modules/.prisma
-            node_modules/@prisma/client
-          key: ${{ runner.os }}-prisma-${{ hashFiles('packages/backend/prisma/schema.prisma', 'packages/backend/package.json', 'pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-prisma-
-
       - name: Generate Prisma Client
-        if: steps.prisma-cache.outputs.cache-hit != 'true'
         run: pnpm --filter backend prisma:generate
 
       - name: Lint
@@ -71,9 +59,7 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Set secrets to env
-        run: |
-          echo "BROKER_CREDENTIAL_ENCRYPTION_KEY=${{ secrets.BROKER_CREDENTIAL_ENCRYPTION_KEY }}" >> $GITHUB_ENV
-
       - name: Test with coverage thresholds
+        env:
+          BROKER_CREDENTIAL_ENCRYPTION_KEY: ${{ secrets.BROKER_CREDENTIAL_ENCRYPTION_KEY }}
         run: pnpm test:cov
