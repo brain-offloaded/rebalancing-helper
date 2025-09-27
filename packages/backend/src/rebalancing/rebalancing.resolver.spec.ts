@@ -38,6 +38,7 @@ const createAnalysis = (
   groupId: overrides.groupId ?? 'group-1',
   groupName: overrides.groupName ?? '테스트 그룹',
   totalValue: overrides.totalValue ?? 1000,
+  baseCurrency: overrides.baseCurrency ?? 'USD',
   allocations: overrides.allocations ?? [
     {
       tagId: 'tag-1',
@@ -60,6 +61,7 @@ const createRecommendation = (
   recommendedAmount: overrides.recommendedAmount ?? 100,
   recommendedPercentage: overrides.recommendedPercentage ?? 50,
   suggestedSymbols: overrides.suggestedSymbols ?? ['SPY'],
+  baseCurrency: overrides.baseCurrency ?? 'USD',
 });
 
 describe('RebalancingResolver', () => {
