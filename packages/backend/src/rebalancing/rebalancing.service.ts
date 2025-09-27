@@ -393,7 +393,7 @@ export class RebalancingService {
           holding.marketValue *
             (holding.currency === this.baseCurrency
               ? 1
-              : conversionRates.get(holding.currency) ?? 1),
+              : (conversionRates.get(holding.currency) ?? 1)),
       );
     }
 
@@ -487,9 +487,7 @@ export class RebalancingService {
       remainingAmount = Math.max(0, remainingAmount - recommendedAmount);
 
       const recommendedPercentage =
-        investmentBudget > 0
-          ? (recommendedAmount / investmentBudget) * 100
-          : 0;
+        investmentBudget > 0 ? (recommendedAmount / investmentBudget) * 100 : 0;
       const suggestedSymbols = await this.holdingsService.getHoldingsForTag(
         userId,
         allocation.tagId,

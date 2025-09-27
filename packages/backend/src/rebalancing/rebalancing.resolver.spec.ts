@@ -169,10 +169,7 @@ describe('RebalancingResolver', () => {
     await expect(
       resolver.addTagsToRebalancingGroup(mockUser, input),
     ).resolves.toBe(group);
-    expect(service.addTagsToGroup).toHaveBeenCalledWith(
-      mockUser.userId,
-      input,
-    );
+    expect(service.addTagsToGroup).toHaveBeenCalledWith(mockUser.userId, input);
   });
 
   it('removeTagsFromRebalancingGroup은 사용자 ID와 입력을 전달한다', async () => {
@@ -203,10 +200,7 @@ describe('RebalancingResolver', () => {
     await expect(
       resolver.renameRebalancingGroup(mockUser, input),
     ).resolves.toBe(group);
-    expect(service.renameGroup).toHaveBeenCalledWith(
-      mockUser.userId,
-      input,
-    );
+    expect(service.renameGroup).toHaveBeenCalledWith(mockUser.userId, input);
   });
 
   it('setTargetAllocations는 사용자 ID와 입력을 전달한다', async () => {

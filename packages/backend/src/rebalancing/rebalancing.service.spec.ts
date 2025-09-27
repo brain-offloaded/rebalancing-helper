@@ -107,9 +107,7 @@ describe('RebalancingService', () => {
 
     currencyConversionServiceMock = {
       getRate: jest.fn().mockResolvedValue(1),
-      convert: jest
-        .fn()
-        .mockImplementation(async (amount: number) => amount),
+      convert: jest.fn().mockImplementation(async (amount: number) => amount),
     } as unknown as jest.Mocked<CurrencyConversionService>;
 
     configServiceMock = {
@@ -163,9 +161,7 @@ describe('RebalancingService', () => {
       ],
     });
     const updatedGroup = buildGroup({
-      tags: [
-        { groupId: 'group-1', tagId: 'tag-1', createdAt: baseDate },
-      ],
+      tags: [{ groupId: 'group-1', tagId: 'tag-1', createdAt: baseDate }],
     });
     prismaMock.rebalancingGroup.findFirst
       .mockResolvedValueOnce(existingGroup)
@@ -777,9 +773,9 @@ describe('RebalancingService', () => {
     );
     expect(recommendations).toHaveLength(2);
     expect(recommendations[0].suggestedSymbols).toEqual(['SPY']);
-    expect(
-      recommendations.every((item) => item.baseCurrency === 'USD'),
-    ).toBe(true);
+    expect(recommendations.every((item) => item.baseCurrency === 'USD')).toBe(
+      true,
+    );
   });
 
   it('calculateInvestmentRecommendation는 투자 예정 금액을 초과하지 않도록 분배한다', async () => {
@@ -849,13 +845,12 @@ describe('RebalancingService', () => {
     expect(tag1?.recommendedAmount ?? 0).toBeCloseTo(32.143, 2);
     expect(tag2?.recommendedAmount ?? 0).toBeCloseTo(17.857, 2);
     expect(tag3?.recommendedAmount ?? 0).toBe(0);
-    expect((tag1?.recommendedPercentage ?? 0) + (tag2?.recommendedPercentage ?? 0)).toBeCloseTo(
-      100,
-      3,
-    );
     expect(
-      recommendations.every((item) => item.baseCurrency === 'USD'),
-    ).toBe(true);
+      (tag1?.recommendedPercentage ?? 0) + (tag2?.recommendedPercentage ?? 0),
+    ).toBeCloseTo(100, 3);
+    expect(recommendations.every((item) => item.baseCurrency === 'USD')).toBe(
+      true,
+    );
   });
 
   it('calculateInvestmentRecommendation는 투자금이 0이면 비율을 0으로 만든다', async () => {
