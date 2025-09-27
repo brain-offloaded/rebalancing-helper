@@ -4,7 +4,6 @@ import type { Request, Response } from 'express';
 import { Module } from '@nestjs/common';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
-import { ConfigModule } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -16,6 +15,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { GraphqlContext } from './common/graphql/graphql-context.type';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { TypedConfigModule } from './typed-config';
+import { MarketsModule } from './markets/markets.module';
 
 export type GraphqlContextFactoryArgs = {
   req: Request;
@@ -42,7 +43,7 @@ export function createGraphqlContext({
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
+    TypedConfigModule.forRoot({
       isGlobal: true,
     }),
     GraphQLModule.forRoot<ApolloDriverConfig>({
@@ -61,6 +62,7 @@ export function createGraphqlContext({
     HoldingsModule,
     TagsModule,
     RebalancingModule,
+    MarketsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

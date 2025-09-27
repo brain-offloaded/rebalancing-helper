@@ -85,6 +85,116 @@ async function main() {
       },
     });
   }
+
+  const defaultMarkets = [
+    {
+      code: 'US',
+      displayName: '미국',
+      yahooSuffix: null,
+      yahooMarketIdentifiers: 'us_market',
+    },
+    {
+      code: 'NYSE',
+      displayName: '뉴욕 증권거래소',
+      yahooSuffix: null,
+      yahooMarketIdentifiers: 'us_market',
+    },
+    {
+      code: 'NASDAQ',
+      displayName: '나스닥',
+      yahooSuffix: null,
+      yahooMarketIdentifiers: 'us_market',
+    },
+    {
+      code: 'AMEX',
+      displayName: '아멕스',
+      yahooSuffix: null,
+      yahooMarketIdentifiers: 'us_market',
+    },
+    {
+      code: 'KOSPI',
+      displayName: '코스피',
+      yahooSuffix: '.KS',
+      yahooMarketIdentifiers: 'krx_market',
+    },
+    {
+      code: 'KOSDAQ',
+      displayName: '코스닥',
+      yahooSuffix: '.KQ',
+      yahooMarketIdentifiers: 'krx_market',
+    },
+  ];
+
+  for (const market of defaultMarkets) {
+    await prisma.market.upsert({
+      where: { code: market.code },
+      update: {
+        displayName: market.displayName,
+        yahooSuffix: market.yahooSuffix,
+        yahooMarketIdentifiers: market.yahooMarketIdentifiers,
+      },
+      create: {
+        code: market.code,
+        displayName: market.displayName,
+        yahooSuffix: market.yahooSuffix,
+        yahooMarketIdentifiers: market.yahooMarketIdentifiers,
+      },
+    });
+  }
+
+  const defaultSecurities = [
+    {
+      market: 'US',
+      symbol: 'VOO',
+      name: 'Vanguard S&P 500 ETF',
+      currency: 'USD',
+      currentPrice: 412.35,
+    },
+    {
+      market: 'US',
+      symbol: 'SPY',
+      name: 'SPDR S&P 500 ETF Trust',
+      currency: 'USD',
+      currentPrice: 430.4,
+    },
+    {
+      market: 'US',
+      symbol: 'QQQ',
+      name: 'Invesco QQQ Trust',
+      currency: 'USD',
+      currentPrice: 360.1,
+    },
+    {
+      market: 'KOSDAQ',
+      symbol: '035720',
+      name: 'Kakao Corp',
+      currency: 'KRW',
+      currentPrice: 51000,
+    },
+  ];
+
+  for (const security of defaultSecurities) {
+    await prisma.marketSecurity.upsert({
+      where: {
+        market_symbol: {
+          market: security.market,
+          symbol: security.symbol,
+        },
+      },
+      update: {
+        name: security.name,
+        currency: security.currency,
+        currentPrice: security.currentPrice,
+      },
+      create: {
+        market: security.market,
+        symbol: security.symbol,
+        name: security.name,
+        currency: security.currency,
+        currentPrice: security.currentPrice,
+      },
+    });
+  }
 }
 
 main()

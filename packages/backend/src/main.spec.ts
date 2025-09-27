@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { bootstrap } from './main';
 import { PrismaService } from './prisma/prisma.service';
+import { TypedConfigService } from './typed-config';
 
 jest.mock('@nestjs/core', () => ({
   NestFactory: {
@@ -13,11 +14,24 @@ describe('bootstrap', () => {
   const listen = jest.fn().mockResolvedValue(undefined);
   const get = jest.fn();
   const enableShutdownHooks = jest.fn();
+  const configGet = jest.fn();
+  const typedConfigService = {
+    get: configGet,
+  } as unknown as TypedConfigService;
 
   beforeEach(() => {
     enableCors.mockClear();
     listen.mockClear();
-    get.mockReset().mockReturnValue({ enableShutdownHooks });
+    configGet.mockReset().mockReturnValue(3000);
+    get.mockReset().mockImplementation((token: unknown) => {
+      if (token === PrismaService) {
+        return { enableShutdownHooks };
+      }
+      if (token === TypedConfigService) {
+        return typedConfigService;
+      }
+      return undefined;
+    });
     enableShutdownHooks.mockClear();
 
     (NestFactory.create as jest.Mock).mockResolvedValue({
@@ -38,6 +52,7 @@ describe('bootstrap', () => {
       methods: ['GET', 'POST', 'OPTIONS'],
     });
     expect(get).toHaveBeenCalledWith(PrismaService);
+    expect(get).toHaveBeenCalledWith(TypedConfigService);
     expect(enableShutdownHooks).toHaveBeenCalledWith({
       enableCors,
       listen,
@@ -47,12 +62,9 @@ describe('bootstrap', () => {
   });
 
   it('PORT 환경변수가 있으면 해당 포트로 리슨한다', async () => {
-    process.env.PORT = '4000';
-
+    configGet.mockReturnValueOnce(4000);
     await bootstrap();
 
-    expect(listen).toHaveBeenCalledWith('4000');
-
-    delete process.env.PORT;
+    expect(listen).toHaveBeenCalledWith(4000);
   });
 });

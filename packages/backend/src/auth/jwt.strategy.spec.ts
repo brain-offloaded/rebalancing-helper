@@ -1,6 +1,6 @@
 import { JwtStrategy } from './jwt.strategy';
-import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
+import { TypedConfigService } from '../typed-config';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
@@ -9,7 +9,7 @@ describe('JwtStrategy', () => {
   beforeEach(() => {
     const configService = {
       get: jest.fn().mockReturnValue('secret'),
-    } as unknown as ConfigService;
+    } as unknown as TypedConfigService;
 
     authService = {
       getActiveUserData: jest.fn(),

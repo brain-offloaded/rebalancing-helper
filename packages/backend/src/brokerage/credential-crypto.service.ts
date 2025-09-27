@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { TypedConfigService } from '../typed-config';
 
 export type EncryptedPayload = {
   cipher: string;
@@ -17,10 +17,8 @@ const IV_LENGTH = 12;
 export class CredentialCryptoService {
   private readonly key: Buffer;
 
-  constructor(private readonly configService: ConfigService) {
-    const rawKey = this.configService.get<string>(
-      'BROKER_CREDENTIAL_ENCRYPTION_KEY',
-    );
+  constructor(private readonly configService: TypedConfigService) {
+    const rawKey = this.configService.get('BROKER_CREDENTIAL_ENCRYPTION_KEY');
 
     if (!rawKey) {
       throw new Error(

@@ -9,6 +9,9 @@
         "dist/**",
         "build/**"
       ],
+      "env": [
+        "BROKER_CREDENTIAL_ENCRYPTION_KEY"
+      ],
       "outputLogs": "new-only"
     },
     "dev": {
@@ -24,14 +27,17 @@
       ],
       "outputs": [
         "coverage/**"
+      ],
+      "env": [
+        "BROKER_CREDENTIAL_ENCRYPTION_KEY"
       ]
     },
     "test:cov": {
-      "dependsOn": [
-        "^test:cov"
-      ],
       "outputs": [
         "coverage/**"
+      ],
+      "env": [
+        "BROKER_CREDENTIAL_ENCRYPTION_KEY"
       ]
     }
   }

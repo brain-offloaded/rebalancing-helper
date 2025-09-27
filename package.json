@@ -12,7 +12,12 @@
     "build:frontend": "pnpm --filter frontend build",
     "test": "turbo run test",
     "test:cov": "turbo run test:cov",
-    "lint": "turbo run lint"
+    "lint": "turbo run lint",
+    "prisma:generate": "pnpm --filter backend prisma:generate",
+    "prisma:migrate": "pnpm --filter backend prisma:migrate",
+    "prisma:deploy": "pnpm --filter backend prisma:deploy",
+    "prisma:seed": "pnpm --filter backend prisma:seed",
+    "prisma:studio": "pnpm --filter backend prisma:studio"
   },
   "devDependencies": {
     "turbo": "^2.4.4"
