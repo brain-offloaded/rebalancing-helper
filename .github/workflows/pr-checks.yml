@@ -71,5 +71,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Set secrets to env
+        run: |
+          echo "BROKER_CREDENTIAL_ENCRYPTION_KEY=${{ secrets.BROKER_CREDENTIAL_ENCRYPTION_KEY }}" >> $GITHUB_ENV
+
       - name: Test with coverage thresholds
         run: pnpm test:cov
