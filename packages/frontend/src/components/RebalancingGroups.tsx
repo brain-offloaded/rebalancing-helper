@@ -20,6 +20,10 @@ import {
   GET_INVESTMENT_RECOMMENDATION,
   CREATE_REBALANCING_GROUP,
   SET_TARGET_ALLOCATIONS,
+  ADD_TAGS_TO_REBALANCING_GROUP,
+  REMOVE_TAGS_FROM_REBALANCING_GROUP,
+  RENAME_REBALANCING_GROUP,
+  DELETE_REBALANCING_GROUP,
 } from '../graphql/rebalancing';
 import { GET_TAGS } from '../graphql/tags';
 
@@ -198,6 +202,14 @@ export const RebalancingGroups: React.FC = () => {
   const [targetAllocations, setTargetAllocations] = useState<{
     [key: string]: number;
   }>({});
+  const [tagManagement, setTagManagement] = useState<{
+    groupId: string | null;
+    selectedTagIds: string[];
+  }>({ groupId: null, selectedTagIds: [] });
+  const [renameState, setRenameState] = useState<{
+    groupId: string | null;
+    name: string;
+  }>({ groupId: null, name: '' });
 
   const {
     data: groupsData,
@@ -221,6 +233,12 @@ export const RebalancingGroups: React.FC = () => {
 
   const [createGroup] = useMutation(CREATE_REBALANCING_GROUP);
   const [setTargets] = useMutation(SET_TARGET_ALLOCATIONS);
+  const [addTagsToGroup] = useMutation(ADD_TAGS_TO_REBALANCING_GROUP);
+  const [removeTagsFromGroup] = useMutation(
+    REMOVE_TAGS_FROM_REBALANCING_GROUP,
+  );
+  const [renameGroupMutation] = useMutation(RENAME_REBALANCING_GROUP);
+  const [deleteGroupMutation] = useMutation(DELETE_REBALANCING_GROUP);
 
   const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -279,6 +297,153 @@ export const RebalancingGroups: React.FC = () => {
         ? prev.tagIds.filter((id) => id !== tagId)
         : [...prev.tagIds, tagId],
     }));
+  };
+
+  const handleStartTagManagement = (group: RebalancingGroup) => {
+    if (tagManagement.groupId === group.id) {
+      setTagManagement({ groupId: null, selectedTagIds: [] });
+      return;
+    }
+    setTagManagement({ groupId: group.id, selectedTagIds: [...group.tagIds] });
+  };
+
+  const handleManagedTagToggle = (tagId: string) => {
+    setTagManagement((prev) => {
+      const selected = prev.selectedTagIds.includes(tagId)
+        ? prev.selectedTagIds.filter((id) => id !== tagId)
+        : [...prev.selectedTagIds, tagId];
+      return {
+        ...prev,
+        selectedTagIds: selected,
+      };
+    });
+  };
+
+  const handleSaveManagedTags = async () => {
+    if (!tagManagement.groupId) {
+      return;
+    }
+
+    const group = groupsData?.rebalancingGroups?.find(
+      (g: RebalancingGroup) => g.id === tagManagement.groupId,
+    );
+    if (!group) {
+      return;
+    }
+
+    const selectedSet = new Set(tagManagement.selectedTagIds);
+    const originalSet = new Set(group.tagIds);
+
+    const tagsToAdd = Array.from(selectedSet).filter(
+      (tagId) => !originalSet.has(tagId),
+    );
+    const tagsToRemove = group.tagIds.filter((tagId) => !selectedSet.has(tagId));
+
+    const operations: Promise<unknown>[] = [];
+    if (tagsToAdd.length > 0) {
+      operations.push(
+        addTagsToGroup({
+          variables: {
+            input: {
+              groupId: group.id,
+              tagIds: tagsToAdd,
+            },
+          },
+        }),
+      );
+    }
+    if (tagsToRemove.length > 0) {
+      operations.push(
+        removeTagsFromGroup({
+          variables: {
+            input: {
+              groupId: group.id,
+              tagIds: tagsToRemove,
+            },
+          },
+        }),
+      );
+    }
+
+    if (operations.length === 0) {
+      setTagManagement({ groupId: null, selectedTagIds: [] });
+      return;
+    }
+
+    try {
+      await Promise.all(operations);
+      setTagManagement({ groupId: null, selectedTagIds: [] });
+      refetchGroups();
+      if (selectedGroup === group.id) {
+        refetchAnalysis();
+        setTargetAllocations((prev) => {
+          const next = { ...prev };
+          for (const removed of tagsToRemove) {
+            delete next[removed];
+          }
+          return next;
+        });
+      }
+    } catch (error) {
+      console.error('태그 관리 실패:', error);
+    }
+  };
+
+  const handleRename = (group: RebalancingGroup) => {
+    if (renameState.groupId === group.id) {
+      setRenameState({ groupId: null, name: '' });
+      return;
+    }
+    setRenameState({ groupId: group.id, name: group.name });
+  };
+
+  const handleRenameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!renameState.groupId) {
+      return;
+    }
+
+    try {
+      await renameGroupMutation({
+        variables: {
+          input: {
+            groupId: renameState.groupId,
+            name: renameState.name,
+          },
+        },
+      });
+      setRenameState({ groupId: null, name: '' });
+      refetchGroups();
+    } catch (error) {
+      console.error('그룹 이름 변경 실패:', error);
+    }
+  };
+
+  const handleDeleteGroup = async (group: RebalancingGroup) => {
+    const confirmed = window.confirm(
+      `${group.name} 그룹을 정말 삭제하시겠습니까? 삭제하면 복구할 수 없습니다.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteGroupMutation({ variables: { id: group.id } });
+      if (selectedGroup === group.id) {
+        setSelectedGroup(null);
+        setShowTargetForm(false);
+        setTargetAllocations({});
+      }
+      if (tagManagement.groupId === group.id) {
+        setTagManagement({ groupId: null, selectedTagIds: [] });
+      }
+      if (renameState.groupId === group.id) {
+        setRenameState({ groupId: null, name: '' });
+      }
+      refetchGroups();
+    } catch (error) {
+      console.error('그룹 삭제 실패:', error);
+    }
   };
 
   const selectedGroupData = groupsData?.rebalancingGroups?.find(
@@ -395,7 +560,99 @@ export const RebalancingGroups: React.FC = () => {
               <Button onClick={() => setSelectedGroup(group.id)}>
                 분석 보기
               </Button>
+              <Button onClick={() => handleStartTagManagement(group)}>
+                태그 관리
+              </Button>
+              <Button onClick={() => handleRename(group)}>이름 변경</Button>
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => handleDeleteGroup(group)}
+              >
+                그룹 삭제
+              </Button>
             </div>
+
+            {tagManagement.groupId === group.id && (
+              <Card style={{ marginTop: '16px', backgroundColor: '#f8f9fa' }}>
+                <h4>태그 관리</h4>
+                <Form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    handleSaveManagedTags();
+                  }}
+                >
+                  <FormGroup>
+                    <Label>포함할 태그 선택</Label>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gap: '8px',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                      }}
+                    >
+                      {tagsData?.tags?.map((tag: Tag) => (
+                        <label key={tag.id} style={{ display: 'flex', gap: '8px' }}>
+                          <input
+                            type="checkbox"
+                            checked={tagManagement.selectedTagIds.includes(tag.id)}
+                            onChange={() => handleManagedTagToggle(tag.id)}
+                          />
+                          {tag.name}
+                        </label>
+                      ))}
+                    </div>
+                  </FormGroup>
+                  <div>
+                    <Button type="submit" variant="primary">
+                      태그 변경 저장
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() =>
+                        setTagManagement({ groupId: null, selectedTagIds: [] })
+                      }
+                    >
+                      취소
+                    </Button>
+                  </div>
+                </Form>
+              </Card>
+            )}
+
+            {renameState.groupId === group.id && (
+              <Card style={{ marginTop: '16px', backgroundColor: '#fff8e1' }}>
+                <h4>그룹 이름 변경</h4>
+                <Form onSubmit={handleRenameSubmit}>
+                  <FormGroup>
+                    <Label>새로운 이름</Label>
+                    <Input
+                      type="text"
+                      value={renameState.name}
+                      onChange={(event) =>
+                        setRenameState((prev) => ({
+                          ...prev,
+                          name: event.target.value,
+                        }))
+                      }
+                      required
+                    />
+                  </FormGroup>
+                  <div>
+                    <Button type="submit" variant="primary">
+                      이름 저장
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => setRenameState({ groupId: null, name: '' })}
+                    >
+                      취소
+                    </Button>
+                  </div>
+                </Form>
+              </Card>
+            )}
           </GroupCard>
         ))}
       </GroupGrid>

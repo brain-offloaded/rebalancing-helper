@@ -82,3 +82,44 @@ export const SET_TARGET_ALLOCATIONS = gql`
     setTargetAllocations(input: $input)
   }
 `;
+
+export const ADD_TAGS_TO_REBALANCING_GROUP = gql`
+  mutation AddTagsToRebalancingGroup($input: AddTagsToRebalancingGroupInput!) {
+    addTagsToRebalancingGroup(input: $input) {
+      id
+      name
+      description
+      tagIds
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const REMOVE_TAGS_FROM_REBALANCING_GROUP = gql`
+  mutation RemoveTagsFromRebalancingGroup(
+    $input: RemoveTagsFromRebalancingGroupInput!
+  ) {
+    removeTagsFromRebalancingGroup(input: $input) {
+      id
+      name
+      description
+      tagIds
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const RENAME_REBALANCING_GROUP = gql`
+  mutation RenameRebalancingGroup($input: RenameRebalancingGroupInput!) {
+    renameRebalancingGroup(input: $input) {
+      id
+      name
+      description
+      tagIds
+      createdAt
+      updatedAt
+    }
+  }
+`;

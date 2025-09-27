@@ -10,6 +10,10 @@ import {
   GET_REBALANCING_ANALYSIS,
   GET_REBALANCING_GROUPS,
   SET_TARGET_ALLOCATIONS,
+  ADD_TAGS_TO_REBALANCING_GROUP,
+  REMOVE_TAGS_FROM_REBALANCING_GROUP,
+  RENAME_REBALANCING_GROUP,
+  DELETE_REBALANCING_GROUP,
 } from '../../graphql/rebalancing';
 import { GET_TAGS } from '../../graphql/tags';
 
@@ -138,6 +142,10 @@ const setupMocks = ({
   const refetchAnalysis = vi.fn();
   const createGroup = vi.fn().mockResolvedValue({});
   const setTargets = vi.fn().mockResolvedValue({});
+  const addTags = vi.fn().mockResolvedValue({});
+  const removeTags = vi.fn().mockResolvedValue({});
+  const renameGroup = vi.fn().mockResolvedValue({});
+  const deleteGroup = vi.fn().mockResolvedValue({});
 
   mockUseQuery.mockImplementation((query, options) => {
     if (query === GET_REBALANCING_GROUPS) {
@@ -175,11 +183,32 @@ const setupMocks = ({
     if (document === SET_TARGET_ALLOCATIONS) {
       return [setTargets, { loading: false }];
     }
+    if (document === ADD_TAGS_TO_REBALANCING_GROUP) {
+      return [addTags, { loading: false }];
+    }
+    if (document === REMOVE_TAGS_FROM_REBALANCING_GROUP) {
+      return [removeTags, { loading: false }];
+    }
+    if (document === RENAME_REBALANCING_GROUP) {
+      return [renameGroup, { loading: false }];
+    }
+    if (document === DELETE_REBALANCING_GROUP) {
+      return [deleteGroup, { loading: false }];
+    }
 
     return [vi.fn(), { loading: false }];
   });
 
-  return { refetchGroups, refetchAnalysis, createGroup, setTargets };
+  return {
+    refetchGroups,
+    refetchAnalysis,
+    createGroup,
+    setTargets,
+    addTags,
+    removeTags,
+    renameGroup,
+    deleteGroup,
+  };
 };
 
 describe('RebalancingGroups', () => {
@@ -304,5 +333,94 @@ describe('RebalancingGroups', () => {
     expect(refetchAnalysis).toHaveBeenCalled();
     expect(screen.queryByText('목표 비율 설정')).toBeInTheDocument();
     expect(screen.queryByText('목표 비율 적용')).not.toBeInTheDocument();
+  });
+
+  it('태그 관리에서 추가 및 제거를 처리한다', async () => {
+    const extraTag = { id: 'tag-3', name: '가치주', color: '#0000ff' };
+    const { addTags, removeTags, refetchGroups } = setupMocks({
+      tags: [...defaultTags, extraTag],
+      groups: [
+        {
+          ...defaultGroups[0],
+          tagIds: ['tag-1', 'tag-2'],
+        },
+      ],
+    });
+    const user = userEvent.setup();
+
+    renderWithProviders(<RebalancingGroups />, { withApollo: false });
+
+    await user.click(
+      screen.getByRole('button', { name: '태그 관리' }),
+    );
+
+    const 가치주Checkbox = screen.getByRole('checkbox', { name: '가치주' });
+    const 배당주Checkbox = screen.getByRole('checkbox', { name: '배당주' });
+
+    expect(배당주Checkbox).toBeChecked();
+
+    await user.click(가치주Checkbox);
+    await user.click(배당주Checkbox);
+
+    await user.click(screen.getByRole('button', { name: '태그 변경 저장' }));
+
+    await waitFor(() => {
+      expect(addTags).toHaveBeenCalledWith({
+        variables: { input: { groupId: 'group-1', tagIds: ['tag-3'] } },
+      });
+      expect(removeTags).toHaveBeenCalledWith({
+        variables: { input: { groupId: 'group-1', tagIds: ['tag-2'] } },
+      });
+    });
+
+    expect(refetchGroups).toHaveBeenCalled();
+  });
+
+  it('그룹 이름을 변경한다', async () => {
+    const { renameGroup, refetchGroups } = setupMocks();
+    const user = userEvent.setup();
+
+    renderWithProviders(<RebalancingGroups />, { withApollo: false });
+
+    await user.click(screen.getByRole('button', { name: '이름 변경' }));
+
+    const input = screen.getByDisplayValue('성장 그룹');
+    await user.clear(input);
+    await user.type(input, '새로운 성장 전략');
+
+    await user.click(screen.getByRole('button', { name: '이름 저장' }));
+
+    await waitFor(() => {
+      expect(renameGroup).toHaveBeenCalledWith({
+        variables: {
+          input: {
+            groupId: 'group-1',
+            name: '새로운 성장 전략',
+          },
+        },
+      });
+    });
+
+    expect(refetchGroups).toHaveBeenCalled();
+    expect(screen.queryByDisplayValue('새로운 성장 전략')).not.toBeInTheDocument();
+  });
+
+  it('그룹을 삭제하고 목록을 갱신한다', async () => {
+    const { deleteGroup, refetchGroups } = setupMocks();
+    const user = userEvent.setup();
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    renderWithProviders(<RebalancingGroups />, { withApollo: false });
+
+    await user.click(screen.getByRole('button', { name: '그룹 삭제' }));
+
+    await waitFor(() => {
+      expect(deleteGroup).toHaveBeenCalledWith({
+        variables: { id: 'group-1' },
+      });
+    });
+
+    expect(refetchGroups).toHaveBeenCalled();
+    confirmSpy.mockRestore();
   });
 });
