@@ -385,9 +385,7 @@ describe('RebalancingGroups', () => {
 
     renderWithProviders(<RebalancingGroups />, { withApollo: false });
 
-    await user.click(
-      screen.getByRole('button', { name: '태그 관리' }),
-    );
+    await user.click(screen.getByRole('button', { name: '태그 관리' }));
 
     const 가치주Checkbox = screen.getByRole('checkbox', { name: '가치주' });
     const 배당주Checkbox = screen.getByRole('checkbox', { name: '배당주' });
@@ -437,7 +435,9 @@ describe('RebalancingGroups', () => {
     });
 
     expect(refetchGroups).toHaveBeenCalled();
-    expect(screen.queryByDisplayValue('새로운 성장 전략')).not.toBeInTheDocument();
+    expect(
+      screen.queryByDisplayValue('새로운 성장 전략'),
+    ).not.toBeInTheDocument();
   });
 
   it('그룹을 삭제하고 목록을 갱신한다', async () => {

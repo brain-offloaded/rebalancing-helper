@@ -548,9 +548,7 @@ export const RebalancingGroups: React.FC = () => {
 
     return analysis.allocations.map((item) => {
       const pieValue =
-        chartMode === 'percentage'
-          ? item.currentPercentage
-          : item.currentValue;
+        chartMode === 'percentage' ? item.currentPercentage : item.currentValue;
       const pieLabel =
         chartMode === 'percentage'
           ? `${item.tagName} ${item.currentPercentage.toFixed(1)}%`
@@ -652,11 +650,7 @@ export const RebalancingGroups: React.FC = () => {
 
       return unchanged ? prev : next;
     });
-  }, [
-    showTargetForm,
-    selectedGroupData,
-    analysis?.allocations,
-  ]);
+  }, [showTargetForm, selectedGroupData, analysis?.allocations]);
 
   if (groupsLoading) return <div>로딩 중...</div>;
 
@@ -1016,7 +1010,9 @@ export const RebalancingGroups: React.FC = () => {
                 </h4>
                 <ChartContainer>
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart margin={{ top: 16, right: 32, bottom: 16, left: 32 }}>
+                    <PieChart
+                      margin={{ top: 16, right: 32, bottom: 16, left: 32 }}
+                    >
                       <Pie
                         data={chartData}
                         cx="50%"
@@ -1078,24 +1074,21 @@ export const RebalancingGroups: React.FC = () => {
                 </thead>
                 <tbody>
                   {recommendations.map((rec: InvestmentRecommendation) => (
-                      <tr key={rec.tagId}>
-                        <Td>
-                          <TagColor
-                            color={
-                              tagsData?.tags?.find(
-                                (t: Tag) => t.id === rec.tagId,
-                              )?.color || '#ccc'
-                            }
-                          />
-                          {rec.tagName}
-                        </Td>
-                        <Td>
-                          {currencyFormatter.format(rec.recommendedAmount)}
-                        </Td>
-                        <Td>{rec.recommendedPercentage.toFixed(1)}%</Td>
-                        <Td>{rec.suggestedSymbols.join(', ') || '-'}</Td>
-                      </tr>
-                    ))}
+                    <tr key={rec.tagId}>
+                      <Td>
+                        <TagColor
+                          color={
+                            tagsData?.tags?.find((t: Tag) => t.id === rec.tagId)
+                              ?.color || '#ccc'
+                          }
+                        />
+                        {rec.tagName}
+                      </Td>
+                      <Td>{currencyFormatter.format(rec.recommendedAmount)}</Td>
+                      <Td>{rec.recommendedPercentage.toFixed(1)}%</Td>
+                      <Td>{rec.suggestedSymbols.join(', ') || '-'}</Td>
+                    </tr>
+                  ))}
                 </tbody>
               </AllocationTable>
             )}
