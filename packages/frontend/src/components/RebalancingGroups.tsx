@@ -322,7 +322,7 @@ export const RebalancingGroups: React.FC = () => {
         .formatToParts(0)
         .find((item) => item.type === 'currency');
       return part?.value ?? baseCurrency;
-    } catch (error) {
+    } catch {
       return baseCurrency;
     }
   }, [currencyFormatter, baseCurrency]);
@@ -336,8 +336,8 @@ export const RebalancingGroups: React.FC = () => {
       setFormData({ name: '', description: '', tagIds: [] });
       setShowForm(false);
       refetchGroups();
-    } catch (error) {
-      console.error('그룹 생성 실패:', error);
+    } catch (err) {
+      console.error('그룹 생성 실패:', err);
     }
   };
 
@@ -372,8 +372,8 @@ export const RebalancingGroups: React.FC = () => {
       });
       setShowTargetForm(false);
       refetchAnalysis();
-    } catch (error) {
-      console.error('목표 비율 설정 실패:', error);
+    } catch (err) {
+      console.error('목표 비율 설정 실패:', err);
     }
   };
 
@@ -473,8 +473,8 @@ export const RebalancingGroups: React.FC = () => {
           return next;
         });
       }
-    } catch (error) {
-      console.error('태그 관리 실패:', error);
+    } catch (err) {
+      console.error('태그 관리 실패:', err);
     }
   };
 
@@ -503,8 +503,8 @@ export const RebalancingGroups: React.FC = () => {
       });
       setRenameState({ groupId: null, name: '' });
       refetchGroups();
-    } catch (error) {
-      console.error('그룹 이름 변경 실패:', error);
+    } catch (err) {
+      console.error('그룹 이름 변경 실패:', err);
     }
   };
 
@@ -530,8 +530,8 @@ export const RebalancingGroups: React.FC = () => {
         setRenameState({ groupId: null, name: '' });
       }
       refetchGroups();
-    } catch (error) {
-      console.error('그룹 삭제 실패:', error);
+    } catch (err) {
+      console.error('그룹 삭제 실패:', err);
     }
   };
 
