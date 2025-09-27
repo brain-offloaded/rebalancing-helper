@@ -177,6 +177,7 @@ const TagColor = styled.div<{ color: string }>`
 `;
 
 const RADIAN = Math.PI / 180;
+const ZERO_DECIMAL_CURRENCIES = new Set(['KRW', 'JPY']);
 
 const getReadableTextColor = (hexColor: string) => {
   const fallback = '#1f2933';
@@ -232,6 +233,16 @@ interface InvestmentRecommendation {
   recommendedAmount: number;
   recommendedPercentage: number;
   suggestedSymbols: string[];
+  baseCurrency: string;
+}
+
+interface RebalancingAnalysis {
+  groupId: string;
+  groupName: string;
+  totalValue: number;
+  baseCurrency: string;
+  lastUpdated: string;
+  allocations: TagAllocation[];
 }
 
 export const RebalancingGroups: React.FC = () => {
@@ -286,6 +297,36 @@ export const RebalancingGroups: React.FC = () => {
   const [renameGroupMutation] = useMutation(RENAME_REBALANCING_GROUP);
   const [deleteGroupMutation] = useMutation(DELETE_REBALANCING_GROUP);
 
+  const analysis = analysisData?.rebalancingAnalysis as
+    | RebalancingAnalysis
+    | undefined;
+  const recommendations =
+    (recommendationData?.investmentRecommendation as
+      | InvestmentRecommendation[]
+      | undefined) ?? [];
+  const baseCurrency =
+    analysis?.baseCurrency ?? recommendations[0]?.baseCurrency ?? 'USD';
+  const isZeroDecimalCurrency = ZERO_DECIMAL_CURRENCIES.has(baseCurrency);
+  const currencyFormatter = useMemo(() => {
+    const fractionDigits = isZeroDecimalCurrency ? 0 : 2;
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: baseCurrency,
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+    });
+  }, [baseCurrency, isZeroDecimalCurrency]);
+  const currencySymbol = useMemo(() => {
+    try {
+      const part = currencyFormatter
+        .formatToParts(0)
+        .find((item) => item.type === 'currency');
+      return part?.value ?? baseCurrency;
+    } catch {
+      return baseCurrency;
+    }
+  }, [currencyFormatter, baseCurrency]);
+
   const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -295,8 +336,8 @@ export const RebalancingGroups: React.FC = () => {
       setFormData({ name: '', description: '', tagIds: [] });
       setShowForm(false);
       refetchGroups();
-    } catch (error) {
-      console.error('그룹 생성 실패:', error);
+    } catch (err) {
+      console.error('그룹 생성 실패:', err);
     }
   };
 
@@ -331,8 +372,8 @@ export const RebalancingGroups: React.FC = () => {
       });
       setShowTargetForm(false);
       refetchAnalysis();
-    } catch (error) {
-      console.error('목표 비율 설정 실패:', error);
+    } catch (err) {
+      console.error('목표 비율 설정 실패:', err);
     }
   };
 
@@ -432,8 +473,8 @@ export const RebalancingGroups: React.FC = () => {
           return next;
         });
       }
-    } catch (error) {
-      console.error('태그 관리 실패:', error);
+    } catch (err) {
+      console.error('태그 관리 실패:', err);
     }
   };
 
@@ -462,8 +503,8 @@ export const RebalancingGroups: React.FC = () => {
       });
       setRenameState({ groupId: null, name: '' });
       refetchGroups();
-    } catch (error) {
-      console.error('그룹 이름 변경 실패:', error);
+    } catch (err) {
+      console.error('그룹 이름 변경 실패:', err);
     }
   };
 
@@ -489,8 +530,8 @@ export const RebalancingGroups: React.FC = () => {
         setRenameState({ groupId: null, name: '' });
       }
       refetchGroups();
-    } catch (error) {
-      console.error('그룹 삭제 실패:', error);
+    } catch (err) {
+      console.error('그룹 삭제 실패:', err);
     }
   };
 
@@ -499,20 +540,27 @@ export const RebalancingGroups: React.FC = () => {
   );
 
   const chartData = useMemo(() => {
-    if (!analysisData?.rebalancingAnalysis) {
-      return [] as TagAllocation[];
+    if (!analysis) {
+      return [] as Array<
+        TagAllocation & { pieValue: number; pieLabel: string }
+      >;
     }
 
-    return analysisData.rebalancingAnalysis.allocations.map((item) => ({
-      ...item,
-      pieValue:
-        chartMode === 'percentage' ? item.currentPercentage : item.currentValue,
-      pieLabel:
+    return analysis.allocations.map((item) => {
+      const pieValue =
+        chartMode === 'percentage' ? item.currentPercentage : item.currentValue;
+      const pieLabel =
         chartMode === 'percentage'
           ? `${item.tagName} ${item.currentPercentage.toFixed(1)}%`
-          : `${item.tagName} $${item.currentValue.toLocaleString()}`,
-    }));
-  }, [analysisData?.rebalancingAnalysis, chartMode]);
+          : `${item.tagName} ${currencyFormatter.format(item.currentValue)}`;
+
+      return {
+        ...item,
+        pieValue,
+        pieLabel,
+      };
+    });
+  }, [analysis, chartMode, currencyFormatter]);
 
   const renderPieLabel = useCallback(
     ({
@@ -541,7 +589,7 @@ export const RebalancingGroups: React.FC = () => {
       const valueText =
         chartMode === 'percentage'
           ? `${payload.currentPercentage.toFixed(1)}%`
-          : `$${payload.currentValue.toLocaleString()}`;
+          : currencyFormatter.format(payload.currentValue);
 
       return (
         <text
@@ -561,7 +609,7 @@ export const RebalancingGroups: React.FC = () => {
         </text>
       );
     },
-    [chartMode],
+    [chartMode, currencyFormatter],
   );
 
   useEffect(() => {
@@ -579,7 +627,7 @@ export const RebalancingGroups: React.FC = () => {
       return;
     }
 
-    const allocations = analysisData?.rebalancingAnalysis?.allocations ?? [];
+    const allocations = analysis?.allocations ?? [];
     const allocationMap = new Map<string, number>();
     for (const allocation of allocations) {
       allocationMap.set(allocation.tagId, allocation.targetPercentage);
@@ -602,11 +650,7 @@ export const RebalancingGroups: React.FC = () => {
 
       return unchanged ? prev : next;
     });
-  }, [
-    showTargetForm,
-    selectedGroupData,
-    analysisData?.rebalancingAnalysis?.allocations,
-  ]);
+  }, [showTargetForm, selectedGroupData, analysis?.allocations]);
 
   if (groupsLoading) return <div>로딩 중...</div>;
 
@@ -825,6 +869,11 @@ export const RebalancingGroups: React.FC = () => {
       {selectedGroup && selectedGroupData && (
         <Card>
           <h3>{selectedGroupData.name} 분석</h3>
+          {analysis && (
+            <p style={{ marginTop: '8px', color: '#6c757d' }}>
+              총 평가 금액: {currencyFormatter.format(analysis.totalValue)}
+            </p>
+          )}
 
           <div>
             <Button onClick={() => setShowTargetForm(!showTargetForm)}>
@@ -876,27 +925,25 @@ export const RebalancingGroups: React.FC = () => {
             </Card>
           )}
 
-          {analysisData?.rebalancingAnalysis && (
+          {analysis && (
             <AllocationGrid>
               <div>
                 <h4>현재 vs 목표 자산 배분</h4>
                 <ChartContainer>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={analysisData.rebalancingAnalysis.allocations.map(
-                        (item) => ({
-                          ...item,
-                          barCurrent:
-                            chartMode === 'percentage'
-                              ? item.currentPercentage
-                              : item.currentValue,
-                          barTarget:
-                            chartMode === 'percentage'
-                              ? item.targetPercentage
-                              : (item.targetPercentage / 100) *
-                                analysisData.rebalancingAnalysis.totalValue,
-                        }),
-                      )}
+                      data={analysis.allocations.map((item) => ({
+                        ...item,
+                        barCurrent:
+                          chartMode === 'percentage'
+                            ? item.currentPercentage
+                            : item.currentValue,
+                        barTarget:
+                          chartMode === 'percentage'
+                            ? item.targetPercentage
+                            : (item.targetPercentage / 100) *
+                              analysis.totalValue,
+                      }))}
                       margin={{ top: 16, right: 24, left: 56, bottom: 16 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
@@ -905,14 +952,14 @@ export const RebalancingGroups: React.FC = () => {
                         tickFormatter={(value) =>
                           chartMode === 'percentage'
                             ? `${value}%`
-                            : `$${Number(value).toLocaleString()}`
+                            : currencyFormatter.format(Number(value))
                         }
                       />
                       <Tooltip
                         formatter={(value: number) =>
                           chartMode === 'percentage'
                             ? [`${value.toFixed(1)}%`, '']
-                            : [`$${value.toLocaleString()}`, '']
+                            : [currencyFormatter.format(value), '']
                         }
                       />
                       <Legend />
@@ -920,14 +967,18 @@ export const RebalancingGroups: React.FC = () => {
                         dataKey="barCurrent"
                         fill="#8884d8"
                         name={
-                          chartMode === 'percentage' ? '현재 비율' : '현재 금액'
+                          chartMode === 'percentage'
+                            ? '현재 비율'
+                            : `현재 금액 (${currencySymbol})`
                         }
                       />
                       <Bar
                         dataKey="barTarget"
                         fill="#82ca9d"
                         name={
-                          chartMode === 'percentage' ? '목표 비율' : '목표 금액'
+                          chartMode === 'percentage'
+                            ? '목표 비율'
+                            : `목표 금액 (${currencySymbol})`
                         }
                       />
                     </BarChart>
@@ -953,13 +1004,15 @@ export const RebalancingGroups: React.FC = () => {
                       aria-pressed={chartMode === 'value'}
                       onClick={() => setChartMode('value')}
                     >
-                      금액
+                      금액 ({currencySymbol})
                     </ToggleButton>
                   </ChartToggle>
                 </h4>
                 <ChartContainer>
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart margin={{ top: 16, right: 32, bottom: 16, left: 32 }}>
+                    <PieChart
+                      margin={{ top: 16, right: 32, bottom: 16, left: 32 }}
+                    >
                       <Pie
                         data={chartData}
                         cx="50%"
@@ -982,7 +1035,7 @@ export const RebalancingGroups: React.FC = () => {
                           chartMode === 'percentage'
                             ? [`${value.toFixed(2)}%`, payload.payload.tagName]
                             : [
-                                `$${value.toLocaleString()}`,
+                                currencyFormatter.format(value),
                                 payload.payload.tagName,
                               ]
                         }
@@ -997,7 +1050,7 @@ export const RebalancingGroups: React.FC = () => {
           <div style={{ marginTop: '24px' }}>
             <h4>투자 추천</h4>
             <FormGroup>
-              <Label>투자 예정 금액 ($)</Label>
+              <Label>투자 예정 금액 ({currencySymbol})</Label>
               <Input
                 type="number"
                 value={investmentAmount}
@@ -1005,11 +1058,11 @@ export const RebalancingGroups: React.FC = () => {
                   setInvestmentAmount(parseFloat(e.target.value) || 0)
                 }
                 min="0"
-                step="100"
+                step={isZeroDecimalCurrency ? 1000 : 100}
               />
             </FormGroup>
 
-            {recommendationData?.investmentRecommendation && (
+            {recommendations.length > 0 && (
               <AllocationTable>
                 <thead>
                   <tr>
@@ -1020,25 +1073,22 @@ export const RebalancingGroups: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {recommendationData.investmentRecommendation.map(
-                    (rec: InvestmentRecommendation) => (
-                      <tr key={rec.tagId}>
-                        <Td>
-                          <TagColor
-                            color={
-                              tagsData?.tags?.find(
-                                (t: Tag) => t.id === rec.tagId,
-                              )?.color || '#ccc'
-                            }
-                          />
-                          {rec.tagName}
-                        </Td>
-                        <Td>${rec.recommendedAmount.toFixed(2)}</Td>
-                        <Td>{rec.recommendedPercentage.toFixed(1)}%</Td>
-                        <Td>{rec.suggestedSymbols.join(', ') || '-'}</Td>
-                      </tr>
-                    ),
-                  )}
+                  {recommendations.map((rec: InvestmentRecommendation) => (
+                    <tr key={rec.tagId}>
+                      <Td>
+                        <TagColor
+                          color={
+                            tagsData?.tags?.find((t: Tag) => t.id === rec.tagId)
+                              ?.color || '#ccc'
+                          }
+                        />
+                        {rec.tagName}
+                      </Td>
+                      <Td>{currencyFormatter.format(rec.recommendedAmount)}</Td>
+                      <Td>{rec.recommendedPercentage.toFixed(1)}%</Td>
+                      <Td>{rec.suggestedSymbols.join(', ') || '-'}</Td>
+                    </tr>
+                  ))}
                 </tbody>
               </AllocationTable>
             )}

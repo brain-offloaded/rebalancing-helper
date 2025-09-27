@@ -1,4 +1,4 @@
-import type { YahooFinanceQuote } from './yahoo-finance.types';
+import type { YahooFinanceQuote } from '../yahoo/yahoo-finance.types';
 
 type QuoteFields = Pick<
   YahooFinanceQuote,

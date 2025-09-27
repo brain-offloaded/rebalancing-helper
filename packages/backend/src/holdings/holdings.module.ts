@@ -2,15 +2,11 @@ import { Module } from '@nestjs/common';
 import { HoldingsService } from './holdings.service';
 import { HoldingsResolver } from './holdings.resolver';
 import { MarketDataService } from './market-data.service';
-import { YahooFinanceService } from './yahoo-finance.service';
+import { YahooFinanceModule } from '../yahoo/yahoo.module';
 
 @Module({
-  providers: [
-    HoldingsService,
-    HoldingsResolver,
-    MarketDataService,
-    YahooFinanceService,
-  ],
+  imports: [YahooFinanceModule],
+  providers: [HoldingsService, HoldingsResolver, MarketDataService],
   exports: [HoldingsService],
 })
 export class HoldingsModule {}

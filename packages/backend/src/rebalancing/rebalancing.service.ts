@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
@@ -22,6 +23,8 @@ import {
 } from './rebalancing.dto';
 import { BrokerageService } from '../brokerage/brokerage.service';
 import { HoldingsService } from '../holdings/holdings.service';
+import { CurrencyConversionService } from '../yahoo/currency-conversion.service';
+import { TypedConfigService } from '../typed-config';
 
 const PERCENTAGE_TOLERANCE = 0.01;
 
@@ -31,11 +34,18 @@ type GroupWithTags = Prisma.RebalancingGroupGetPayload<{
 
 @Injectable()
 export class RebalancingService {
+  private readonly logger = new Logger(RebalancingService.name);
+  private readonly baseCurrency: string;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly brokerageService: BrokerageService,
     private readonly holdingsService: HoldingsService,
-  ) {}
+    private readonly currencyConversionService: CurrencyConversionService,
+    private readonly configService: TypedConfigService,
+  ) {
+    this.baseCurrency = this.configService.get('BASE_CURRENCY').toUpperCase();
+  }
 
   private async assertTagsBelongToUser(
     userId: string,
@@ -326,10 +336,12 @@ export class RebalancingService {
       ...brokerageHoldings.map((holding) => ({
         symbol: holding.symbol,
         marketValue: holding.marketValue,
+        currency: (holding.currency ?? this.baseCurrency).toUpperCase(),
       })),
       ...manualHoldings.map((holding) => ({
         symbol: holding.symbol,
         marketValue: holding.marketValue,
+        currency: (holding.currency ?? this.baseCurrency).toUpperCase(),
       })),
     ];
     const targetAllocations = await this.prisma.targetAllocation.findMany({
@@ -348,11 +360,40 @@ export class RebalancingService {
     const marketValueBySymbol = new Map<string, number>();
     const tagValueByTag = new Map<string, number>();
 
+    const currenciesToConvert = new Set<string>();
+    for (const holding of holdingsForValue) {
+      if (holding.currency !== this.baseCurrency) {
+        currenciesToConvert.add(holding.currency);
+      }
+    }
+
+    const conversionRates = new Map<string, number>();
+    for (const currency of currenciesToConvert) {
+      try {
+        const rate = await this.currencyConversionService.getRate(
+          currency,
+          this.baseCurrency,
+        );
+        conversionRates.set(currency, rate);
+      } catch (error: unknown) {
+        this.logger.warn(
+          `환율 정보를 가져오지 못했습니다 (${currency}->${this.baseCurrency}): ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        conversionRates.set(currency, 1);
+      }
+    }
+
     for (const holding of holdingsForValue) {
       const currentValue = marketValueBySymbol.get(holding.symbol) ?? 0;
       marketValueBySymbol.set(
         holding.symbol,
-        currentValue + holding.marketValue,
+        currentValue +
+          holding.marketValue *
+            (holding.currency === this.baseCurrency
+              ? 1
+              : (conversionRates.get(holding.currency) ?? 1)),
       );
     }
 
@@ -397,6 +438,7 @@ export class RebalancingService {
       groupId,
       groupName: group.name,
       totalValue,
+      baseCurrency: this.baseCurrency,
       allocations,
       lastUpdated: new Date(),
     };
@@ -445,9 +487,7 @@ export class RebalancingService {
       remainingAmount = Math.max(0, remainingAmount - recommendedAmount);
 
       const recommendedPercentage =
-        investmentBudget > 0
-          ? (recommendedAmount / investmentBudget) * 100
-          : 0;
+        investmentBudget > 0 ? (recommendedAmount / investmentBudget) * 100 : 0;
       const suggestedSymbols = await this.holdingsService.getHoldingsForTag(
         userId,
         allocation.tagId,
@@ -459,6 +499,7 @@ export class RebalancingService {
         recommendedAmount,
         recommendedPercentage,
         suggestedSymbols,
+        baseCurrency: analysis.baseCurrency,
       });
     }
 

@@ -19,6 +19,7 @@ export const GET_REBALANCING_ANALYSIS = gql`
       groupId
       groupName
       totalValue
+      baseCurrency
       lastUpdated
       allocations {
         tagId
@@ -41,6 +42,7 @@ export const GET_INVESTMENT_RECOMMENDATION = gql`
       recommendedAmount
       recommendedPercentage
       suggestedSymbols
+      baseCurrency
     }
   }
 `;

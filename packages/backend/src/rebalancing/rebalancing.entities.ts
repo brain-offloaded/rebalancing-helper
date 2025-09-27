@@ -56,6 +56,9 @@ export class RebalancingAnalysis {
   @Field(() => Float)
   totalValue: number;
 
+  @Field(() => String)
+  baseCurrency: string;
+
   @Field(() => [TagAllocation])
   allocations: TagAllocation[];
 
@@ -73,6 +76,9 @@ export class InvestmentRecommendation {
 
   @Field(() => Float)
   recommendedAmount: number;
+
+  @Field(() => String)
+  baseCurrency: string;
 
   @Field(() => Float)
   recommendedPercentage: number;

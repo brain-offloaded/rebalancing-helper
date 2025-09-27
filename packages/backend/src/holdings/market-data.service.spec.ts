@@ -1,8 +1,8 @@
 import { NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MarketDataService } from './market-data.service';
-import { YahooFinanceService } from './yahoo-finance.service';
-import type { YahooFinanceQuote } from './yahoo-finance.types';
+import { YahooFinanceService } from '../yahoo/yahoo-finance.service';
+import type { YahooFinanceQuote } from '../yahoo/yahoo-finance.types';
 
 describe('MarketDataService', () => {
   let prismaMock: { market: { findUnique: jest.Mock } };
