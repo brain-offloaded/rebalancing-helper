@@ -15,7 +15,11 @@ export default defineConfig({
       reporter: ['text', 'lcov', 'html'],
       reportsDirectory: './coverage',
       include: ['src/**/*.{ts,tsx}'],
-      exclude: [...configDefaults.coverage.exclude, 'src/vite-env.d.ts'],
+      exclude: [
+        ...configDefaults.coverage.exclude,
+        'src/vite-env.d.ts',
+        'src/graphql/**',
+      ],
       thresholds: {
         branches: 75,
         functions: 85,
