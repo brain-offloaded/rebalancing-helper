@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import styled from 'styled-components';
 import {
@@ -20,6 +20,10 @@ import {
   GET_INVESTMENT_RECOMMENDATION,
   CREATE_REBALANCING_GROUP,
   SET_TARGET_ALLOCATIONS,
+  ADD_TAGS_TO_REBALANCING_GROUP,
+  REMOVE_TAGS_FROM_REBALANCING_GROUP,
+  RENAME_REBALANCING_GROUP,
+  DELETE_REBALANCING_GROUP,
 } from '../graphql/rebalancing';
 import { GET_TAGS } from '../graphql/tags';
 
@@ -125,6 +129,26 @@ const ChartContainer = styled.div`
   margin: ${(props) => props.theme.spacing.lg} 0;
 `;
 
+const ChartToggle = styled.div`
+  display: inline-flex;
+  gap: ${(props) => props.theme.spacing.xs};
+  margin-left: ${(props) => props.theme.spacing.md};
+`;
+
+const ToggleButton = styled.button<{ $active: boolean }>`
+  padding: ${(props) => props.theme.spacing.xs}
+    ${(props) => props.theme.spacing.sm};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
+  border: 1px solid
+    ${(props) =>
+      props.$active ? props.theme.colors.primary : props.theme.colors.border};
+  background-color: ${(props) =>
+    props.$active ? props.theme.colors.primary : 'transparent'};
+  color: ${(props) => (props.$active ? 'white' : props.theme.colors.text)};
+  font-size: ${(props) => props.theme.typography.fontSize.sm};
+  cursor: pointer;
+`;
+
 const AllocationTable = styled.table`
   width: 100%;
   border-collapse: collapse;
@@ -151,6 +175,31 @@ const TagColor = styled.div<{ color: string }>`
   display: inline-block;
   margin-right: ${(props) => props.theme.spacing.xs};
 `;
+
+const RADIAN = Math.PI / 180;
+
+const getReadableTextColor = (hexColor: string) => {
+  const fallback = '#1f2933';
+  if (!hexColor) {
+    return fallback;
+  }
+
+  const normalized = hexColor.replace('#', '');
+  if (normalized.length !== 6) {
+    return fallback;
+  }
+
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) {
+    return fallback;
+  }
+
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return luminance > 0.6 ? fallback : '#ffffff';
+};
 
 interface RebalancingGroup {
   id: string;
@@ -198,6 +247,17 @@ export const RebalancingGroups: React.FC = () => {
   const [targetAllocations, setTargetAllocations] = useState<{
     [key: string]: number;
   }>({});
+  const [chartMode, setChartMode] = useState<'percentage' | 'value'>(
+    'percentage',
+  );
+  const [tagManagement, setTagManagement] = useState<{
+    groupId: string | null;
+    selectedTagIds: string[];
+  }>({ groupId: null, selectedTagIds: [] });
+  const [renameState, setRenameState] = useState<{
+    groupId: string | null;
+    name: string;
+  }>({ groupId: null, name: '' });
 
   const {
     data: groupsData,
@@ -221,6 +281,10 @@ export const RebalancingGroups: React.FC = () => {
 
   const [createGroup] = useMutation(CREATE_REBALANCING_GROUP);
   const [setTargets] = useMutation(SET_TARGET_ALLOCATIONS);
+  const [addTagsToGroup] = useMutation(ADD_TAGS_TO_REBALANCING_GROUP);
+  const [removeTagsFromGroup] = useMutation(REMOVE_TAGS_FROM_REBALANCING_GROUP);
+  const [renameGroupMutation] = useMutation(RENAME_REBALANCING_GROUP);
+  const [deleteGroupMutation] = useMutation(DELETE_REBALANCING_GROUP);
 
   const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -281,9 +345,268 @@ export const RebalancingGroups: React.FC = () => {
     }));
   };
 
+  const handleStartTagManagement = (group: RebalancingGroup) => {
+    if (tagManagement.groupId === group.id) {
+      setTagManagement({ groupId: null, selectedTagIds: [] });
+      return;
+    }
+    setTagManagement({ groupId: group.id, selectedTagIds: [...group.tagIds] });
+  };
+
+  const handleManagedTagToggle = (tagId: string) => {
+    setTagManagement((prev) => {
+      const selected = prev.selectedTagIds.includes(tagId)
+        ? prev.selectedTagIds.filter((id) => id !== tagId)
+        : [...prev.selectedTagIds, tagId];
+      return {
+        ...prev,
+        selectedTagIds: selected,
+      };
+    });
+  };
+
+  const handleSaveManagedTags = async () => {
+    if (!tagManagement.groupId) {
+      return;
+    }
+
+    const group = groupsData?.rebalancingGroups?.find(
+      (g: RebalancingGroup) => g.id === tagManagement.groupId,
+    );
+    if (!group) {
+      return;
+    }
+
+    const selectedSet = new Set(tagManagement.selectedTagIds);
+    const originalSet = new Set(group.tagIds);
+
+    const tagsToAdd = Array.from(selectedSet).filter(
+      (tagId) => !originalSet.has(tagId),
+    );
+    const tagsToRemove = group.tagIds.filter(
+      (tagId) => !selectedSet.has(tagId),
+    );
+
+    const operations: Promise<unknown>[] = [];
+    if (tagsToAdd.length > 0) {
+      operations.push(
+        addTagsToGroup({
+          variables: {
+            input: {
+              groupId: group.id,
+              tagIds: tagsToAdd,
+            },
+          },
+        }),
+      );
+    }
+    if (tagsToRemove.length > 0) {
+      operations.push(
+        removeTagsFromGroup({
+          variables: {
+            input: {
+              groupId: group.id,
+              tagIds: tagsToRemove,
+            },
+          },
+        }),
+      );
+    }
+
+    if (operations.length === 0) {
+      setTagManagement({ groupId: null, selectedTagIds: [] });
+      return;
+    }
+
+    try {
+      await Promise.all(operations);
+      setTagManagement({ groupId: null, selectedTagIds: [] });
+      refetchGroups();
+      if (selectedGroup === group.id) {
+        refetchAnalysis();
+        setTargetAllocations((prev) => {
+          const next = { ...prev };
+          for (const removed of tagsToRemove) {
+            delete next[removed];
+          }
+          return next;
+        });
+      }
+    } catch (error) {
+      console.error('태그 관리 실패:', error);
+    }
+  };
+
+  const handleRename = (group: RebalancingGroup) => {
+    if (renameState.groupId === group.id) {
+      setRenameState({ groupId: null, name: '' });
+      return;
+    }
+    setRenameState({ groupId: group.id, name: group.name });
+  };
+
+  const handleRenameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!renameState.groupId) {
+      return;
+    }
+
+    try {
+      await renameGroupMutation({
+        variables: {
+          input: {
+            groupId: renameState.groupId,
+            name: renameState.name,
+          },
+        },
+      });
+      setRenameState({ groupId: null, name: '' });
+      refetchGroups();
+    } catch (error) {
+      console.error('그룹 이름 변경 실패:', error);
+    }
+  };
+
+  const handleDeleteGroup = async (group: RebalancingGroup) => {
+    const confirmed = window.confirm(
+      `${group.name} 그룹을 정말 삭제하시겠습니까? 삭제하면 복구할 수 없습니다.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteGroupMutation({ variables: { id: group.id } });
+      if (selectedGroup === group.id) {
+        setSelectedGroup(null);
+        setShowTargetForm(false);
+        setTargetAllocations({});
+      }
+      if (tagManagement.groupId === group.id) {
+        setTagManagement({ groupId: null, selectedTagIds: [] });
+      }
+      if (renameState.groupId === group.id) {
+        setRenameState({ groupId: null, name: '' });
+      }
+      refetchGroups();
+    } catch (error) {
+      console.error('그룹 삭제 실패:', error);
+    }
+  };
+
   const selectedGroupData = groupsData?.rebalancingGroups?.find(
     (g: RebalancingGroup) => g.id === selectedGroup,
   );
+
+  const chartData = useMemo(() => {
+    if (!analysisData?.rebalancingAnalysis) {
+      return [] as TagAllocation[];
+    }
+
+    return analysisData.rebalancingAnalysis.allocations.map((item) => ({
+      ...item,
+      pieValue:
+        chartMode === 'percentage' ? item.currentPercentage : item.currentValue,
+      pieLabel:
+        chartMode === 'percentage'
+          ? `${item.tagName} ${item.currentPercentage.toFixed(1)}%`
+          : `${item.tagName} $${item.currentValue.toLocaleString()}`,
+    }));
+  }, [analysisData?.rebalancingAnalysis, chartMode]);
+
+  const renderPieLabel = useCallback(
+    ({
+      cx,
+      cy,
+      midAngle,
+      innerRadius,
+      outerRadius,
+      payload,
+    }: {
+      cx: number;
+      cy: number;
+      midAngle: number;
+      innerRadius: number;
+      outerRadius: number;
+      payload: TagAllocation;
+    }) => {
+      if (!payload) {
+        return null;
+      }
+
+      const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
+      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+      const textColor = getReadableTextColor(payload.tagColor);
+      const valueText =
+        chartMode === 'percentage'
+          ? `${payload.currentPercentage.toFixed(1)}%`
+          : `$${payload.currentValue.toLocaleString()}`;
+
+      return (
+        <text
+          x={x}
+          y={y}
+          fill={textColor}
+          fontSize={12}
+          textAnchor="middle"
+          dominantBaseline="central"
+        >
+          <tspan x={x} dy="-0.2em">
+            {payload.tagName}
+          </tspan>
+          <tspan x={x} dy="1.2em">
+            {valueText}
+          </tspan>
+        </text>
+      );
+    },
+    [chartMode],
+  );
+
+  useEffect(() => {
+    if (showTargetForm) {
+      return;
+    }
+
+    if (!selectedGroupData) {
+      setTargetAllocations((prev) => {
+        if (Object.keys(prev).length === 0) {
+          return prev;
+        }
+        return {};
+      });
+      return;
+    }
+
+    const allocations = analysisData?.rebalancingAnalysis?.allocations ?? [];
+    const allocationMap = new Map<string, number>();
+    for (const allocation of allocations) {
+      allocationMap.set(allocation.tagId, allocation.targetPercentage);
+    }
+
+    setTargetAllocations((prev) => {
+      const next: Record<string, number> = {};
+      for (const tagId of selectedGroupData.tagIds) {
+        const existing = allocationMap.get(tagId);
+        next[tagId] = typeof existing === 'number' ? existing : 0;
+      }
+
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(next);
+      const unchanged =
+        prevKeys.length === nextKeys.length &&
+        nextKeys.every(
+          (key) => Math.abs((prev[key] ?? 0) - next[key]) < 0.0001,
+        );
+
+      return unchanged ? prev : next;
+    });
+  }, [
+    showTargetForm,
+    selectedGroupData,
+    analysisData?.rebalancingAnalysis?.allocations,
+  ]);
 
   if (groupsLoading) return <div>로딩 중...</div>;
 
@@ -395,7 +718,106 @@ export const RebalancingGroups: React.FC = () => {
               <Button onClick={() => setSelectedGroup(group.id)}>
                 분석 보기
               </Button>
+              <Button onClick={() => handleStartTagManagement(group)}>
+                태그 관리
+              </Button>
+              <Button onClick={() => handleRename(group)}>이름 변경</Button>
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => handleDeleteGroup(group)}
+              >
+                그룹 삭제
+              </Button>
             </div>
+
+            {tagManagement.groupId === group.id && (
+              <Card style={{ marginTop: '16px', backgroundColor: '#f8f9fa' }}>
+                <h4>태그 관리</h4>
+                <Form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    handleSaveManagedTags();
+                  }}
+                >
+                  <FormGroup>
+                    <Label>포함할 태그 선택</Label>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gap: '8px',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                      }}
+                    >
+                      {tagsData?.tags?.map((tag: Tag) => (
+                        <label
+                          key={tag.id}
+                          style={{ display: 'flex', gap: '8px' }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={tagManagement.selectedTagIds.includes(
+                              tag.id,
+                            )}
+                            onChange={() => handleManagedTagToggle(tag.id)}
+                          />
+                          {tag.name}
+                        </label>
+                      ))}
+                    </div>
+                  </FormGroup>
+                  <div>
+                    <Button type="submit" variant="primary">
+                      태그 변경 저장
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() =>
+                        setTagManagement({ groupId: null, selectedTagIds: [] })
+                      }
+                    >
+                      취소
+                    </Button>
+                  </div>
+                </Form>
+              </Card>
+            )}
+
+            {renameState.groupId === group.id && (
+              <Card style={{ marginTop: '16px', backgroundColor: '#fff8e1' }}>
+                <h4>그룹 이름 변경</h4>
+                <Form onSubmit={handleRenameSubmit}>
+                  <FormGroup>
+                    <Label>새로운 이름</Label>
+                    <Input
+                      type="text"
+                      value={renameState.name}
+                      onChange={(event) =>
+                        setRenameState((prev) => ({
+                          ...prev,
+                          name: event.target.value,
+                        }))
+                      }
+                      required
+                    />
+                  </FormGroup>
+                  <div>
+                    <Button type="submit" variant="primary">
+                      이름 저장
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() =>
+                        setRenameState({ groupId: null, name: '' })
+                      }
+                    >
+                      취소
+                    </Button>
+                  </div>
+                </Form>
+              </Card>
+            )}
           </GroupCard>
         ))}
       </GroupGrid>
@@ -461,22 +883,52 @@ export const RebalancingGroups: React.FC = () => {
                 <ChartContainer>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={analysisData.rebalancingAnalysis.allocations}
+                      data={analysisData.rebalancingAnalysis.allocations.map(
+                        (item) => ({
+                          ...item,
+                          barCurrent:
+                            chartMode === 'percentage'
+                              ? item.currentPercentage
+                              : item.currentValue,
+                          barTarget:
+                            chartMode === 'percentage'
+                              ? item.targetPercentage
+                              : (item.targetPercentage / 100) *
+                                analysisData.rebalancingAnalysis.totalValue,
+                        }),
+                      )}
+                      margin={{ top: 16, right: 24, left: 56, bottom: 16 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="tagName" />
-                      <YAxis />
-                      <Tooltip />
+                      <YAxis
+                        tickFormatter={(value) =>
+                          chartMode === 'percentage'
+                            ? `${value}%`
+                            : `$${Number(value).toLocaleString()}`
+                        }
+                      />
+                      <Tooltip
+                        formatter={(value: number) =>
+                          chartMode === 'percentage'
+                            ? [`${value.toFixed(1)}%`, '']
+                            : [`$${value.toLocaleString()}`, '']
+                        }
+                      />
                       <Legend />
                       <Bar
-                        dataKey="currentPercentage"
+                        dataKey="barCurrent"
                         fill="#8884d8"
-                        name="현재 비율"
+                        name={
+                          chartMode === 'percentage' ? '현재 비율' : '현재 금액'
+                        }
                       />
                       <Bar
-                        dataKey="targetPercentage"
+                        dataKey="barTarget"
                         fill="#82ca9d"
-                        name="목표 비율"
+                        name={
+                          chartMode === 'percentage' ? '목표 비율' : '목표 금액'
+                        }
                       />
                     </BarChart>
                   </ResponsiveContainer>
@@ -484,29 +936,57 @@ export const RebalancingGroups: React.FC = () => {
               </div>
 
               <div>
-                <h4>현재 자산 배분</h4>
+                <h4>
+                  현재 자산 배분
+                  <ChartToggle>
+                    <ToggleButton
+                      type="button"
+                      $active={chartMode === 'percentage'}
+                      aria-pressed={chartMode === 'percentage'}
+                      onClick={() => setChartMode('percentage')}
+                    >
+                      비율
+                    </ToggleButton>
+                    <ToggleButton
+                      type="button"
+                      $active={chartMode === 'value'}
+                      aria-pressed={chartMode === 'value'}
+                      onClick={() => setChartMode('value')}
+                    >
+                      금액
+                    </ToggleButton>
+                  </ChartToggle>
+                </h4>
                 <ChartContainer>
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+                    <PieChart margin={{ top: 16, right: 32, bottom: 16, left: 32 }}>
                       <Pie
-                        data={analysisData.rebalancingAnalysis.allocations}
+                        data={chartData}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ tagName, currentPercentage }) =>
-                          `${tagName} ${currentPercentage.toFixed(1)}%`
-                        }
+                        label={renderPieLabel}
                         outerRadius={80}
                         fill="#8884d8"
-                        dataKey="currentValue"
+                        dataKey="pieValue"
+                        paddingAngle={1}
                       >
-                        {analysisData.rebalancingAnalysis.allocations.map(
+                        {chartData.map(
                           (entry: TagAllocation, index: number) => (
                             <Cell key={`cell-${index}`} fill={entry.tagColor} />
                           ),
                         )}
                       </Pie>
-                      <Tooltip />
+                      <Tooltip
+                        formatter={(value: number, _name: string, payload) =>
+                          chartMode === 'percentage'
+                            ? [`${value.toFixed(2)}%`, payload.payload.tagName]
+                            : [
+                                `$${value.toLocaleString()}`,
+                                payload.payload.tagName,
+                              ]
+                        }
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </ChartContainer>

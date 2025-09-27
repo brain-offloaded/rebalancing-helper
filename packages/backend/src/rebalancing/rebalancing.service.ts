@@ -16,6 +16,9 @@ import {
   UpdateRebalancingGroupInput,
   SetTargetAllocationsInput,
   CalculateInvestmentInput,
+  AddTagsToRebalancingGroupInput,
+  RemoveTagsFromRebalancingGroupInput,
+  RenameRebalancingGroupInput,
 } from './rebalancing.dto';
 import { BrokerageService } from '../brokerage/brokerage.service';
 import { HoldingsService } from '../holdings/holdings.service';
@@ -236,6 +239,72 @@ export class RebalancingService {
     return true;
   }
 
+  async addTagsToGroup(
+    userId: string,
+    input: AddTagsToRebalancingGroupInput,
+  ): Promise<RebalancingGroup> {
+    const group = await this.getGroupForUser(userId, input.groupId);
+    const existingTagIds = new Set(group.tags.map((tag) => tag.tagId));
+    const requestedTagIds = Array.from(new Set(input.tagIds));
+    const newTagIds = requestedTagIds.filter((tagId) => {
+      return !existingTagIds.has(tagId);
+    });
+
+    if (newTagIds.length === 0) {
+      return this.mapGroup(group);
+    }
+
+    await this.assertTagsBelongToUser(userId, newTagIds);
+    await this.prisma.rebalancingGroupTag.createMany({
+      data: newTagIds.map((tagId) => ({
+        groupId: input.groupId,
+        tagId,
+      })),
+    });
+
+    const updatedGroup = await this.getGroupForUser(userId, input.groupId);
+    return this.mapGroup(updatedGroup);
+  }
+
+  async removeTagsFromGroup(
+    userId: string,
+    input: RemoveTagsFromRebalancingGroupInput,
+  ): Promise<RebalancingGroup> {
+    const group = await this.getGroupForUser(userId, input.groupId);
+    const existingTagIds = new Set(group.tags.map((tag) => tag.tagId));
+    const tagsToRemove = Array.from(new Set(input.tagIds)).filter((tagId) =>
+      existingTagIds.has(tagId),
+    );
+
+    if (tagsToRemove.length === 0) {
+      return this.mapGroup(group);
+    }
+
+    await this.prisma.rebalancingGroupTag.deleteMany({
+      where: { groupId: input.groupId, tagId: { in: tagsToRemove } },
+    });
+    await this.prisma.targetAllocation.deleteMany({
+      where: { groupId: input.groupId, tagId: { in: tagsToRemove } },
+    });
+
+    const updatedGroup = await this.getGroupForUser(userId, input.groupId);
+    return this.mapGroup(updatedGroup);
+  }
+
+  async renameGroup(
+    userId: string,
+    input: RenameRebalancingGroupInput,
+  ): Promise<RebalancingGroup> {
+    await this.getGroupForUser(userId, input.groupId);
+    const updatedGroup = await this.prisma.rebalancingGroup.update({
+      where: { id: input.groupId },
+      data: { name: input.name },
+      include: { tags: true },
+    });
+
+    return this.mapGroup(updatedGroup);
+  }
+
   async getRebalancingAnalysis(
     userId: string,
     groupId: string,
@@ -248,7 +317,21 @@ export class RebalancingService {
     });
     const tagMap = new Map(tags.map((tag) => [tag.id, tag]));
 
-    const allHoldings = await this.brokerageService.getHoldings(userId);
+    const [brokerageHoldings, manualHoldings] = await Promise.all([
+      this.brokerageService.getHoldings(userId),
+      this.holdingsService.getManualHoldings(userId),
+    ]);
+
+    const holdingsForValue = [
+      ...brokerageHoldings.map((holding) => ({
+        symbol: holding.symbol,
+        marketValue: holding.marketValue,
+      })),
+      ...manualHoldings.map((holding) => ({
+        symbol: holding.symbol,
+        marketValue: holding.marketValue,
+      })),
+    ];
     const targetAllocations = await this.prisma.targetAllocation.findMany({
       where: { groupId },
     });
@@ -265,7 +348,7 @@ export class RebalancingService {
     const marketValueBySymbol = new Map<string, number>();
     const tagValueByTag = new Map<string, number>();
 
-    for (const holding of allHoldings) {
+    for (const holding of holdingsForValue) {
       const currentValue = marketValueBySymbol.get(holding.symbol) ?? 0;
       marketValueBySymbol.set(
         holding.symbol,
@@ -326,15 +409,44 @@ export class RebalancingService {
     const analysis = await this.getRebalancingAnalysis(userId, input.groupId);
     const newTotalValue = analysis.totalValue + input.investmentAmount;
 
-    const recommendations: InvestmentRecommendation[] = [];
-
-    for (const allocation of analysis.allocations) {
+    const investmentBudget = input.investmentAmount;
+    const allocationNeeds = analysis.allocations.map((allocation) => {
       const targetValue = (allocation.targetPercentage / 100) * newTotalValue;
-      const neededValue = targetValue - allocation.currentValue;
-      const recommendedAmount = Math.max(0, neededValue);
+      const neededValue = Math.max(0, targetValue - allocation.currentValue);
+      return { allocation, neededValue };
+    });
+
+    const totalNeededValue = allocationNeeds.reduce(
+      (sum, item) => sum + item.neededValue,
+      0,
+    );
+
+    const recommendations: InvestmentRecommendation[] = [];
+    let remainingAmount = investmentBudget;
+
+    for (let index = 0; index < allocationNeeds.length; index++) {
+      const { allocation, neededValue } = allocationNeeds[index];
+      let recommendedAmount = 0;
+
+      if (neededValue > 0 && investmentBudget > 0) {
+        if (totalNeededValue <= investmentBudget) {
+          recommendedAmount = Math.min(neededValue, remainingAmount);
+        } else {
+          const proportion = neededValue / totalNeededValue;
+          recommendedAmount = proportion * investmentBudget;
+          if (index === allocationNeeds.length - 1) {
+            recommendedAmount = remainingAmount;
+          } else {
+            recommendedAmount = Math.min(recommendedAmount, remainingAmount);
+          }
+        }
+      }
+
+      remainingAmount = Math.max(0, remainingAmount - recommendedAmount);
+
       const recommendedPercentage =
-        input.investmentAmount > 0
-          ? (recommendedAmount / input.investmentAmount) * 100
+        investmentBudget > 0
+          ? (recommendedAmount / investmentBudget) * 100
           : 0;
       const suggestedSymbols = await this.holdingsService.getHoldingsForTag(
         userId,

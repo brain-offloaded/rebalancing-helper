@@ -11,6 +11,9 @@ import {
   UpdateRebalancingGroupInput,
   SetTargetAllocationsInput,
   CalculateInvestmentInput,
+  AddTagsToRebalancingGroupInput,
+  RemoveTagsFromRebalancingGroupInput,
+  RenameRebalancingGroupInput,
 } from './rebalancing.dto';
 import { GqlAuthGuard } from '../auth/gql-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -74,6 +77,30 @@ export class RebalancingResolver {
     @Args('input') input: SetTargetAllocationsInput,
   ): Promise<boolean> {
     return this.rebalancingService.setTargetAllocations(user.userId, input);
+  }
+
+  @Mutation(() => RebalancingGroup)
+  addTagsToRebalancingGroup(
+    @CurrentUser() user: ActiveUserData,
+    @Args('input') input: AddTagsToRebalancingGroupInput,
+  ): Promise<RebalancingGroup> {
+    return this.rebalancingService.addTagsToGroup(user.userId, input);
+  }
+
+  @Mutation(() => RebalancingGroup)
+  removeTagsFromRebalancingGroup(
+    @CurrentUser() user: ActiveUserData,
+    @Args('input') input: RemoveTagsFromRebalancingGroupInput,
+  ): Promise<RebalancingGroup> {
+    return this.rebalancingService.removeTagsFromGroup(user.userId, input);
+  }
+
+  @Mutation(() => RebalancingGroup)
+  renameRebalancingGroup(
+    @CurrentUser() user: ActiveUserData,
+    @Args('input') input: RenameRebalancingGroupInput,
+  ): Promise<RebalancingGroup> {
+    return this.rebalancingService.renameGroup(user.userId, input);
   }
 
   @Query(() => [InvestmentRecommendation])

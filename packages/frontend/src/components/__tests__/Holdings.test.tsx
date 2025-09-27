@@ -331,6 +331,105 @@ describe('Holdings', () => {
       expect(screen.getByText('$412.35')).toBeInTheDocument();
     });
 
+    it('수동 보유 종목에서도 태그를 관리할 수 있다', async () => {
+      const manualHoldings = [
+        {
+          id: 'manual-1',
+          market: 'US',
+          symbol: 'VOO',
+          name: 'Vanguard S&P 500 ETF',
+          quantity: 2,
+          currentPrice: 400,
+          marketValue: 800,
+          currency: 'USD',
+          lastUpdated: new Date().toISOString(),
+        },
+      ];
+      const tags = [
+        { id: 'tag-1', name: '장기투자', description: null, color: '#000000' },
+        { id: 'tag-2', name: 'ETF', description: null, color: '#111111' },
+      ];
+      const refetchHoldingTags = vi.fn();
+      const setHoldingTags = vi.fn().mockResolvedValue({});
+
+      mockUseQuery.mockImplementation((query, options) => {
+        if (query === GET_MARKETS) {
+          return { data: { markets: defaultMarkets }, loading: false };
+        }
+        if (query === GET_BROKERAGE_HOLDINGS) {
+          return { data: { brokerageHoldings: [] }, loading: false };
+        }
+        if (query === GET_MANUAL_HOLDINGS) {
+          return {
+            data: { manualHoldings },
+            loading: false,
+            refetch: vi.fn(),
+          };
+        }
+        if (query === GET_TAGS) {
+          return { data: { tags }, loading: false };
+        }
+        if (query === GET_TAGS_FOR_HOLDING) {
+          if (options?.skip || !options?.variables?.holdingSymbol) {
+            return {
+              data: undefined,
+              loading: false,
+              refetch: refetchHoldingTags,
+            };
+          }
+
+          return {
+            data: { tagsForHolding: ['tag-2'] },
+            loading: false,
+            refetch: refetchHoldingTags,
+          };
+        }
+
+        throw new Error('예상치 못한 쿼리 호출');
+      });
+      mockUseMutation.mockImplementation((document) => {
+        if (document === SET_HOLDING_TAGS) {
+          return [setHoldingTags, { loading: false }];
+        }
+
+        return [vi.fn(), { loading: false }];
+      });
+
+      const user = userEvent.setup();
+
+      renderWithProviders(<Holdings />, { withApollo: false });
+
+      await user.click(
+        screen.getByRole('button', { name: '태그 관리', exact: false }),
+      );
+
+      expect(screen.getByText('VOO 태그 관리')).toBeInTheDocument();
+
+      const checkboxes = screen.getAllByRole('checkbox');
+      expect(checkboxes[0]).not.toBeChecked();
+      expect(checkboxes[1]).toBeChecked();
+
+      await user.click(checkboxes[0]);
+      await user.click(screen.getByRole('button', { name: '적용' }));
+
+      await waitFor(() => {
+        expect(setHoldingTags).toHaveBeenCalledWith({
+          variables: {
+            input: {
+              holdingSymbol: 'VOO',
+              tagIds: ['tag-2', 'tag-1'],
+            },
+          },
+        });
+      });
+
+      expect(refetchHoldingTags).toHaveBeenCalled();
+
+      await waitFor(() => {
+        expect(screen.queryByText('VOO 태그 관리')).not.toBeInTheDocument();
+      });
+    });
+
     it('새로운 수동 보유 종목을 등록한다', async () => {
       const user = userEvent.setup();
       const refetchManualHoldings = vi.fn();
