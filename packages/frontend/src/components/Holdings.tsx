@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import styled from 'styled-components';
 import { GET_BROKERAGE_HOLDINGS } from '../graphql/brokerage';
@@ -299,7 +299,10 @@ export const Holdings: React.FC = () => {
   };
 
   const manualHoldings = manualHoldingsData?.manualHoldings ?? [];
-  const markets = marketsData?.markets ?? [];
+  const markets = useMemo(
+    () => marketsData?.markets ?? [],
+    [marketsData?.markets],
+  );
 
   useEffect(() => {
     if (markets.length > 0 && !manualMarket) {

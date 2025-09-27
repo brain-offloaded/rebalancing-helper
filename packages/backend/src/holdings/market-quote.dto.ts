@@ -18,14 +18,10 @@ export interface MarketQuote {
   symbol: string;
   displaySymbol: QuoteFields['symbol'];
   name: string;
-  price: Exclude<QuoteFields['regularMarketPrice'], undefined> | 0;
-  currency: NonNullable<
-    QuoteFields['currency'] | QuoteFields['financialCurrency']
-  >;
+  price: NonNullable<QuoteFields['regularMarketPrice']>;
+  currency: NonNullable<QuoteFields['currency']>;
   market: string;
-  exchange: NonNullable<
-    QuoteFields['fullExchangeName'] | QuoteFields['exchange']
-  >;
+  exchange: NonNullable<QuoteFields['fullExchangeName']>;
   lastUpdated: Date;
 }
 

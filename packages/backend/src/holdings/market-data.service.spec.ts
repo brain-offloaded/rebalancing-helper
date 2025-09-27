@@ -14,20 +14,17 @@ describe('MarketDataService', () => {
   ): YahooFinanceQuote =>
     ({
       symbol: override.symbol ?? 'VOO',
-      longName:
-        (override.longName as string | undefined) ?? 'Vanguard S&P 500 ETF',
-      regularMarketPrice:
-        (override.regularMarketPrice as number | undefined) ?? 410.5,
+      longName: override.longName ?? 'Vanguard S&P 500 ETF',
+      regularMarketPrice: override.regularMarketPrice ?? 410.5,
       currency: override.currency ?? 'USD',
       financialCurrency: override.financialCurrency ?? 'USD',
       market: override.market ?? 'us_market',
       exchange: override.exchange ?? 'NYSEArca',
-      fullExchangeName:
-        (override.fullExchangeName as string | undefined) ?? 'NYSEArca',
+      fullExchangeName: override.fullExchangeName ?? 'NYSEArca',
       regularMarketTime:
         override.regularMarketTime ?? new Date(1_700_000_000_000),
       shortName: override.shortName,
-    } as unknown as YahooFinanceQuote);
+    }) as unknown as YahooFinanceQuote;
 
   beforeEach(() => {
     yahooFinanceServiceMock = {
