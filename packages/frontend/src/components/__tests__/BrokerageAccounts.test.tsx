@@ -218,6 +218,7 @@ describe('BrokerageAccounts', () => {
             apiKey: 'api-key',
             apiSecret: 'secret',
             description: '계정 설명',
+            isActive: true,
           },
         },
       });

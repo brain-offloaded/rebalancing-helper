@@ -204,7 +204,14 @@ describe('Brokers', () => {
     await waitFor(() => {
       expect(updateBroker).toHaveBeenCalledWith({
         variables: {
-          input: { id: 'broker-1', isActive: true },
+          input: {
+            id: 'broker-1',
+            isActive: true,
+            code: null,
+            name: null,
+            description: null,
+            apiBaseUrl: null,
+          },
         },
       });
     });
