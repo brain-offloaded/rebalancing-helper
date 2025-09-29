@@ -36,27 +36,10 @@ model BrokerageAccount {
   apiSecretCipher String?
   apiSecretIv     String?
   apiSecretTag    String?
-  holdings     BrokerageHolding[]
+  holdings     Holding[]
 
   @@index([userId])
   @@index([brokerId])
-}
-
-model BrokerageHolding {
-  id           String           @id @default(cuid())
-  symbol       String
-  name         String
-  quantity     Float
-  currentPrice Float
-  marketValue  Float
-  averageCost  Float?
-  currency     String
-  lastUpdated  DateTime         @default(now())
-  accountId    String
-  account      BrokerageAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-
-  @@index([accountId])
-  @@unique([accountId, symbol])
 }
 
 model MarketSecurity {
@@ -83,22 +66,34 @@ model Market {
   updatedAt              DateTime @updatedAt
 }
 
-model ManualHolding {
-  id           String   @id @default(cuid())
+enum HoldingSource {
+  BROKERAGE
+  MANUAL
+}
+
+model Holding {
+  id           String           @id @default(cuid())
   userId       String
-  market       String
+  source       HoldingSource
+  accountId    String?
+  market       String?
   symbol       String
   name         String
   quantity     Float
   currentPrice Float
   marketValue  Float
+  averageCost  Float?
   currency     String
   lastUpdated  DateTime
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      BrokerageAccount? @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, market, symbol], name: "userId_market_symbol")
+  @@index([userId])
+  @@index([accountId])
+  @@unique([accountId, symbol], name: "accountId_symbol_unique")
+  @@unique([userId, market, symbol, source], name: "user_market_symbol_source")
 }
 
 model Tag {
@@ -174,6 +169,6 @@ model User {
   brokerageAccounts  BrokerageAccount[]
   tags               Tag[]
   holdingTags        HoldingTag[]
-  manualHoldings     ManualHolding[]
+  holdings           Holding[]
   rebalancingGroups  RebalancingGroup[]
 }

@@ -1,4 +1,13 @@
-import { ObjectType, Field, ID } from '@nestjs/graphql';
+import { ObjectType, Field, ID, registerEnumType } from '@nestjs/graphql';
+
+export enum HoldingSource {
+  BROKERAGE = 'BROKERAGE',
+  MANUAL = 'MANUAL',
+}
+
+registerEnumType(HoldingSource, {
+  name: 'HoldingSource',
+});
 
 @ObjectType()
 export class HoldingTag {
@@ -16,12 +25,18 @@ export class HoldingTag {
 }
 
 @ObjectType()
-export class ManualHolding {
+export class Holding {
   @Field(() => ID)
   id: string;
 
-  @Field(() => String)
-  market: string;
+  @Field(() => HoldingSource)
+  source: HoldingSource;
+
+  @Field(() => String, { nullable: true })
+  accountId: string | null;
+
+  @Field(() => String, { nullable: true })
+  market: string | null;
 
   @Field(() => String)
   symbol: string;
@@ -37,6 +52,9 @@ export class ManualHolding {
 
   @Field(() => Number)
   marketValue: number;
+
+  @Field(() => Number, { nullable: true })
+  averageCost: number | null;
 
   @Field(() => String)
   currency: string;

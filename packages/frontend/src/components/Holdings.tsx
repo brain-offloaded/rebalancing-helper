@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 // switch to generated hooks
 import {
-  useGetBrokerageHoldingsQuery,
+  useGetHoldingsQuery,
   useGetTagsQuery,
   useGetMarketsQuery,
-  useGetManualHoldingsQuery,
   useGetTagsForHoldingQuery,
   useSetHoldingTagsMutation,
   useCreateManualHoldingMutation,
@@ -161,7 +160,7 @@ const ManualSelect = styled.select`
   min-width: 160px;
 `;
 
-const ManualActions = styled.div`
+const ActionGroup = styled.div`
   display: flex;
   align-items: center;
   gap: ${(props) => props.theme.spacing.xs};
@@ -177,6 +176,9 @@ const PrimaryButton = styled(Button)`
 
 interface Holding {
   id: string;
+  source: 'BROKERAGE' | 'MANUAL';
+  accountId: string | null;
+  market: string | null;
   symbol: string;
   name: string;
   quantity: number;
@@ -184,8 +186,9 @@ interface Holding {
   marketValue: number;
   averageCost: number | null;
   currency: string;
-  accountId: string;
   lastUpdated: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface Tag {
@@ -193,18 +196,6 @@ interface Tag {
   name: string;
   description: string | null;
   color: string;
-}
-
-interface ManualHolding {
-  id: string;
-  market: string;
-  symbol: string;
-  name: string;
-  quantity: number;
-  currentPrice: number;
-  marketValue: number;
-  currency: string;
-  lastUpdated: string;
 }
 
 // MarketOption interface removed (derived types available from generated schema if needed)
@@ -216,15 +207,13 @@ export const Holdings: React.FC = () => {
   const [manualSymbol, setManualSymbol] = useState('');
   const [manualQuantity, setManualQuantity] = useState('');
 
-  const { data: holdingsData, loading: holdingsLoading } =
-    useGetBrokerageHoldingsQuery();
+  const {
+    data: holdingsData,
+    loading: holdingsLoading,
+    refetch: refetchHoldings,
+  } = useGetHoldingsQuery();
   const { data: tagsData } = useGetTagsQuery();
   const { data: marketsData, loading: marketsLoading } = useGetMarketsQuery();
-  const {
-    data: manualHoldingsData,
-    loading: manualHoldingsLoading,
-    refetch: refetchManualHoldings,
-  } = useGetManualHoldingsQuery();
   const {
     data: holdingTagsData,
     loading: holdingTagsLoading,
@@ -286,7 +275,10 @@ export const Holdings: React.FC = () => {
       .filter((tag): tag is Tag => Boolean(tag));
   };
 
-  const manualHoldings = manualHoldingsData?.manualHoldings ?? [];
+  const holdings = holdingsData?.holdings ?? [];
+  const manualHoldings = holdings.filter(
+    (holding) => holding.source === 'MANUAL',
+  );
   const markets = useMemo(
     () => marketsData?.markets ?? [],
     [marketsData?.markets],
@@ -342,13 +334,17 @@ export const Holdings: React.FC = () => {
       setManualMarket('');
       setManualSymbol('');
       setManualQuantity('');
-      await refetchManualHoldings();
+      await refetchHoldings();
     } catch (error) {
       console.error('수동 보유 종목 생성 실패:', error);
     }
   };
 
-  const handleManualIncrease = async (holding: ManualHolding) => {
+  const handleManualIncrease = async (holding: Holding) => {
+    if (holding.source !== 'MANUAL' || !holding.market) {
+      console.error('잘못된 수동 보유 종목 데이터입니다.');
+      return;
+    }
     const input = window.prompt(
       `${holding.symbol} 추가 수량을 입력하세요`,
       '1',
@@ -371,13 +367,17 @@ export const Holdings: React.FC = () => {
           },
         },
       });
-      await refetchManualHoldings();
+      await refetchHoldings();
     } catch (error) {
       console.error('수동 보유 종목 수량 증가 실패:', error);
     }
   };
 
-  const handleManualQuantitySet = async (holding: ManualHolding) => {
+  const handleManualQuantitySet = async (holding: Holding) => {
+    if (holding.source !== 'MANUAL' || !holding.market) {
+      console.error('잘못된 수동 보유 종목 데이터입니다.');
+      return;
+    }
     const input = window.prompt(
       `${holding.symbol}의 목표 수량을 입력하세요`,
       holding.quantity.toString(),
@@ -400,13 +400,17 @@ export const Holdings: React.FC = () => {
           },
         },
       });
-      await refetchManualHoldings();
+      await refetchHoldings();
     } catch (error) {
       console.error('수동 보유 종목 수량 설정 실패:', error);
     }
   };
 
-  const handleManualDelete = async (holding: ManualHolding) => {
+  const handleManualDelete = async (holding: Holding) => {
+    if (holding.source !== 'MANUAL' || !holding.market) {
+      console.error('잘못된 수동 보유 종목 데이터입니다.');
+      return;
+    }
     try {
       await deleteManualHoldingMutation({
         variables: {
@@ -416,13 +420,17 @@ export const Holdings: React.FC = () => {
           },
         },
       });
-      await refetchManualHoldings();
+      await refetchHoldings();
     } catch (error) {
       console.error('수동 보유 종목 삭제 실패:', error);
     }
   };
 
-  const handleManualSync = async (holding: ManualHolding) => {
+  const handleManualSync = async (holding: Holding) => {
+    if (holding.source !== 'MANUAL' || !holding.market) {
+      console.error('잘못된 수동 보유 종목 데이터입니다.');
+      return;
+    }
     try {
       await syncManualHoldingPriceMutation({
         variables: {
@@ -432,7 +440,7 @@ export const Holdings: React.FC = () => {
           },
         },
       });
-      await refetchManualHoldings();
+      await refetchHoldings();
     } catch (error) {
       console.error('수동 보유 종목 가격 동기화 실패:', error);
     }
@@ -451,59 +459,111 @@ export const Holdings: React.FC = () => {
       <Table>
         <thead>
           <tr>
+            <Th>구분</Th>
+            <Th>시장</Th>
             <Th>종목코드</Th>
             <Th>종목명</Th>
             <Th>수량</Th>
             <Th>현재가</Th>
             <Th>평가금액</Th>
             <Th>평균단가</Th>
+            <Th>마지막 업데이트</Th>
             <Th>태그</Th>
             <Th>관리</Th>
           </tr>
         </thead>
         <tbody>
-          {holdingsData?.brokerageHoldings?.map((holding: Holding) => {
-            const tags = getTagsForHolding(holding.symbol);
-            return (
-              <tr key={holding.id}>
-                <Td>{holding.symbol}</Td>
-                <Td>{holding.name}</Td>
-                <Td>{holding.quantity.toLocaleString()}</Td>
-                <Td>${holding.currentPrice.toFixed(2)}</Td>
-                <Td>${holding.marketValue.toFixed(2)}</Td>
-                <Td>
-                  {holding.averageCost != null
-                    ? `$${holding.averageCost.toFixed(2)}`
-                    : '-'}
-                </Td>
-                <Td>
-                  <TagContainer>
-                    {tags.map((tag) => (
-                      <Tag key={tag.id} color={tag.color}>
-                        {tag.name}
-                      </Tag>
-                    ))}
-                  </TagContainer>
-                </Td>
-                <Td>
-                  <Button
-                    variant="primary"
-                    onClick={() => handleTagManagement(holding.symbol)}
-                  >
-                    태그 관리
-                  </Button>
-                </Td>
-              </tr>
-            );
-          })}
+          {holdings.length === 0 ? (
+            <tr>
+              <Td colSpan={11}>등록된 보유 종목이 없습니다.</Td>
+            </tr>
+          ) : (
+            holdings.map((holding) => {
+              const tags = getTagsForHolding(holding.symbol);
+              const sourceLabel =
+                holding.source === 'BROKERAGE' ? '증권사' : '수동';
+              return (
+                <tr key={holding.id}>
+                  <Td>{sourceLabel}</Td>
+                  <Td>{holding.market ?? '-'}</Td>
+                  <Td>{holding.symbol}</Td>
+                  <Td>{holding.name}</Td>
+                  <Td>{holding.quantity.toLocaleString()}</Td>
+                  <Td>
+                    {formatCurrencyValue(holding.currentPrice, holding.currency)}
+                  </Td>
+                  <Td>
+                    {formatCurrencyValue(holding.marketValue, holding.currency)}
+                  </Td>
+                  <Td>
+                    {holding.averageCost != null
+                      ? formatCurrencyValue(holding.averageCost, holding.currency)
+                      : '-'}
+                  </Td>
+                  <Td>
+                    {new Date(holding.lastUpdated).toLocaleString('ko-KR', {
+                      hour12: false,
+                    })}
+                  </Td>
+                  <Td>
+                    <TagContainer>
+                      {tags.map((tag) => (
+                        <Tag key={tag.id} color={tag.color}>
+                          {tag.name}
+                        </Tag>
+                      ))}
+                    </TagContainer>
+                  </Td>
+                  <Td>
+                    <ActionGroup>
+                      <Button
+                        variant="primary"
+                        onClick={() => handleTagManagement(holding.symbol)}
+                      >
+                        태그 관리
+                      </Button>
+                      {holding.source === 'MANUAL' && (
+                        <>
+                          <Button
+                            type="button"
+                            onClick={() => handleManualIncrease(holding)}
+                          >
+                            수량 증가
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={() => handleManualQuantitySet(holding)}
+                          >
+                            수량 설정
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={() => handleManualSync(holding)}
+                          >
+                            현재가 동기화
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={() => handleManualDelete(holding)}
+                          >
+                            삭제
+                          </Button>
+                        </>
+                      )}
+                    </ActionGroup>
+                  </Td>
+                </tr>
+              );
+            })
+          )}
         </tbody>
       </Table>
 
       <Section>
         <SectionTitle>수동 보유 종목</SectionTitle>
         <SectionDescription>
-          시장에 등록된 종목을 직접 추가하고 수량 및 현재가를 관리할 수
-          있습니다.
+          시장에 등록된 종목을 직접 추가하면 위 보유 종목 목록에 함께
+          표시됩니다.
         </SectionDescription>
 
         <ManualForm onSubmit={handleManualSubmit}>
@@ -552,82 +612,10 @@ export const Holdings: React.FC = () => {
           </PrimaryButton>
         </ManualForm>
 
-        {manualHoldingsLoading ? (
-          <div>수동 보유 종목을 불러오는 중...</div>
-        ) : manualHoldings.length === 0 ? (
+        {manualHoldings.length === 0 ? (
           <p>등록된 수동 보유 종목이 없습니다.</p>
         ) : (
-          <Table>
-            <thead>
-              <tr>
-                <Th>시장</Th>
-                <Th>종목코드</Th>
-                <Th>종목명</Th>
-                <Th>수량</Th>
-                <Th>현재가</Th>
-                <Th>평가금액</Th>
-                <Th>통화</Th>
-                <Th>최근 갱신</Th>
-                <Th>관리</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {manualHoldings.map((holding) => (
-                <tr key={holding.id}>
-                  <Td>{holding.market}</Td>
-                  <Td>{holding.symbol}</Td>
-                  <Td>{holding.name}</Td>
-                  <Td>{holding.quantity.toLocaleString()}</Td>
-                  <Td>
-                    {formatCurrencyValue(
-                      holding.currentPrice,
-                      holding.currency,
-                    )}
-                  </Td>
-                  <Td>
-                    {formatCurrencyValue(holding.marketValue, holding.currency)}
-                  </Td>
-                  <Td>{holding.currency}</Td>
-                  <Td>{new Date(holding.lastUpdated).toLocaleString()}</Td>
-                  <Td>
-                    <ManualActions>
-                      <Button
-                        variant="primary"
-                        type="button"
-                        onClick={() => handleTagManagement(holding.symbol)}
-                      >
-                        태그 관리
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={() => handleManualIncrease(holding)}
-                      >
-                        수량 증가
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={() => handleManualQuantitySet(holding)}
-                      >
-                        수량 설정
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={() => handleManualSync(holding)}
-                      >
-                        현재가 동기화
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={() => handleManualDelete(holding)}
-                      >
-                        삭제
-                      </Button>
-                    </ManualActions>
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+          <p>추가된 수동 보유 종목은 위 보유 목록에서 함께 관리됩니다.</p>
         )}
       </Section>
 

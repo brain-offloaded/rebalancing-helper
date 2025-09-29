@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { HoldingSource as PrismaHoldingSource, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { HoldingTag, ManualHolding } from './holdings.entities';
+import { HoldingTag, Holding } from './holdings.entities';
 import {
   AddHoldingTagInput,
   RemoveHoldingTagInput,
@@ -159,48 +159,72 @@ export class HoldingsService {
     userId: string,
     identifier: ManualHoldingIdentifierInput,
   ) {
-    const holding = await this.prisma.manualHolding.findUnique({
+    const holding = await this.prisma.holding.findUnique({
       where: {
-        userId_market_symbol: {
+        user_market_symbol_source: {
           userId,
           market: identifier.market,
           symbol: identifier.symbol,
+          source: PrismaHoldingSource.MANUAL,
         },
       },
     });
 
     if (!holding) {
-      throw new NotFoundException('Manual holding not found');
+      throw new NotFoundException('Holding not found');
     }
 
     return holding;
   }
 
-  getManualHoldings(userId: string): Promise<ManualHolding[]> {
-    return this.prisma.manualHolding.findMany({
-      where: { userId },
-      orderBy: [{ market: 'asc' }, { symbol: 'asc' }],
+  getHoldings(
+    userId: string,
+    options: {
+      source?: PrismaHoldingSource;
+      accountId?: string;
+    } = {},
+  ): Promise<Holding[]> {
+    const where: Prisma.HoldingWhereInput = {
+      userId,
+      ...(options.source ? { source: options.source } : {}),
+      ...(options.accountId ? { accountId: options.accountId } : {}),
+    };
+
+    const orderBy = options.source === PrismaHoldingSource.MANUAL
+      ? [{ market: 'asc' }, { symbol: 'asc' }]
+      : [{ symbol: 'asc' }, { market: 'asc' }];
+
+    return this.prisma.holding.findMany({
+      where,
+      orderBy,
     });
+  }
+
+  getManualHoldings(userId: string): Promise<Holding[]> {
+    return this.getHoldings(userId, { source: PrismaHoldingSource.MANUAL });
   }
 
   async createManualHolding(
     userId: string,
     input: CreateManualHoldingInput,
-  ): Promise<ManualHolding> {
+  ): Promise<Holding> {
     const quote = await this.marketDataService.getQuote(
       input.market,
       input.symbol,
     );
 
-    return this.prisma.manualHolding.create({
+    return this.prisma.holding.create({
       data: {
         userId,
+        source: PrismaHoldingSource.MANUAL,
+        accountId: null,
         market: quote.market,
         symbol: quote.symbol,
         name: quote.name,
         quantity: input.quantity,
         currentPrice: quote.price,
         marketValue: input.quantity * quote.price,
+        averageCost: null,
         currency: quote.currency,
         lastUpdated: quote.lastUpdated,
       },
@@ -210,11 +234,11 @@ export class HoldingsService {
   async increaseManualHolding(
     userId: string,
     input: IncreaseManualHoldingInput,
-  ): Promise<ManualHolding> {
+  ): Promise<Holding> {
     const holding = await this.getManualHoldingOrThrow(userId, input);
     const nextQuantity = holding.quantity + input.quantityDelta;
 
-    return this.prisma.manualHolding.update({
+    return this.prisma.holding.update({
       where: { id: holding.id },
       data: {
         quantity: nextQuantity,
@@ -226,10 +250,10 @@ export class HoldingsService {
   async setManualHoldingQuantity(
     userId: string,
     input: SetManualHoldingQuantityInput,
-  ): Promise<ManualHolding> {
+  ): Promise<Holding> {
     const holding = await this.getManualHoldingOrThrow(userId, input);
 
-    return this.prisma.manualHolding.update({
+    return this.prisma.holding.update({
       where: { id: holding.id },
       data: {
         quantity: input.quantity,
@@ -243,12 +267,13 @@ export class HoldingsService {
     input: ManualHoldingIdentifierInput,
   ): Promise<boolean> {
     try {
-      await this.prisma.manualHolding.delete({
+      await this.prisma.holding.delete({
         where: {
-          userId_market_symbol: {
+          user_market_symbol_source: {
             userId,
             market: input.market,
             symbol: input.symbol,
+            source: PrismaHoldingSource.MANUAL,
           },
         },
       });
@@ -268,14 +293,14 @@ export class HoldingsService {
   async syncManualHoldingPrice(
     userId: string,
     input: ManualHoldingIdentifierInput,
-  ): Promise<ManualHolding> {
+  ): Promise<Holding> {
     const holding = await this.getManualHoldingOrThrow(userId, input);
     const quote = await this.marketDataService.getQuote(
       input.market,
       input.symbol,
     );
 
-    return this.prisma.manualHolding.update({
+    return this.prisma.holding.update({
       where: { id: holding.id },
       data: {
         currentPrice: quote.price,

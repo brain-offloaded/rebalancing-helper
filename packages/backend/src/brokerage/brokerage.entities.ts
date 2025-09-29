@@ -53,36 +53,3 @@ export class BrokerageAccount {
   @Field(() => Date)
   updatedAt: Date;
 }
-
-@ObjectType()
-export class BrokerageHolding {
-  @Field(() => ID)
-  id: string;
-
-  @Field(() => String)
-  symbol: string;
-
-  @Field(() => String)
-  name: string;
-
-  @Field(() => Number)
-  quantity: number;
-
-  @Field(() => Number)
-  currentPrice: number;
-
-  @Field(() => Number)
-  marketValue: number;
-
-  @Field(() => Number, { nullable: true })
-  averageCost: number | null;
-
-  @Field(() => String)
-  currency: string;
-
-  @Field(() => String)
-  accountId: string;
-
-  @Field(() => Date)
-  lastUpdated: Date;
-}

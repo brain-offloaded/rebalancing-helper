@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Broker as BrokerModel, Prisma } from '@prisma/client';
+import {
+  Broker as BrokerModel,
+  HoldingSource as PrismaHoldingSource,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { BrokerageAccount, BrokerageHolding } from './brokerage.entities';
+import { BrokerageAccount } from './brokerage.entities';
 import {
   CreateBrokerInput,
   CreateBrokerageAccountInput,
@@ -9,6 +13,7 @@ import {
   UpdateBrokerageAccountInput,
 } from './brokerage.dto';
 import { CredentialCryptoService } from './credential-crypto.service';
+import { Holding } from '../holdings/holdings.entities';
 
 @Injectable()
 export class BrokerageService {
@@ -207,14 +212,13 @@ export class BrokerageService {
     });
   }
 
-  getHoldings(userId: string, accountId?: string): Promise<BrokerageHolding[]> {
+  getHoldings(userId: string, accountId?: string): Promise<Holding[]> {
     const normalizedAccountId = accountId ?? undefined;
 
-    return this.prisma.brokerageHolding.findMany({
+    return this.prisma.holding.findMany({
       where: {
-        account: {
-          userId,
-        },
+        userId,
+        source: PrismaHoldingSource.BROKERAGE,
         ...(normalizedAccountId ? { accountId: normalizedAccountId } : {}),
       },
       orderBy: { symbol: 'asc' },
@@ -224,7 +228,7 @@ export class BrokerageService {
   async refreshHoldings(
     userId: string,
     accountId: string,
-  ): Promise<BrokerageHolding[]> {
+  ): Promise<Holding[]> {
     const account = await this.prisma.brokerageAccount.findUnique({
       where: { id: accountId },
     });
@@ -232,7 +236,7 @@ export class BrokerageService {
       throw new NotFoundException('Account not found');
     }
 
-    const mockHoldings: BrokerageHolding[] = [
+    const mockHoldings = [
       {
         id: `${accountId}-holding-1`,
         symbol: 'SPY',
@@ -242,8 +246,6 @@ export class BrokerageService {
         marketValue: 4255.0,
         averageCost: 420.0,
         currency: 'USD',
-        accountId,
-        lastUpdated: new Date(),
       },
       {
         id: `${accountId}-holding-2`,
@@ -254,16 +256,20 @@ export class BrokerageService {
         marketValue: 1241.5,
         averageCost: 245.0,
         currency: 'USD',
-        accountId,
-        lastUpdated: new Date(),
       },
     ];
 
     await this.prisma.$transaction([
-      this.prisma.brokerageHolding.deleteMany({ where: { accountId } }),
-      this.prisma.brokerageHolding.createMany({
+      this.prisma.holding.deleteMany({
+        where: { accountId, source: PrismaHoldingSource.BROKERAGE },
+      }),
+      this.prisma.holding.createMany({
         data: mockHoldings.map((holding) => ({
           id: holding.id,
+          userId: account.userId,
+          source: PrismaHoldingSource.BROKERAGE,
+          accountId,
+          market: null,
           symbol: holding.symbol,
           name: holding.name,
           quantity: holding.quantity,
@@ -271,8 +277,7 @@ export class BrokerageService {
           marketValue: holding.marketValue,
           averageCost: holding.averageCost ?? null,
           currency: holding.currency,
-          accountId: holding.accountId,
-          lastUpdated: holding.lastUpdated,
+          lastUpdated: new Date(),
         })),
       }),
     ]);
