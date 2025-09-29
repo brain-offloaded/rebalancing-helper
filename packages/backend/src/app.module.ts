@@ -50,7 +50,7 @@ export function createGraphqlContext({
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       // Emit SDL file so that we can run schema generation offline (frontend codegen etc.)
-      autoSchemaFile: join(process.cwd(), 'schema.graphql'),
+      autoSchemaFile: join(process.cwd(), 'generated.graphql'),
       sortSchema: true,
       playground: false,
       introspection: true,
