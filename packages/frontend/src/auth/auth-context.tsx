@@ -7,7 +7,17 @@ import {
 } from 'react';
 import { ApolloError } from '@apollo/client';
 import { apolloClient, AUTH_TOKEN_STORAGE_KEY } from '../apollo-client';
-import { LOGIN_MUTATION, ME_QUERY, REGISTER_MUTATION } from '../graphql/auth';
+import {
+  LoginDocument,
+  type LoginMutation,
+  type LoginMutationVariables,
+  MeDocument,
+  type MeQuery,
+  type MeQueryVariables,
+  RegisterDocument,
+  type RegisterMutation,
+  type RegisterMutationVariables,
+} from '../graphql/__generated__';
 import {
   AuthContext,
   type AuthContextValue,
@@ -83,13 +93,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setInitializing(true);
 
       try {
-        const { data } = await apolloClient.query<{ me: User }>({
-          query: ME_QUERY,
+        const { data } = await apolloClient.query<MeQuery, MeQueryVariables>({
+          query: MeDocument,
           fetchPolicy: 'network-only',
         });
 
         if (!cancelled) {
-          setUser(data.me);
+          setUser(data.me as User);
         }
       } catch (error) {
         console.error('Failed to fetch current user', error);
@@ -114,10 +124,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = useCallback(
     async (credentials: AuthCredentials) => {
       try {
-        const { data } = await apolloClient.mutate<{
-          login: { accessToken: string; user: User };
-        }>({
-          mutation: LOGIN_MUTATION,
+        const { data } = await apolloClient.mutate<
+          LoginMutation,
+          LoginMutationVariables
+        >({
+          mutation: LoginDocument,
           variables: { input: credentials },
         });
 
@@ -125,7 +136,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           throw new Error('로그인에 실패했습니다. 다시 시도해주세요.');
         }
 
-        setUser(data.login.user);
+        setUser(data.login.user as User);
         setToken(data.login.accessToken);
       } catch (error) {
         setToken(null);
@@ -139,10 +150,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = useCallback(
     async (credentials: AuthCredentials) => {
       try {
-        const { data } = await apolloClient.mutate<{
-          register: { accessToken: string; user: User };
-        }>({
-          mutation: REGISTER_MUTATION,
+        const { data } = await apolloClient.mutate<
+          RegisterMutation,
+          RegisterMutationVariables
+        >({
+          mutation: RegisterDocument,
           variables: { input: credentials },
         });
 
@@ -150,7 +162,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           throw new Error('회원가입에 실패했습니다. 다시 시도해주세요.');
         }
 
-        setUser(data.register.user);
+        setUser(data.register.user as User);
         setToken(data.register.accessToken);
       } catch (error) {
         setToken(null);

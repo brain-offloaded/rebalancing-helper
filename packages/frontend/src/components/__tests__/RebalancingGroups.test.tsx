@@ -5,17 +5,17 @@ import type { ReactNode } from 'react';
 import { renderWithProviders } from '../../test-utils/render';
 import { RebalancingGroups } from '../RebalancingGroups';
 import {
-  CREATE_REBALANCING_GROUP,
-  GET_INVESTMENT_RECOMMENDATION,
-  GET_REBALANCING_ANALYSIS,
-  GET_REBALANCING_GROUPS,
-  SET_TARGET_ALLOCATIONS,
-  ADD_TAGS_TO_REBALANCING_GROUP,
-  REMOVE_TAGS_FROM_REBALANCING_GROUP,
-  RENAME_REBALANCING_GROUP,
-  DELETE_REBALANCING_GROUP,
-} from '../../graphql/rebalancing';
-import { GET_TAGS } from '../../graphql/tags';
+  AddTagsToRebalancingGroupDocument,
+  CreateRebalancingGroupDocument,
+  DeleteRebalancingGroupDocument,
+  GetInvestmentRecommendationDocument,
+  GetRebalancingAnalysisDocument,
+  GetRebalancingGroupsDocument,
+  GetTagsDocument,
+  RemoveTagsFromRebalancingGroupDocument,
+  RenameRebalancingGroupDocument,
+  SetTargetAllocationsDocument,
+} from '../../graphql/__generated__';
 
 const mockUseQuery = vi.fn();
 const mockUseMutation = vi.fn();
@@ -148,24 +148,24 @@ const setupMocks = ({
   const deleteGroup = vi.fn().mockResolvedValue({});
 
   mockUseQuery.mockImplementation((query, options) => {
-    if (query === GET_REBALANCING_GROUPS) {
+    if (query === GetRebalancingGroupsDocument) {
       return {
         data: groupsLoading ? undefined : { rebalancingGroups: groups },
         loading: groupsLoading,
         refetch: refetchGroups,
       };
     }
-    if (query === GET_TAGS) {
+    if (query === GetTagsDocument) {
       return { data: { tags }, loading: false };
     }
-    if (query === GET_REBALANCING_ANALYSIS) {
+    if (query === GetRebalancingAnalysisDocument) {
       if (options?.skip || !options?.variables?.groupId) {
         return { data: undefined, loading: false, refetch: refetchAnalysis };
       }
 
       return { data: analysis, loading: false, refetch: refetchAnalysis };
     }
-    if (query === GET_INVESTMENT_RECOMMENDATION) {
+    if (query === GetInvestmentRecommendationDocument) {
       if (options?.skip || !options?.variables?.input?.groupId) {
         return { data: undefined, loading: false };
       }
@@ -177,22 +177,22 @@ const setupMocks = ({
   });
 
   mockUseMutation.mockImplementation((document) => {
-    if (document === CREATE_REBALANCING_GROUP) {
+    if (document === CreateRebalancingGroupDocument) {
       return [createGroup, { loading: false }];
     }
-    if (document === SET_TARGET_ALLOCATIONS) {
+    if (document === SetTargetAllocationsDocument) {
       return [setTargets, { loading: false }];
     }
-    if (document === ADD_TAGS_TO_REBALANCING_GROUP) {
+    if (document === AddTagsToRebalancingGroupDocument) {
       return [addTags, { loading: false }];
     }
-    if (document === REMOVE_TAGS_FROM_REBALANCING_GROUP) {
+    if (document === RemoveTagsFromRebalancingGroupDocument) {
       return [removeTags, { loading: false }];
     }
-    if (document === RENAME_REBALANCING_GROUP) {
+    if (document === RenameRebalancingGroupDocument) {
       return [renameGroup, { loading: false }];
     }
-    if (document === DELETE_REBALANCING_GROUP) {
+    if (document === DeleteRebalancingGroupDocument) {
       return [deleteGroup, { loading: false }];
     }
 

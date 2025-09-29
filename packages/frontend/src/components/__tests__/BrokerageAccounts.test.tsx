@@ -3,12 +3,13 @@ import { screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../test-utils/render';
 import {
-  CREATE_BROKERAGE_ACCOUNT,
-  DELETE_BROKERAGE_ACCOUNT,
-  GET_BROKERAGE_ACCOUNTS,
-  GET_BROKERS,
-  REFRESH_BROKERAGE_HOLDINGS,
-} from '../../graphql/brokerage';
+  CreateBrokerageAccountDocument,
+  DeleteBrokerageAccountDocument,
+  GetBrokerageAccountsDocument,
+  GetBrokersDocument,
+  RefreshBrokerageHoldingsDocument,
+  UpdateBrokerageAccountDocument,
+} from '../../graphql/__generated__';
 
 const mockUseQuery = vi.fn();
 const mockUseMutation = vi.fn();
@@ -60,10 +61,10 @@ describe('BrokerageAccounts', () => {
 
   it('브로커리지 계정을 불러오는 동안 로딩 메시지를 출력한다', () => {
     mockUseQuery.mockImplementation((query) => {
-      if (query === GET_BROKERAGE_ACCOUNTS) {
+      if (query === GetBrokerageAccountsDocument) {
         return { data: undefined, loading: true, error: undefined };
       }
-      if (query === GET_BROKERS) {
+      if (query === GetBrokersDocument) {
         return { data: undefined, loading: false, error: undefined };
       }
       return {};
@@ -77,14 +78,14 @@ describe('BrokerageAccounts', () => {
 
   it('쿼리에 실패하면 오류 메시지를 노출한다', () => {
     mockUseQuery.mockImplementation((query) => {
-      if (query === GET_BROKERAGE_ACCOUNTS) {
+      if (query === GetBrokerageAccountsDocument) {
         return {
           data: undefined,
           loading: false,
           error: new Error('network error'),
         };
       }
-      if (query === GET_BROKERS) {
+      if (query === GetBrokersDocument) {
         return { data: { brokers: [] }, loading: false, error: undefined };
       }
       return {};
@@ -114,7 +115,7 @@ describe('BrokerageAccounts', () => {
     ];
 
     mockUseQuery.mockImplementation((query) => {
-      if (query === GET_BROKERAGE_ACCOUNTS) {
+      if (query === GetBrokerageAccountsDocument) {
         return {
           data: { brokerageAccounts: accounts },
           loading: false,
@@ -122,7 +123,7 @@ describe('BrokerageAccounts', () => {
           refetch: vi.fn(),
         };
       }
-      if (query === GET_BROKERS) {
+      if (query === GetBrokersDocument) {
         return {
           data: {
             brokers: [
@@ -154,7 +155,7 @@ describe('BrokerageAccounts', () => {
     const refreshHoldings = vi.fn();
 
     mockUseQuery.mockImplementation((query) => {
-      if (query === GET_BROKERAGE_ACCOUNTS) {
+      if (query === GetBrokerageAccountsDocument) {
         return {
           data: { brokerageAccounts: [] },
           loading: false,
@@ -162,7 +163,7 @@ describe('BrokerageAccounts', () => {
           refetch,
         };
       }
-      if (query === GET_BROKERS) {
+      if (query === GetBrokersDocument) {
         return {
           data: {
             brokers: [
@@ -178,13 +179,13 @@ describe('BrokerageAccounts', () => {
     });
 
     mockUseMutation.mockImplementation((document) => {
-      if (document === CREATE_BROKERAGE_ACCOUNT) {
+      if (document === CreateBrokerageAccountDocument) {
         return [createAccount, { loading: false }];
       }
-      if (document === DELETE_BROKERAGE_ACCOUNT) {
+      if (document === DeleteBrokerageAccountDocument) {
         return [deleteAccount, { loading: false }];
       }
-      if (document === REFRESH_BROKERAGE_HOLDINGS) {
+      if (document === RefreshBrokerageHoldingsDocument) {
         return [refreshHoldings, { loading: false }];
       }
 
@@ -233,7 +234,7 @@ describe('BrokerageAccounts', () => {
     const refreshHoldings = vi.fn();
 
     mockUseQuery.mockImplementation((query) => {
-      if (query === GET_BROKERAGE_ACCOUNTS) {
+      if (query === GetBrokerageAccountsDocument) {
         return {
           data: {
             brokerageAccounts: [
@@ -253,7 +254,7 @@ describe('BrokerageAccounts', () => {
           refetch,
         };
       }
-      if (query === GET_BROKERS) {
+      if (query === GetBrokersDocument) {
         return {
           data: {
             brokers: [{ id: 'broker-1', name: '테스트 증권', code: 'TEST' }],
@@ -266,13 +267,13 @@ describe('BrokerageAccounts', () => {
     });
 
     mockUseMutation.mockImplementation((document) => {
-      if (document === CREATE_BROKERAGE_ACCOUNT) {
+      if (document === CreateBrokerageAccountDocument) {
         return [createAccount, { loading: false }];
       }
-      if (document === DELETE_BROKERAGE_ACCOUNT) {
+      if (document === DeleteBrokerageAccountDocument) {
         return [deleteAccount, { loading: false }];
       }
-      if (document === REFRESH_BROKERAGE_HOLDINGS) {
+      if (document === RefreshBrokerageHoldingsDocument) {
         return [refreshHoldings, { loading: false }];
       }
 
@@ -305,7 +306,7 @@ describe('BrokerageAccounts', () => {
     const refreshHoldings = vi.fn().mockResolvedValue({});
 
     mockUseQuery.mockImplementation((query) => {
-      if (query === GET_BROKERAGE_ACCOUNTS) {
+      if (query === GetBrokerageAccountsDocument) {
         return {
           data: {
             brokerageAccounts: [
@@ -325,7 +326,7 @@ describe('BrokerageAccounts', () => {
           refetch,
         };
       }
-      if (query === GET_BROKERS) {
+      if (query === GetBrokersDocument) {
         return {
           data: {
             brokers: [{ id: 'broker-1', name: '테스트 증권', code: 'TEST' }],
@@ -338,13 +339,13 @@ describe('BrokerageAccounts', () => {
     });
 
     mockUseMutation.mockImplementation((document) => {
-      if (document === CREATE_BROKERAGE_ACCOUNT) {
+      if (document === CreateBrokerageAccountDocument) {
         return [createAccount, { loading: false }];
       }
-      if (document === DELETE_BROKERAGE_ACCOUNT) {
+      if (document === DeleteBrokerageAccountDocument) {
         return [deleteAccount, { loading: false }];
       }
-      if (document === REFRESH_BROKERAGE_HOLDINGS) {
+      if (document === RefreshBrokerageHoldingsDocument) {
         return [refreshHoldings, { loading: false }];
       }
 
