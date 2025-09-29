@@ -13,7 +13,7 @@ const config: CodegenConfig = {
       plugins: [
         'typescript',
         'typescript-operations',
-        'typescript-react-apollo'
+        'typescript-react-apollo',
       ],
       config: {
         withHooks: true,
@@ -24,12 +24,12 @@ const config: CodegenConfig = {
         enumsAsTypes: true,
         defaultScalarType: 'unknown',
         scalars: {
-          DateTime: 'string'
-        }
-      }
-    }
+          DateTime: 'string',
+        },
+      },
+    },
   },
-  hooks: { afterAllFileWrite: ['prettier --write'] }
+  hooks: { afterAllFileWrite: ['prettier --write'] },
 };
 
 export default config;

@@ -8,7 +8,6 @@ import {
   GetBrokerageAccountsDocument,
   GetBrokersDocument,
   RefreshBrokerageHoldingsDocument,
-  UpdateBrokerageAccountDocument,
 } from '../../graphql/__generated__';
 
 const mockUseQuery = vi.fn();
