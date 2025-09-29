@@ -3,19 +3,19 @@ import { screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../test-utils/render';
 import { Holdings } from '../Holdings';
-import { GET_BROKERAGE_HOLDINGS } from '../../graphql/brokerage';
-import { GET_MARKETS } from '../../graphql/markets';
-import { GET_TAGS } from '../../graphql/tags';
 import {
-  GET_TAGS_FOR_HOLDING,
-  SET_HOLDING_TAGS,
-  GET_MANUAL_HOLDINGS,
-  CREATE_MANUAL_HOLDING,
-  INCREASE_MANUAL_HOLDING,
-  SET_MANUAL_HOLDING_QUANTITY,
-  DELETE_MANUAL_HOLDING,
-  SYNC_MANUAL_HOLDING_PRICE,
-} from '../../graphql/holdings';
+  CreateManualHoldingDocument,
+  DeleteManualHoldingDocument,
+  GetBrokerageHoldingsDocument,
+  GetManualHoldingsDocument,
+  GetMarketsDocument,
+  GetTagsDocument,
+  GetTagsForHoldingDocument,
+  IncreaseManualHoldingDocument,
+  SetHoldingTagsDocument,
+  SetManualHoldingQuantityDocument,
+  SyncManualHoldingPriceDocument,
+} from '../../graphql/__generated__';
 
 const mockUseQuery = vi.fn();
 const mockUseMutation = vi.fn();
@@ -48,23 +48,23 @@ describe('Holdings', () => {
 
   it('보유 종목을 불러오는 동안 로딩 메시지를 보여준다', () => {
     mockUseQuery.mockImplementation((query) => {
-      if (query === GET_MARKETS) {
+      if (query === GetMarketsDocument) {
         return { data: { markets: defaultMarkets }, loading: false };
       }
-      if (query === GET_BROKERAGE_HOLDINGS) {
+      if (query === GetBrokerageHoldingsDocument) {
         return { data: undefined, loading: true, error: undefined };
       }
-      if (query === GET_MANUAL_HOLDINGS) {
+      if (query === GetManualHoldingsDocument) {
         return {
           data: { manualHoldings: [] },
           loading: false,
           refetch: vi.fn(),
         };
       }
-      if (query === GET_TAGS) {
+      if (query === GetTagsDocument) {
         return { data: undefined, loading: false, error: undefined };
       }
-      if (query === GET_TAGS_FOR_HOLDING) {
+      if (query === GetTagsForHoldingDocument) {
         return { data: undefined, loading: false, refetch: vi.fn() };
       }
 
@@ -94,23 +94,23 @@ describe('Holdings', () => {
     ];
 
     mockUseQuery.mockImplementation((query) => {
-      if (query === GET_MARKETS) {
+      if (query === GetMarketsDocument) {
         return { data: { markets: defaultMarkets }, loading: false };
       }
-      if (query === GET_BROKERAGE_HOLDINGS) {
+      if (query === GetBrokerageHoldingsDocument) {
         return { data: { brokerageHoldings: holdings }, loading: false };
       }
-      if (query === GET_MANUAL_HOLDINGS) {
+      if (query === GetManualHoldingsDocument) {
         return {
           data: { manualHoldings: [] },
           loading: false,
           refetch: vi.fn(),
         };
       }
-      if (query === GET_TAGS) {
+      if (query === GetTagsDocument) {
         return { data: { tags: [] }, loading: false };
       }
-      if (query === GET_TAGS_FOR_HOLDING) {
+      if (query === GetTagsForHoldingDocument) {
         return { data: undefined, loading: false, refetch: vi.fn() };
       }
 
@@ -151,23 +151,23 @@ describe('Holdings', () => {
     const setHoldingTags = vi.fn().mockResolvedValue({});
 
     mockUseQuery.mockImplementation((query, options) => {
-      if (query === GET_MARKETS) {
+      if (query === GetMarketsDocument) {
         return { data: { markets: defaultMarkets }, loading: false };
       }
-      if (query === GET_BROKERAGE_HOLDINGS) {
+      if (query === GetBrokerageHoldingsDocument) {
         return { data: { brokerageHoldings: holdings }, loading: false };
       }
-      if (query === GET_MANUAL_HOLDINGS) {
+      if (query === GetManualHoldingsDocument) {
         return {
           data: { manualHoldings: [] },
           loading: false,
           refetch: vi.fn(),
         };
       }
-      if (query === GET_TAGS) {
+      if (query === GetTagsDocument) {
         return { data: { tags }, loading: false };
       }
-      if (query === GET_TAGS_FOR_HOLDING) {
+      if (query === GetTagsForHoldingDocument) {
         if (options?.skip || !options?.variables?.holdingSymbol) {
           return {
             data: undefined,
@@ -186,7 +186,7 @@ describe('Holdings', () => {
       throw new Error('예상치 못한 쿼리 호출');
     });
     mockUseMutation.mockImplementation((document) => {
-      if (document === SET_HOLDING_TAGS) {
+      if (document === SetHoldingTagsDocument) {
         return [setHoldingTags, { loading: false }];
       }
 
@@ -244,23 +244,23 @@ describe('Holdings', () => {
     ];
 
     mockUseQuery.mockImplementation((query, options) => {
-      if (query === GET_MARKETS) {
+      if (query === GetMarketsDocument) {
         return { data: { markets: defaultMarkets }, loading: false };
       }
-      if (query === GET_BROKERAGE_HOLDINGS) {
+      if (query === GetBrokerageHoldingsDocument) {
         return { data: { brokerageHoldings: holdings }, loading: false };
       }
-      if (query === GET_MANUAL_HOLDINGS) {
+      if (query === GetManualHoldingsDocument) {
         return {
           data: { manualHoldings: [] },
           loading: false,
           refetch: vi.fn(),
         };
       }
-      if (query === GET_TAGS) {
+      if (query === GetTagsDocument) {
         return { data: { tags }, loading: false };
       }
-      if (query === GET_TAGS_FOR_HOLDING) {
+      if (query === GetTagsForHoldingDocument) {
         if (options?.skip || !options?.variables?.holdingSymbol) {
           return { data: undefined, loading: false, refetch: vi.fn() };
         }
@@ -298,23 +298,23 @@ describe('Holdings', () => {
       ];
 
       mockUseQuery.mockImplementation((query) => {
-        if (query === GET_MARKETS) {
+        if (query === GetMarketsDocument) {
           return { data: { markets: defaultMarkets }, loading: false };
         }
-        if (query === GET_BROKERAGE_HOLDINGS) {
+        if (query === GetBrokerageHoldingsDocument) {
           return { data: { brokerageHoldings: [] }, loading: false };
         }
-        if (query === GET_MANUAL_HOLDINGS) {
+        if (query === GetManualHoldingsDocument) {
           return {
             data: { manualHoldings: holdings },
             loading: false,
             refetch: vi.fn(),
           };
         }
-        if (query === GET_TAGS) {
+        if (query === GetTagsDocument) {
           return { data: { tags: [] }, loading: false };
         }
-        if (query === GET_TAGS_FOR_HOLDING) {
+        if (query === GetTagsForHoldingDocument) {
           return { data: undefined, loading: false, refetch: vi.fn() };
         }
 
@@ -353,23 +353,23 @@ describe('Holdings', () => {
       const setHoldingTags = vi.fn().mockResolvedValue({});
 
       mockUseQuery.mockImplementation((query, options) => {
-        if (query === GET_MARKETS) {
+        if (query === GetMarketsDocument) {
           return { data: { markets: defaultMarkets }, loading: false };
         }
-        if (query === GET_BROKERAGE_HOLDINGS) {
+        if (query === GetBrokerageHoldingsDocument) {
           return { data: { brokerageHoldings: [] }, loading: false };
         }
-        if (query === GET_MANUAL_HOLDINGS) {
+        if (query === GetManualHoldingsDocument) {
           return {
             data: { manualHoldings },
             loading: false,
             refetch: vi.fn(),
           };
         }
-        if (query === GET_TAGS) {
+        if (query === GetTagsDocument) {
           return { data: { tags }, loading: false };
         }
-        if (query === GET_TAGS_FOR_HOLDING) {
+        if (query === GetTagsForHoldingDocument) {
           if (options?.skip || !options?.variables?.holdingSymbol) {
             return {
               data: undefined,
@@ -388,7 +388,7 @@ describe('Holdings', () => {
         throw new Error('예상치 못한 쿼리 호출');
       });
       mockUseMutation.mockImplementation((document) => {
-        if (document === SET_HOLDING_TAGS) {
+        if (document === SetHoldingTagsDocument) {
           return [setHoldingTags, { loading: false }];
         }
 
@@ -436,30 +436,30 @@ describe('Holdings', () => {
       const createManualHolding = vi.fn().mockResolvedValue({});
 
       mockUseQuery.mockImplementation((query) => {
-        if (query === GET_MARKETS) {
+        if (query === GetMarketsDocument) {
           return { data: { markets: defaultMarkets }, loading: false };
         }
-        if (query === GET_BROKERAGE_HOLDINGS) {
+        if (query === GetBrokerageHoldingsDocument) {
           return { data: { brokerageHoldings: [] }, loading: false };
         }
-        if (query === GET_MANUAL_HOLDINGS) {
+        if (query === GetManualHoldingsDocument) {
           return {
             data: { manualHoldings: [] },
             loading: false,
             refetch: refetchManualHoldings,
           };
         }
-        if (query === GET_TAGS) {
+        if (query === GetTagsDocument) {
           return { data: { tags: [] }, loading: false };
         }
-        if (query === GET_TAGS_FOR_HOLDING) {
+        if (query === GetTagsForHoldingDocument) {
           return { data: undefined, loading: false, refetch: vi.fn() };
         }
 
         throw new Error('예상치 못한 쿼리 호출');
       });
       mockUseMutation.mockImplementation((document) => {
-        if (document === CREATE_MANUAL_HOLDING) {
+        if (document === CreateManualHoldingDocument) {
           return [createManualHolding, { loading: false }];
         }
 
@@ -496,13 +496,13 @@ describe('Holdings', () => {
       window.prompt = vi.fn().mockReturnValue('3');
 
       mockUseQuery.mockImplementation((query) => {
-        if (query === GET_MARKETS) {
+        if (query === GetMarketsDocument) {
           return { data: { markets: defaultMarkets }, loading: false };
         }
-        if (query === GET_BROKERAGE_HOLDINGS) {
+        if (query === GetBrokerageHoldingsDocument) {
           return { data: { brokerageHoldings: [] }, loading: false };
         }
-        if (query === GET_MANUAL_HOLDINGS) {
+        if (query === GetManualHoldingsDocument) {
           return {
             data: {
               manualHoldings: [
@@ -523,17 +523,17 @@ describe('Holdings', () => {
             refetch: refetchManualHoldings,
           };
         }
-        if (query === GET_TAGS) {
+        if (query === GetTagsDocument) {
           return { data: { tags: [] }, loading: false };
         }
-        if (query === GET_TAGS_FOR_HOLDING) {
+        if (query === GetTagsForHoldingDocument) {
           return { data: undefined, loading: false, refetch: vi.fn() };
         }
 
         throw new Error('예상치 못한 쿼리 호출');
       });
       mockUseMutation.mockImplementation((document) => {
-        if (document === INCREASE_MANUAL_HOLDING) {
+        if (document === IncreaseManualHoldingDocument) {
           return [increaseManualHolding, { loading: false }];
         }
 
@@ -569,13 +569,13 @@ describe('Holdings', () => {
       window.prompt = vi.fn().mockReturnValue('5');
 
       mockUseQuery.mockImplementation((query) => {
-        if (query === GET_MARKETS) {
+        if (query === GetMarketsDocument) {
           return { data: { markets: defaultMarkets }, loading: false };
         }
-        if (query === GET_BROKERAGE_HOLDINGS) {
+        if (query === GetBrokerageHoldingsDocument) {
           return { data: { brokerageHoldings: [] }, loading: false };
         }
-        if (query === GET_MANUAL_HOLDINGS) {
+        if (query === GetManualHoldingsDocument) {
           return {
             data: {
               manualHoldings: [
@@ -596,17 +596,17 @@ describe('Holdings', () => {
             refetch: refetchManualHoldings,
           };
         }
-        if (query === GET_TAGS) {
+        if (query === GetTagsDocument) {
           return { data: { tags: [] }, loading: false };
         }
-        if (query === GET_TAGS_FOR_HOLDING) {
+        if (query === GetTagsForHoldingDocument) {
           return { data: undefined, loading: false, refetch: vi.fn() };
         }
 
         throw new Error('예상치 못한 쿼리 호출');
       });
       mockUseMutation.mockImplementation((document) => {
-        if (document === SET_MANUAL_HOLDING_QUANTITY) {
+        if (document === SetManualHoldingQuantityDocument) {
           return [setManualHoldingQuantity, { loading: false }];
         }
 
@@ -639,13 +639,13 @@ describe('Holdings', () => {
       const deleteManualHolding = vi.fn().mockResolvedValue({});
 
       mockUseQuery.mockImplementation((query) => {
-        if (query === GET_MARKETS) {
+        if (query === GetMarketsDocument) {
           return { data: { markets: defaultMarkets }, loading: false };
         }
-        if (query === GET_BROKERAGE_HOLDINGS) {
+        if (query === GetBrokerageHoldingsDocument) {
           return { data: { brokerageHoldings: [] }, loading: false };
         }
-        if (query === GET_MANUAL_HOLDINGS) {
+        if (query === GetManualHoldingsDocument) {
           return {
             data: {
               manualHoldings: [
@@ -666,17 +666,17 @@ describe('Holdings', () => {
             refetch: refetchManualHoldings,
           };
         }
-        if (query === GET_TAGS) {
+        if (query === GetTagsDocument) {
           return { data: { tags: [] }, loading: false };
         }
-        if (query === GET_TAGS_FOR_HOLDING) {
+        if (query === GetTagsForHoldingDocument) {
           return { data: undefined, loading: false, refetch: vi.fn() };
         }
 
         throw new Error('예상치 못한 쿼리 호출');
       });
       mockUseMutation.mockImplementation((document) => {
-        if (document === DELETE_MANUAL_HOLDING) {
+        if (document === DeleteManualHoldingDocument) {
           return [deleteManualHolding, { loading: false }];
         }
 
@@ -707,13 +707,13 @@ describe('Holdings', () => {
       const syncManualHoldingPrice = vi.fn().mockResolvedValue({});
 
       mockUseQuery.mockImplementation((query) => {
-        if (query === GET_MARKETS) {
+        if (query === GetMarketsDocument) {
           return { data: { markets: defaultMarkets }, loading: false };
         }
-        if (query === GET_BROKERAGE_HOLDINGS) {
+        if (query === GetBrokerageHoldingsDocument) {
           return { data: { brokerageHoldings: [] }, loading: false };
         }
-        if (query === GET_MANUAL_HOLDINGS) {
+        if (query === GetManualHoldingsDocument) {
           return {
             data: {
               manualHoldings: [
@@ -734,17 +734,17 @@ describe('Holdings', () => {
             refetch: refetchManualHoldings,
           };
         }
-        if (query === GET_TAGS) {
+        if (query === GetTagsDocument) {
           return { data: { tags: [] }, loading: false };
         }
-        if (query === GET_TAGS_FOR_HOLDING) {
+        if (query === GetTagsForHoldingDocument) {
           return { data: undefined, loading: false, refetch: vi.fn() };
         }
 
         throw new Error('예상치 못한 쿼리 호출');
       });
       mockUseMutation.mockImplementation((document) => {
-        if (document === SYNC_MANUAL_HOLDING_PRICE) {
+        if (document === SyncManualHoldingPriceDocument) {
           return [syncManualHoldingPrice, { loading: false }];
         }
 

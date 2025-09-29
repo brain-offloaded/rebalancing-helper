@@ -3,10 +3,10 @@ import { screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../test-utils/render';
 import {
-  CREATE_BROKER,
-  DELETE_BROKER,
-  UPDATE_BROKER,
-} from '../../graphql/brokerage';
+  CreateBrokerDocument,
+  DeleteBrokerDocument,
+  UpdateBrokerDocument,
+} from '../../graphql/__generated__';
 
 const mockUseQuery = vi.fn();
 const mockUseMutation = vi.fn();
@@ -119,13 +119,13 @@ describe('Brokers', () => {
     });
 
     mockUseMutation.mockImplementation((document) => {
-      if (document === CREATE_BROKER) {
+      if (document === CreateBrokerDocument) {
         return [createBroker, { loading: false }];
       }
-      if (document === UPDATE_BROKER) {
+      if (document === UpdateBrokerDocument) {
         return [updateBroker, { loading: false }];
       }
-      if (document === DELETE_BROKER) {
+      if (document === DeleteBrokerDocument) {
         return [deleteBroker, { loading: false }];
       }
       return [vi.fn(), { loading: false }];
@@ -184,13 +184,13 @@ describe('Brokers', () => {
     });
 
     mockUseMutation.mockImplementation((document) => {
-      if (document === CREATE_BROKER) {
+      if (document === CreateBrokerDocument) {
         return [createBroker, { loading: false }];
       }
-      if (document === UPDATE_BROKER) {
+      if (document === UpdateBrokerDocument) {
         return [updateBroker, { loading: false }];
       }
-      if (document === DELETE_BROKER) {
+      if (document === DeleteBrokerDocument) {
         return [deleteBroker, { loading: false }];
       }
       return [vi.fn(), { loading: false }];
@@ -204,7 +204,14 @@ describe('Brokers', () => {
     await waitFor(() => {
       expect(updateBroker).toHaveBeenCalledWith({
         variables: {
-          input: { id: 'broker-1', isActive: true },
+          input: {
+            id: 'broker-1',
+            isActive: true,
+            code: null,
+            name: null,
+            description: null,
+            apiBaseUrl: null,
+          },
         },
       });
     });
@@ -237,13 +244,13 @@ describe('Brokers', () => {
     });
 
     mockUseMutation.mockImplementation((document) => {
-      if (document === CREATE_BROKER) {
+      if (document === CreateBrokerDocument) {
         return [createBroker, { loading: false }];
       }
-      if (document === UPDATE_BROKER) {
+      if (document === UpdateBrokerDocument) {
         return [updateBroker, { loading: false }];
       }
-      if (document === DELETE_BROKER) {
+      if (document === DeleteBrokerDocument) {
         return [deleteBroker, { loading: false }];
       }
       return [vi.fn(), { loading: false }];

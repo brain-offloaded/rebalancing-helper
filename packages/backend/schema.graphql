@@ -1,0 +1,316 @@
+input AddHoldingTagInput {
+  holdingSymbol: String!
+  tagId: String!
+}
+
+input AddTagsToRebalancingGroupInput {
+  groupId: String!
+  tagIds: [String!]!
+}
+
+type AuthPayload {
+  accessToken: String!
+  user: User!
+}
+
+type Broker {
+  apiBaseUrl: String
+  code: String!
+  createdAt: DateTime!
+  description: String
+  id: ID!
+  isActive: Boolean!
+  name: String!
+  updatedAt: DateTime!
+}
+
+type BrokerageAccount {
+  broker: Broker!
+  brokerId: String!
+  createdAt: DateTime!
+  description: String
+  id: ID!
+  isActive: Boolean!
+  name: String!
+  updatedAt: DateTime!
+}
+
+type BrokerageHolding {
+  accountId: String!
+  averageCost: Float
+  currency: String!
+  currentPrice: Float!
+  id: ID!
+  lastUpdated: DateTime!
+  marketValue: Float!
+  name: String!
+  quantity: Float!
+  symbol: String!
+}
+
+input CalculateInvestmentInput {
+  groupId: String!
+  investmentAmount: Float!
+}
+
+input CreateBrokerInput {
+  apiBaseUrl: String
+  code: String!
+  description: String
+  name: String!
+}
+
+input CreateBrokerageAccountInput {
+  apiKey: String!
+  apiSecret: String
+  brokerId: String!
+  description: String
+  isActive: Boolean
+  name: String!
+}
+
+input CreateManualHoldingInput {
+  market: String!
+  quantity: Float!
+  symbol: String!
+}
+
+input CreateRebalancingGroupInput {
+  description: String
+  name: String!
+  tagIds: [String!]!
+}
+
+input CreateTagInput {
+  color: String!
+  description: String
+  name: String!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type HoldingTag {
+  createdAt: DateTime!
+  holdingSymbol: String!
+  id: ID!
+  tagId: String!
+}
+
+input IncreaseManualHoldingInput {
+  market: String!
+  quantityDelta: Float!
+  symbol: String!
+}
+
+type InvestmentRecommendation {
+  baseCurrency: String!
+  recommendedAmount: Float!
+  recommendedPercentage: Float!
+  suggestedSymbols: [String!]!
+  tagId: String!
+  tagName: String!
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+type ManualHolding {
+  createdAt: DateTime!
+  currency: String!
+  currentPrice: Float!
+  id: ID!
+  lastUpdated: DateTime!
+  market: String!
+  marketValue: Float!
+  name: String!
+  quantity: Float!
+  symbol: String!
+  updatedAt: DateTime!
+}
+
+input ManualHoldingIdentifierInput {
+  market: String!
+  symbol: String!
+}
+
+type Market {
+  code: String!
+  createdAt: DateTime!
+  displayName: String!
+  id: ID!
+  updatedAt: DateTime!
+  yahooMarketIdentifiers: [String!]!
+  yahooSuffix: String
+}
+
+type Mutation {
+  addHoldingTag(input: AddHoldingTagInput!): HoldingTag!
+  addTagsToRebalancingGroup(input: AddTagsToRebalancingGroupInput!): RebalancingGroup!
+  createBroker(input: CreateBrokerInput!): Broker!
+  createBrokerageAccount(input: CreateBrokerageAccountInput!): BrokerageAccount!
+  createManualHolding(input: CreateManualHoldingInput!): ManualHolding!
+  createRebalancingGroup(input: CreateRebalancingGroupInput!): RebalancingGroup!
+  createTag(input: CreateTagInput!): Tag!
+  deleteBroker(id: String!): Boolean!
+  deleteBrokerageAccount(id: String!): Boolean!
+  deleteManualHolding(input: ManualHoldingIdentifierInput!): Boolean!
+  deleteRebalancingGroup(id: String!): Boolean!
+  deleteTag(id: String!): Boolean!
+  increaseManualHolding(input: IncreaseManualHoldingInput!): ManualHolding!
+  login(input: LoginInput!): AuthPayload!
+  refreshBrokerageHoldings(accountId: String!): [BrokerageHolding!]!
+  register(input: RegisterInput!): AuthPayload!
+  removeHoldingTag(input: RemoveHoldingTagInput!): Boolean!
+  removeTagsFromRebalancingGroup(input: RemoveTagsFromRebalancingGroupInput!): RebalancingGroup!
+  renameRebalancingGroup(input: RenameRebalancingGroupInput!): RebalancingGroup!
+  setHoldingTags(input: SetHoldingTagsInput!): [HoldingTag!]!
+  setManualHoldingQuantity(input: SetManualHoldingQuantityInput!): ManualHolding!
+  setTargetAllocations(input: SetTargetAllocationsInput!): Boolean!
+  syncManualHoldingPrice(input: ManualHoldingIdentifierInput!): ManualHolding!
+  updateBroker(input: UpdateBrokerInput!): Broker!
+  updateBrokerageAccount(input: UpdateBrokerageAccountInput!): BrokerageAccount!
+  updateRebalancingGroup(input: UpdateRebalancingGroupInput!): RebalancingGroup!
+  updateTag(input: UpdateTagInput!): Tag!
+}
+
+type Query {
+  brokerageAccount(id: String!): BrokerageAccount
+  brokerageAccounts: [BrokerageAccount!]!
+  brokerageHoldings(accountId: String): [BrokerageHolding!]!
+  brokers: [Broker!]!
+  holdingTags(holdingSymbol: String): [HoldingTag!]!
+  holdingsForTag(tagId: String!): [String!]!
+  investmentRecommendation(input: CalculateInvestmentInput!): [InvestmentRecommendation!]!
+  manualHoldings: [ManualHolding!]!
+  markets: [Market!]!
+  me: User!
+  rebalancingAnalysis(groupId: String!): RebalancingAnalysis!
+  rebalancingGroup(id: String!): RebalancingGroup
+  rebalancingGroups: [RebalancingGroup!]!
+  tag(id: String!): Tag
+  tags: [Tag!]!
+  tagsForHolding(holdingSymbol: String!): [String!]!
+}
+
+type RebalancingAnalysis {
+  allocations: [TagAllocation!]!
+  baseCurrency: String!
+  groupId: ID!
+  groupName: String!
+  lastUpdated: DateTime!
+  totalValue: Float!
+}
+
+type RebalancingGroup {
+  createdAt: DateTime!
+  description: String
+  id: ID!
+  name: String!
+  tagIds: [String!]!
+  updatedAt: DateTime!
+}
+
+input RegisterInput {
+  email: String!
+  password: String!
+}
+
+input RemoveHoldingTagInput {
+  holdingSymbol: String!
+  tagId: String!
+}
+
+input RemoveTagsFromRebalancingGroupInput {
+  groupId: String!
+  tagIds: [String!]!
+}
+
+input RenameRebalancingGroupInput {
+  groupId: String!
+  name: String!
+}
+
+input SetHoldingTagsInput {
+  holdingSymbol: String!
+  tagIds: [String!]!
+}
+
+input SetManualHoldingQuantityInput {
+  market: String!
+  quantity: Float!
+  symbol: String!
+}
+
+input SetTargetAllocationsInput {
+  groupId: String!
+  targets: [TagTargetInput!]!
+}
+
+type Tag {
+  color: String!
+  createdAt: DateTime!
+  description: String
+  id: ID!
+  name: String!
+  updatedAt: DateTime!
+}
+
+type TagAllocation {
+  currentPercentage: Float!
+  currentValue: Float!
+  difference: Float!
+  tagColor: String!
+  tagId: String!
+  tagName: String!
+  targetPercentage: Float!
+}
+
+input TagTargetInput {
+  tagId: String!
+  targetPercentage: Float!
+}
+
+input UpdateBrokerInput {
+  apiBaseUrl: String
+  code: String
+  description: String
+  id: String!
+  isActive: Boolean
+  name: String
+}
+
+input UpdateBrokerageAccountInput {
+  apiKey: String
+  apiSecret: String
+  brokerId: String
+  description: String
+  id: String!
+  isActive: Boolean
+  name: String
+}
+
+input UpdateRebalancingGroupInput {
+  description: String
+  id: String!
+  name: String
+  tagIds: [String!]
+}
+
+input UpdateTagInput {
+  color: String
+  description: String
+  id: String!
+  name: String
+}
+
+type User {
+  createdAt: DateTime!
+  email: String!
+  id: ID!
+  updatedAt: DateTime!
+}

@@ -4,11 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../test-utils/render';
 import { Tags } from '../Tags';
 import {
-  CREATE_TAG,
-  DELETE_TAG,
-  GET_TAGS,
-  UPDATE_TAG,
-} from '../../graphql/tags';
+  CreateTagDocument,
+  DeleteTagDocument,
+  GetTagsDocument,
+  UpdateTagDocument,
+} from '../../graphql/__generated__';
 
 const mockUseQuery = vi.fn();
 const mockUseMutation = vi.fn();
@@ -53,7 +53,7 @@ describe('Tags', () => {
 
   it('태그 목록을 불러오는 동안 로딩 메시지를 보여준다', () => {
     mockUseQuery.mockImplementation((query) => {
-      if (query === GET_TAGS) {
+      if (query === GetTagsDocument) {
         return { data: undefined, loading: true, error: undefined };
       }
 
@@ -68,7 +68,7 @@ describe('Tags', () => {
 
   it('태그 조회에 실패하면 오류 메시지를 표시한다', () => {
     mockUseQuery.mockImplementation((query) => {
-      if (query === GET_TAGS) {
+      if (query === GetTagsDocument) {
         return {
           data: undefined,
           loading: false,
@@ -106,7 +106,7 @@ describe('Tags', () => {
     ];
 
     mockUseQuery.mockImplementation((query) => {
-      if (query === GET_TAGS) {
+      if (query === GetTagsDocument) {
         return {
           data: { tags },
           loading: false,
@@ -131,7 +131,7 @@ describe('Tags', () => {
     const createTag = vi.fn().mockResolvedValue({});
 
     mockUseQuery.mockImplementation((query) => {
-      if (query === GET_TAGS) {
+      if (query === GetTagsDocument) {
         return {
           data: { tags: [] },
           loading: false,
@@ -143,13 +143,13 @@ describe('Tags', () => {
       throw new Error('예상치 못한 쿼리 호출');
     });
     mockUseMutation.mockImplementation((document) => {
-      if (document === CREATE_TAG) {
+      if (document === CreateTagDocument) {
         return [createTag, { loading: false }];
       }
-      if (document === UPDATE_TAG) {
+      if (document === UpdateTagDocument) {
         return [vi.fn(), { loading: false }];
       }
-      if (document === DELETE_TAG) {
+      if (document === DeleteTagDocument) {
         return [vi.fn(), { loading: false }];
       }
 
@@ -199,7 +199,7 @@ describe('Tags', () => {
     const updateTag = vi.fn().mockResolvedValue({});
 
     mockUseQuery.mockImplementation((query) => {
-      if (query === GET_TAGS) {
+      if (query === GetTagsDocument) {
         return {
           data: { tags: [tag] },
           loading: false,
@@ -211,13 +211,13 @@ describe('Tags', () => {
       throw new Error('예상치 못한 쿼리 호출');
     });
     mockUseMutation.mockImplementation((document) => {
-      if (document === UPDATE_TAG) {
+      if (document === UpdateTagDocument) {
         return [updateTag, { loading: false }];
       }
-      if (document === CREATE_TAG) {
+      if (document === CreateTagDocument) {
         return [vi.fn(), { loading: false }];
       }
-      if (document === DELETE_TAG) {
+      if (document === DeleteTagDocument) {
         return [vi.fn(), { loading: false }];
       }
 
@@ -273,7 +273,7 @@ describe('Tags', () => {
     const deleteTag = vi.fn().mockResolvedValue({});
 
     mockUseQuery.mockImplementation((query) => {
-      if (query === GET_TAGS) {
+      if (query === GetTagsDocument) {
         return {
           data: { tags: [tag] },
           loading: false,
@@ -285,13 +285,13 @@ describe('Tags', () => {
       throw new Error('예상치 못한 쿼리 호출');
     });
     mockUseMutation.mockImplementation((document) => {
-      if (document === DELETE_TAG) {
+      if (document === DeleteTagDocument) {
         return [deleteTag, { loading: false }];
       }
-      if (document === CREATE_TAG) {
+      if (document === CreateTagDocument) {
         return [vi.fn(), { loading: false }];
       }
-      if (document === UPDATE_TAG) {
+      if (document === UpdateTagDocument) {
         return [vi.fn(), { loading: false }];
       }
 

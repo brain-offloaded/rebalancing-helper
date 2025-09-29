@@ -1,19 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useQuery, useMutation } from '@apollo/client';
-import styled from 'styled-components';
-import { GET_BROKERAGE_HOLDINGS } from '../graphql/brokerage';
-import { GET_TAGS } from '../graphql/tags';
+// switch to generated hooks
 import {
-  GET_TAGS_FOR_HOLDING,
-  SET_HOLDING_TAGS,
-  GET_MANUAL_HOLDINGS,
-  CREATE_MANUAL_HOLDING,
-  INCREASE_MANUAL_HOLDING,
-  SET_MANUAL_HOLDING_QUANTITY,
-  DELETE_MANUAL_HOLDING,
-  SYNC_MANUAL_HOLDING_PRICE,
-} from '../graphql/holdings';
-import { GET_MARKETS } from '../graphql/markets';
+  useGetBrokerageHoldingsQuery,
+  useGetTagsQuery,
+  useGetMarketsQuery,
+  useGetManualHoldingsQuery,
+  useGetTagsForHoldingQuery,
+  useSetHoldingTagsMutation,
+  useCreateManualHoldingMutation,
+  useIncreaseManualHoldingMutation,
+  useSetManualHoldingQuantityMutation,
+  useDeleteManualHoldingMutation,
+  useSyncManualHoldingPriceMutation,
+} from '../graphql/__generated__';
+import styled from 'styled-components';
+// remove manual document imports
 
 const Container = styled.div`
   padding: ${(props) => props.theme.spacing.lg};
@@ -206,12 +207,7 @@ interface ManualHolding {
   lastUpdated: string;
 }
 
-interface MarketOption {
-  id: string;
-  code: string;
-  displayName: string;
-  yahooSuffix: string | null;
-}
+// MarketOption interface removed (derived types available from generated schema if needed)
 
 export const Holdings: React.FC = () => {
   const [selectedHolding, setSelectedHolding] = useState<string | null>(null);
@@ -220,40 +216,32 @@ export const Holdings: React.FC = () => {
   const [manualSymbol, setManualSymbol] = useState('');
   const [manualQuantity, setManualQuantity] = useState('');
 
-  const { data: holdingsData, loading: holdingsLoading } = useQuery(
-    GET_BROKERAGE_HOLDINGS,
-  );
-  const { data: tagsData } = useQuery<{ tags: Tag[] }>(GET_TAGS);
-  const { data: marketsData, loading: marketsLoading } = useQuery<{
-    markets: MarketOption[];
-  }>(GET_MARKETS);
+  const { data: holdingsData, loading: holdingsLoading } =
+    useGetBrokerageHoldingsQuery();
+  const { data: tagsData } = useGetTagsQuery();
+  const { data: marketsData, loading: marketsLoading } = useGetMarketsQuery();
   const {
     data: manualHoldingsData,
     loading: manualHoldingsLoading,
     refetch: refetchManualHoldings,
-  } = useQuery<{ manualHoldings: ManualHolding[] }>(GET_MANUAL_HOLDINGS);
+  } = useGetManualHoldingsQuery();
   const {
     data: holdingTagsData,
     loading: holdingTagsLoading,
     refetch: refetchHoldingTags,
-  } = useQuery<{
-    tagsForHolding: string[];
-  }>(GET_TAGS_FOR_HOLDING, {
-    variables: { holdingSymbol: selectedHolding },
+  } = useGetTagsForHoldingQuery({
+    variables: { holdingSymbol: selectedHolding as string },
     skip: !selectedHolding,
   });
 
-  const [setHoldingTags] = useMutation(SET_HOLDING_TAGS);
+  const [setHoldingTags] = useSetHoldingTagsMutation();
   const [createManualHoldingMutation, { loading: creatingManualHolding }] =
-    useMutation(CREATE_MANUAL_HOLDING);
-  const [increaseManualHoldingMutation] = useMutation(INCREASE_MANUAL_HOLDING);
-  const [setManualHoldingQuantityMutation] = useMutation(
-    SET_MANUAL_HOLDING_QUANTITY,
-  );
-  const [deleteManualHoldingMutation] = useMutation(DELETE_MANUAL_HOLDING);
-  const [syncManualHoldingPriceMutation] = useMutation(
-    SYNC_MANUAL_HOLDING_PRICE,
-  );
+    useCreateManualHoldingMutation();
+  const [increaseManualHoldingMutation] = useIncreaseManualHoldingMutation();
+  const [setManualHoldingQuantityMutation] =
+    useSetManualHoldingQuantityMutation();
+  const [deleteManualHoldingMutation] = useDeleteManualHoldingMutation();
+  const [syncManualHoldingPriceMutation] = useSyncManualHoldingPriceMutation();
 
   const handleTagManagement = (symbol: string) => {
     setSelectedHolding(symbol);

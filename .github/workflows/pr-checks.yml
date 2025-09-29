@@ -55,6 +55,23 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm --filter backend prisma:generate
 
+      - name: Generate GraphQL schema & types (gql:all)
+        run: pnpm gql:all
+
+      - name: Check GraphQL artifacts up-to-date
+        run: |
+          # Limit diff check to known generated artifacts to avoid noise
+          git add -N packages/backend/schema.graphql || true
+          git add -N packages/frontend/src/graphql/__generated__/index.ts || true
+          if ! git diff --quiet -- packages/backend/schema.graphql packages/frontend/src/graphql/__generated__/index.ts; then
+            echo "❌ GraphQL generated artifacts are outdated. Run 'pnpm gql:all' locally and commit the changes." >&2
+            echo "Changed files:" >&2
+            git diff --name-only -- packages/backend/schema.graphql packages/frontend/src/graphql/__generated__/index.ts >&2
+            exit 1
+          else
+            echo "✅ GraphQL artifacts are up-to-date.";
+          fi
+
       - name: Lint
         run: pnpm lint
 
