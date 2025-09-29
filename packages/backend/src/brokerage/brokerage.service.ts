@@ -3,6 +3,7 @@ import {
   Broker as BrokerModel,
   HoldingSource as PrismaHoldingSource,
   Prisma,
+  Holding as PrismaHolding,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BrokerageAccount } from './brokerage.entities';
@@ -13,7 +14,7 @@ import {
   UpdateBrokerageAccountInput,
 } from './brokerage.dto';
 import { CredentialCryptoService } from './credential-crypto.service';
-import { Holding } from '../holdings/holdings.entities';
+import { Holding, HoldingSource } from '../holdings/holdings.entities';
 
 @Injectable()
 export class BrokerageService {
@@ -21,6 +22,13 @@ export class BrokerageService {
     private readonly prisma: PrismaService,
     private readonly credentialCrypto: CredentialCryptoService,
   ) {}
+
+  private mapHolding(holding: PrismaHolding): Holding {
+    return {
+      ...holding,
+      source: holding.source as HoldingSource,
+    };
+  }
 
   listBrokers(): Promise<BrokerModel[]> {
     return this.prisma.broker.findMany({
@@ -212,10 +220,10 @@ export class BrokerageService {
     });
   }
 
-  getHoldings(userId: string, accountId?: string): Promise<Holding[]> {
+  async getHoldings(userId: string, accountId?: string): Promise<Holding[]> {
     const normalizedAccountId = accountId ?? undefined;
 
-    return this.prisma.holding.findMany({
+    const results = await this.prisma.holding.findMany({
       where: {
         userId,
         source: PrismaHoldingSource.BROKERAGE,
@@ -223,6 +231,8 @@ export class BrokerageService {
       },
       orderBy: { symbol: 'asc' },
     });
+
+    return results.map((holding) => this.mapHolding(holding));
   }
 
   async refreshHoldings(

@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { Prisma, HoldingSource as PrismaHoldingSource } from '@prisma/client';
 import { BrokerageService } from './brokerage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -24,7 +25,7 @@ type MockedPrisma = {
     findFirst: jest.Mock;
     findUnique: jest.Mock;
   };
-  brokerageHolding: {
+  holding: {
     findMany: jest.Mock;
     deleteMany: jest.Mock;
     createMany: jest.Mock;
@@ -55,7 +56,7 @@ describe('BrokerageService', () => {
         findFirst: jest.fn(),
         findUnique: jest.fn(),
       },
-      brokerageHolding: {
+      holding: {
         findMany: jest.fn(),
         deleteMany: jest.fn(),
         createMany: jest.fn(),
@@ -224,21 +225,23 @@ describe('BrokerageService', () => {
   });
 
   it('getHoldings는 사용자 ID를 조건에 포함한다', async () => {
-    prismaMock.brokerageHolding.findMany.mockResolvedValue([]);
+    prismaMock.holding.findMany.mockResolvedValue([]);
 
     await service.getHoldings(USER_ID);
-    expect(prismaMock.brokerageHolding.findMany).toHaveBeenCalledWith({
+    expect(prismaMock.holding.findMany).toHaveBeenCalledWith({
       where: {
-        account: { userId: USER_ID },
+        userId: USER_ID,
+        source: PrismaHoldingSource.BROKERAGE,
       },
       orderBy: { symbol: 'asc' },
     });
 
-    prismaMock.brokerageHolding.findMany.mockClear();
+    prismaMock.holding.findMany.mockClear();
     await service.getHoldings(USER_ID, 'acc-1');
-    expect(prismaMock.brokerageHolding.findMany).toHaveBeenCalledWith({
+    expect(prismaMock.holding.findMany).toHaveBeenCalledWith({
       where: {
-        account: { userId: USER_ID },
+        userId: USER_ID,
+        source: PrismaHoldingSource.BROKERAGE,
         accountId: 'acc-1',
       },
       orderBy: { symbol: 'asc' },
@@ -262,16 +265,20 @@ describe('BrokerageService', () => {
       userId: USER_ID,
     });
     prismaMock.$transaction.mockResolvedValue(undefined);
-    prismaMock.brokerageHolding.findMany.mockResolvedValue([]);
+    prismaMock.holding.findMany.mockResolvedValue([]);
 
     await service.refreshHoldings(USER_ID, 'acc-1');
 
-    expect(prismaMock.brokerageHolding.deleteMany).toHaveBeenCalledWith({
-      where: { accountId: 'acc-1' },
+    expect(prismaMock.holding.deleteMany).toHaveBeenCalledWith({
+      where: { accountId: 'acc-1', source: PrismaHoldingSource.BROKERAGE },
     });
-    expect(prismaMock.brokerageHolding.createMany).toHaveBeenCalledTimes(1);
-    expect(prismaMock.brokerageHolding.findMany).toHaveBeenCalledWith({
-      where: { accountId: 'acc-1', account: { userId: USER_ID } },
+    expect(prismaMock.holding.createMany).toHaveBeenCalledTimes(1);
+    expect(prismaMock.holding.findMany).toHaveBeenCalledWith({
+      where: {
+        userId: USER_ID,
+        source: PrismaHoldingSource.BROKERAGE,
+        accountId: 'acc-1',
+      },
       orderBy: { symbol: 'asc' },
     });
   });

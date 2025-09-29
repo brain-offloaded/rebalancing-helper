@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { HoldingSource as PrismaHoldingSource, Prisma } from '@prisma/client';
+import {
+  HoldingSource as PrismaHoldingSource,
+  Prisma,
+  Holding as PrismaHolding,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { HoldingTag, Holding } from './holdings.entities';
+import { HoldingTag, Holding, HoldingSource } from './holdings.entities';
 import {
   AddHoldingTagInput,
   RemoveHoldingTagInput,
@@ -19,6 +23,17 @@ export class HoldingsService {
     private readonly prisma: PrismaService,
     private readonly marketDataService: MarketDataService,
   ) {}
+
+  private mapHolding(holding: PrismaHolding): Holding {
+    return {
+      ...holding,
+      source: holding.source as HoldingSource,
+    };
+  }
+
+  private mapHoldings(holdings: PrismaHolding[]): Holding[] {
+    return holdings.map((holding) => this.mapHolding(holding));
+  }
 
   private async assertTagBelongsToUser(
     userId: string,
@@ -177,7 +192,7 @@ export class HoldingsService {
     return holding;
   }
 
-  getHoldings(
+  async getHoldings(
     userId: string,
     options: {
       source?: PrismaHoldingSource;
@@ -190,14 +205,23 @@ export class HoldingsService {
       ...(options.accountId ? { accountId: options.accountId } : {}),
     };
 
-    const orderBy = options.source === PrismaHoldingSource.MANUAL
-      ? [{ market: 'asc' }, { symbol: 'asc' }]
-      : [{ symbol: 'asc' }, { market: 'asc' }];
+    const orderBy: Prisma.HoldingOrderByWithRelationInput[] =
+      options.source === PrismaHoldingSource.MANUAL
+        ? [
+            { market: Prisma.SortOrder.asc },
+            { symbol: Prisma.SortOrder.asc },
+          ]
+        : [
+            { symbol: Prisma.SortOrder.asc },
+            { market: Prisma.SortOrder.asc },
+          ];
 
-    return this.prisma.holding.findMany({
+    const results = await this.prisma.holding.findMany({
       where,
       orderBy,
     });
+
+    return this.mapHoldings(results);
   }
 
   getManualHoldings(userId: string): Promise<Holding[]> {
@@ -213,7 +237,7 @@ export class HoldingsService {
       input.symbol,
     );
 
-    return this.prisma.holding.create({
+    const created = await this.prisma.holding.create({
       data: {
         userId,
         source: PrismaHoldingSource.MANUAL,
@@ -229,6 +253,8 @@ export class HoldingsService {
         lastUpdated: quote.lastUpdated,
       },
     });
+
+    return this.mapHolding(created);
   }
 
   async increaseManualHolding(
@@ -238,13 +264,15 @@ export class HoldingsService {
     const holding = await this.getManualHoldingOrThrow(userId, input);
     const nextQuantity = holding.quantity + input.quantityDelta;
 
-    return this.prisma.holding.update({
+    const updated = await this.prisma.holding.update({
       where: { id: holding.id },
       data: {
         quantity: nextQuantity,
         marketValue: nextQuantity * holding.currentPrice,
       },
     });
+
+    return this.mapHolding(updated);
   }
 
   async setManualHoldingQuantity(
@@ -253,13 +281,15 @@ export class HoldingsService {
   ): Promise<Holding> {
     const holding = await this.getManualHoldingOrThrow(userId, input);
 
-    return this.prisma.holding.update({
+    const updated = await this.prisma.holding.update({
       where: { id: holding.id },
       data: {
         quantity: input.quantity,
         marketValue: input.quantity * holding.currentPrice,
       },
     });
+
+    return this.mapHolding(updated);
   }
 
   async deleteManualHolding(
@@ -300,7 +330,7 @@ export class HoldingsService {
       input.symbol,
     );
 
-    return this.prisma.holding.update({
+    const updated = await this.prisma.holding.update({
       where: { id: holding.id },
       data: {
         currentPrice: quote.price,
@@ -310,5 +340,7 @@ export class HoldingsService {
         lastUpdated: quote.lastUpdated,
       },
     });
+
+    return this.mapHolding(updated);
   }
 }

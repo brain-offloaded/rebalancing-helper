@@ -1,8 +1,8 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { RebalancingService } from './rebalancing.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { BrokerageService } from '../brokerage/brokerage.service';
 import { HoldingsService } from '../holdings/holdings.service';
+import { HoldingSource } from '../holdings/holdings.entities';
 import { CurrencyConversionService } from '../yahoo/currency-conversion.service';
 import { TypedConfigService } from '../typed-config';
 import {
@@ -63,7 +63,6 @@ const buildGroup = (
 
 describe('RebalancingService', () => {
   let prismaMock: MockedPrisma;
-  let brokerageServiceMock: jest.Mocked<BrokerageService>;
   let holdingsServiceMock: jest.Mocked<HoldingsService>;
   let currencyConversionServiceMock: jest.Mocked<CurrencyConversionService>;
   let configServiceMock: jest.Mocked<TypedConfigService>;
@@ -94,16 +93,12 @@ describe('RebalancingService', () => {
       $transaction: jest.fn(),
     };
 
-    brokerageServiceMock = {
-      getHoldings: jest.fn(),
-    } as unknown as jest.Mocked<BrokerageService>;
-
     holdingsServiceMock = {
       getHoldingsForTag: jest.fn(),
-      getManualHoldings: jest.fn(),
+      getHoldings: jest.fn(),
     } as unknown as jest.Mocked<HoldingsService>;
 
-    holdingsServiceMock.getManualHoldings.mockResolvedValue([]);
+    holdingsServiceMock.getHoldings.mockResolvedValue([]);
 
     currencyConversionServiceMock = {
       getRate: jest.fn().mockResolvedValue(1),
@@ -116,7 +111,6 @@ describe('RebalancingService', () => {
 
     service = new RebalancingService(
       prismaMock as unknown as PrismaService,
-      brokerageServiceMock,
       holdingsServiceMock,
       currencyConversionServiceMock,
       configServiceMock,
@@ -481,7 +475,7 @@ describe('RebalancingService', () => {
   });
 
   it('getRebalancingAnalysis는 사용자 데이터를 기반으로 분석을 생성한다', async () => {
-    holdingsServiceMock.getManualHoldings.mockResolvedValue([]);
+    holdingsServiceMock.getHoldings.mockResolvedValue([]);
 
     prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
     prismaMock.tag.findMany.mockResolvedValue([
@@ -502,9 +496,12 @@ describe('RebalancingService', () => {
         updatedAt: baseDate,
       },
     ]);
-    brokerageServiceMock.getHoldings.mockResolvedValue([
+    holdingsServiceMock.getHoldings.mockResolvedValue([
       {
         id: 'holding-1',
+        source: HoldingSource.BROKERAGE,
+        accountId: 'acc-1',
+        market: null,
         symbol: 'SPY',
         name: 'SPY',
         quantity: 1,
@@ -512,8 +509,9 @@ describe('RebalancingService', () => {
         marketValue: 100,
         averageCost: null,
         currency: 'USD',
-        accountId: 'acc-1',
         lastUpdated: baseDate,
+        createdAt: baseDate,
+        updatedAt: baseDate,
       },
     ]);
     holdingsServiceMock.getHoldingsForTag
@@ -536,7 +534,7 @@ describe('RebalancingService', () => {
 
     const analysis = await service.getRebalancingAnalysis(USER_ID, 'group-1');
 
-    expect(brokerageServiceMock.getHoldings).toHaveBeenCalledWith(USER_ID);
+    expect(holdingsServiceMock.getHoldings).toHaveBeenCalledWith(USER_ID);
     expect(analysis.totalValue).toBe(100);
     expect(analysis.baseCurrency).toBe('USD');
     expect(analysis.allocations).toHaveLength(2);
@@ -554,9 +552,12 @@ describe('RebalancingService', () => {
         updatedAt: baseDate,
       },
     ]);
-    brokerageServiceMock.getHoldings.mockResolvedValue([
+    holdingsServiceMock.getHoldings.mockResolvedValue([
       {
         id: 'holding-1',
+        source: HoldingSource.BROKERAGE,
+        accountId: 'acc-1',
+        market: null,
         symbol: 'SPY',
         name: 'SPY',
         quantity: 1,
@@ -564,8 +565,9 @@ describe('RebalancingService', () => {
         marketValue: 100,
         averageCost: null,
         currency: 'USD',
-        accountId: 'acc-1',
         lastUpdated: baseDate,
+        createdAt: baseDate,
+        updatedAt: baseDate,
       },
     ]);
     holdingsServiceMock.getHoldingsForTag
@@ -599,7 +601,7 @@ describe('RebalancingService', () => {
         updatedAt: baseDate,
       },
     ]);
-    brokerageServiceMock.getHoldings.mockResolvedValue([]);
+    holdingsServiceMock.getHoldings.mockResolvedValue([]);
     holdingsServiceMock.getHoldingsForTag.mockResolvedValue([]);
     prismaMock.targetAllocation.findMany.mockResolvedValue([]);
 
@@ -624,16 +626,18 @@ describe('RebalancingService', () => {
         updatedAt: baseDate,
       },
     ]);
-    brokerageServiceMock.getHoldings.mockResolvedValue([]);
-    holdingsServiceMock.getManualHoldings.mockResolvedValue([
+    holdingsServiceMock.getHoldings.mockResolvedValue([
       {
         id: 'manual-1',
+        source: HoldingSource.MANUAL,
+        accountId: null,
         market: 'US',
         symbol: 'VOO',
         name: 'VOO',
         quantity: 2,
         currentPrice: 400,
         marketValue: 800,
+        averageCost: null,
         currency: 'USD',
         lastUpdated: baseDate,
         createdAt: baseDate,
@@ -680,9 +684,12 @@ describe('RebalancingService', () => {
         updatedAt: baseDate,
       },
     ]);
-    brokerageServiceMock.getHoldings.mockResolvedValue([
+    holdingsServiceMock.getHoldings.mockResolvedValue([
       {
         id: 'holding-krw',
+        source: HoldingSource.BROKERAGE,
+        accountId: 'acc-1',
+        market: null,
         symbol: 'SPY',
         name: 'SPY',
         quantity: 10,
@@ -690,11 +697,11 @@ describe('RebalancingService', () => {
         marketValue: 1000000,
         averageCost: null,
         currency: 'KRW',
-        accountId: 'acc-1',
         lastUpdated: baseDate,
+        createdAt: baseDate,
+        updatedAt: baseDate,
       },
     ]);
-    holdingsServiceMock.getManualHoldings.mockResolvedValue([]);
     holdingsServiceMock.getHoldingsForTag.mockImplementation(
       async (_user, tagId) => (tagId === 'tag-1' ? ['SPY'] : []),
     );
