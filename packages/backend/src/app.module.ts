@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
 
 import { Module } from '@nestjs/common';
-import { join } from 'node:path';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 import { GraphQLModule } from '@nestjs/graphql';
@@ -50,7 +49,7 @@ export function createGraphqlContext({
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       // Emit SDL file so that we can run schema generation offline (frontend codegen etc.)
-      autoSchemaFile: join(process.cwd(), 'generated.graphql'),
+      autoSchemaFile: true,
       sortSchema: true,
       playground: false,
       introspection: true,
