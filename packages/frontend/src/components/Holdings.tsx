@@ -123,6 +123,13 @@ const SectionTitle = styled.h2`
   font-size: ${(props) => props.theme.typography.fontSize.lg};
 `;
 
+const SectionHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: ${(props) => props.theme.spacing.md};
+`;
+
 const SectionDescription = styled.p`
   margin-top: ${(props) => props.theme.spacing.xs};
   color: ${(props) => props.theme.colors.text};
@@ -162,11 +169,13 @@ const ManualSelect = styled.select`
 
 const ActionGroup = styled.div`
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: ${(props) => props.theme.spacing.xs};
 
   & > ${Button} {
     margin-left: 0;
+    width: 100%;
+    white-space: nowrap;
   }
 `;
 
@@ -184,7 +193,6 @@ interface Holding {
   quantity: number;
   currentPrice: number;
   marketValue: number;
-  averageCost: number | null;
   currency: string;
   lastUpdated: string;
   createdAt: string;
@@ -446,11 +454,46 @@ export const Holdings: React.FC = () => {
     }
   };
 
+  const handleSyncAllPrices = async () => {
+    const manualHoldingsToSync = holdings.filter(
+      (holding) => holding.source === 'MANUAL' && holding.market,
+    );
+    
+    if (manualHoldingsToSync.length === 0) {
+      return;
+    }
+
+    try {
+      await Promise.all(
+        manualHoldingsToSync.map((holding) =>
+          syncManualHoldingPriceMutation({
+            variables: {
+              input: {
+                market: holding.market!,
+                symbol: holding.symbol,
+              },
+            },
+          }),
+        ),
+      );
+      await refetchHoldings();
+    } catch (error) {
+      console.error('전체 가격 동기화 실패:', error);
+    }
+  };
+
   if (holdingsLoading) return <div>로딩 중...</div>;
 
   return (
     <Container>
-      <h2>보유 종목</h2>
+      <SectionHeader>
+        <h2>보유 종목</h2>
+        {manualHoldings.length > 0 && (
+          <Button variant="primary" onClick={handleSyncAllPrices}>
+            현재가 전체 동기화
+          </Button>
+        )}
+      </SectionHeader>
       <p>
         증권사에서 가져온 보유 종목 목록입니다. 각 종목에 태그를 설정할 수
         있습니다.
@@ -466,7 +509,6 @@ export const Holdings: React.FC = () => {
             <Th>수량</Th>
             <Th>현재가</Th>
             <Th>평가금액</Th>
-            <Th>평균단가</Th>
             <Th>마지막 업데이트</Th>
             <Th>태그</Th>
             <Th>관리</Th>
@@ -475,7 +517,7 @@ export const Holdings: React.FC = () => {
         <tbody>
           {holdings.length === 0 ? (
             <tr>
-              <Td colSpan={11}>등록된 보유 종목이 없습니다.</Td>
+              <Td colSpan={10}>등록된 보유 종목이 없습니다.</Td>
             </tr>
           ) : (
             holdings.map((holding) => {
@@ -497,14 +539,6 @@ export const Holdings: React.FC = () => {
                   </Td>
                   <Td>
                     {formatCurrencyValue(holding.marketValue, holding.currency)}
-                  </Td>
-                  <Td>
-                    {holding.averageCost != null
-                      ? formatCurrencyValue(
-                          holding.averageCost,
-                          holding.currency,
-                        )
-                      : '-'}
                   </Td>
                   <Td>
                     {new Date(holding.lastUpdated).toLocaleString('ko-KR', {

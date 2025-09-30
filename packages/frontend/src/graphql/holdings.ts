@@ -63,7 +63,6 @@ export const GET_HOLDINGS = gql`
       quantity
       currentPrice
       marketValue
-      averageCost
       currency
       lastUpdated
       createdAt
@@ -151,7 +150,26 @@ export const SYNC_MANUAL_HOLDING_PRICE = gql`
       marketValue
       lastUpdated
       quantity
-      averageCost
+      currency
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const SYNC_ALL_MANUAL_HOLDING_PRICES = gql`
+  mutation SyncAllManualHoldingPrices {
+    syncAllManualHoldingPrices {
+      id
+      source
+      accountId
+      market
+      symbol
+      name
+      currentPrice
+      marketValue
+      lastUpdated
+      quantity
       currency
       createdAt
       updatedAt

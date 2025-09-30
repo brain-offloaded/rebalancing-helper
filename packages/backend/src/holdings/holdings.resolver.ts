@@ -128,4 +128,11 @@ export class HoldingsResolver {
   ): Promise<Holding> {
     return this.holdingsService.syncManualHoldingPrice(user.userId, input);
   }
+
+  @Mutation(() => [Holding])
+  syncAllManualHoldingPrices(
+    @CurrentUser() user: ActiveUserData,
+  ): Promise<Holding[]> {
+    return this.holdingsService.syncAllManualHoldingPrices(user.userId);
+  }
 }

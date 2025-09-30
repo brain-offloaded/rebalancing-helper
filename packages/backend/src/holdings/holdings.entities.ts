@@ -53,9 +53,6 @@ export class Holding {
   @Field(() => Number)
   marketValue: number;
 
-  @Field(() => Number, { nullable: true })
-  averageCost: number | null;
-
   @Field(() => String)
   currency: string;
 
@@ -88,9 +85,6 @@ export class EnrichedHolding {
 
   @Field(() => Number)
   marketValue: number;
-
-  @Field(() => Number, { nullable: true })
-  averageCost: number | null;
 
   @Field(() => String)
   currency: string;

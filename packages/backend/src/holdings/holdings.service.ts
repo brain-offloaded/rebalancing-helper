@@ -242,7 +242,6 @@ export class HoldingsService {
         quantity: input.quantity,
         currentPrice: quote.price,
         marketValue: input.quantity * quote.price,
-        averageCost: null,
         currency: quote.currency,
         lastUpdated: quote.lastUpdated,
       },
@@ -336,5 +335,28 @@ export class HoldingsService {
     });
 
     return this.mapHolding(updated);
+  }
+
+  async syncAllManualHoldingPrices(userId: string): Promise<Holding[]> {
+    const manualHoldings = await this.getManualHoldings(userId);
+    
+    const syncedHoldings = await Promise.all(
+      manualHoldings.map(async (holding) => {
+        try {
+          if (!holding.market) {
+            return holding;
+          }
+          return await this.syncManualHoldingPrice(userId, {
+            market: holding.market,
+            symbol: holding.symbol,
+          });
+        } catch (error) {
+          console.error(`Failed to sync ${holding.symbol}:`, error);
+          return holding;
+        }
+      }),
+    );
+
+    return syncedHoldings;
   }
 }
