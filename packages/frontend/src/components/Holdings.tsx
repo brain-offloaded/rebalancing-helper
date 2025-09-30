@@ -310,14 +310,13 @@ export const Holdings: React.FC = () => {
     event.preventDefault();
     const market = manualMarket.trim().toUpperCase();
     const symbol = manualSymbol.trim().toUpperCase();
+    if (!market || !symbol || manualQuantity.trim() === '') {
+      return;
+    }
+
     const quantityValue = Number(manualQuantity);
 
-    if (
-      !market ||
-      !symbol ||
-      !Number.isFinite(quantityValue) ||
-      quantityValue <= 0
-    ) {
+    if (!Number.isFinite(quantityValue) || quantityValue < 0) {
       return;
     }
 

@@ -64,7 +64,7 @@ export class ManualHoldingIdentifierInput {
 export class CreateManualHoldingInput extends ManualHoldingIdentifierInput {
   @Field(() => Number)
   @IsNumber()
-  @IsPositive()
+  @Min(0)
   quantity: number;
 }
 

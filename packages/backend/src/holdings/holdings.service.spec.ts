@@ -341,6 +341,45 @@ describe('HoldingsService', () => {
       expect(result.marketValue).toBeCloseTo(input.quantity * quote.price);
     });
 
+    it('createManualHolding는 수량이 0이어도 생성한다', async () => {
+      const input: CreateManualHoldingInput = {
+        market: 'US',
+        symbol: 'VOO',
+        quantity: 0,
+      };
+      marketDataServiceMock.getQuote.mockResolvedValue(quote);
+      prismaMock.holding.create.mockResolvedValue({
+        ...manualHolding,
+        quantity: input.quantity,
+        marketValue: 0,
+      });
+
+      const result = await service.createManualHolding(USER_ID, input);
+
+      expect(marketDataServiceMock.getQuote).toHaveBeenCalledWith(
+        input.market,
+        input.symbol,
+      );
+      expect(prismaMock.holding.create).toHaveBeenCalledWith({
+        data: {
+          userId: USER_ID,
+          source: PrismaHoldingSource.MANUAL,
+          accountId: null,
+          market: input.market,
+          symbol: input.symbol,
+          name: quote.name,
+          quantity: input.quantity,
+          currentPrice: quote.price,
+          marketValue: 0,
+          averageCost: null,
+          currency: quote.currency,
+          lastUpdated: quote.lastUpdated,
+        },
+      });
+      expect(result.marketValue).toBe(0);
+      expect(result.quantity).toBe(0);
+    });
+
     it('createManualHolding는 존재하지 않는 종목이면 예외를 던진다', async () => {
       const input: CreateManualHoldingInput = {
         market: 'US',

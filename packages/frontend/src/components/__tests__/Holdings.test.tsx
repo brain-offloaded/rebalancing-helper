@@ -1,3 +1,5 @@
+/// <reference types="@testing-library/jest-dom" />
+
 import userEvent from '@testing-library/user-event';
 import { screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -248,6 +250,41 @@ describe('Holdings', () => {
       expect(createManualHolding).toHaveBeenCalledWith({
         variables: {
           input: { market: 'US', symbol: 'VOO', quantity: 2 },
+        },
+      });
+    });
+    expect(holdingsRefetchFn).toHaveBeenCalled();
+  });
+
+  it('수동 보유 종목을 수량 0으로도 추가할 수 있다', async () => {
+    const user = userEvent.setup();
+    holdingsRefetchFn = vi.fn();
+    holdingsData = [];
+    marketsDataState = defaultMarkets;
+
+    const createManualHolding = vi.fn().mockResolvedValue({});
+    mockUseMutation.mockImplementation((document) => {
+      if (document === CreateManualHoldingDocument) {
+        return [createManualHolding, { loading: false }];
+      }
+      return [vi.fn(), { loading: false }];
+    });
+
+    renderWithProviders(<Holdings />, { withApollo: false });
+
+    await user.selectOptions(
+      screen.getByLabelText('시장'),
+      screen.getByRole('option', { name: /미국/ }),
+    );
+    await user.type(screen.getByLabelText('종목 코드'), 'BRK');
+    await user.clear(screen.getByLabelText('수량'));
+    await user.type(screen.getByLabelText('수량'), '0');
+    await user.click(screen.getByRole('button', { name: '수동 추가' }));
+
+    await waitFor(() => {
+      expect(createManualHolding).toHaveBeenCalledWith({
+        variables: {
+          input: { market: 'US', symbol: 'BRK', quantity: 0 },
         },
       });
     });
