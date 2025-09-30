@@ -207,14 +207,8 @@ export class HoldingsService {
 
     const orderBy: Prisma.HoldingOrderByWithRelationInput[] =
       options.source === PrismaHoldingSource.MANUAL
-        ? [
-            { market: Prisma.SortOrder.asc },
-            { symbol: Prisma.SortOrder.asc },
-          ]
-        : [
-            { symbol: Prisma.SortOrder.asc },
-            { market: Prisma.SortOrder.asc },
-          ];
+        ? [{ market: Prisma.SortOrder.asc }, { symbol: Prisma.SortOrder.asc }]
+        : [{ symbol: Prisma.SortOrder.asc }, { market: Prisma.SortOrder.asc }];
 
     const results = await this.prisma.holding.findMany({
       where,

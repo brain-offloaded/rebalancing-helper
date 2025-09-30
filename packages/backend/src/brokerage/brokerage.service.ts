@@ -235,10 +235,7 @@ export class BrokerageService {
     return results.map((holding) => this.mapHolding(holding));
   }
 
-  async refreshHoldings(
-    userId: string,
-    accountId: string,
-  ): Promise<Holding[]> {
+  async refreshHoldings(userId: string, accountId: string): Promise<Holding[]> {
     const account = await this.prisma.brokerageAccount.findUnique({
       where: { id: accountId },
     });

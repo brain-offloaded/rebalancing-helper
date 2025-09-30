@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import { Prisma, HoldingSource as PrismaHoldingSource } from '@prisma/client';
+import { HoldingSource as PrismaHoldingSource } from '@prisma/client';
 import { BrokerageService } from './brokerage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {

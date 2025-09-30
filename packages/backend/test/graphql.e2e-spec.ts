@@ -10,7 +10,11 @@ import { HoldingsService } from '../src/holdings/holdings.service';
 import { TagsService } from '../src/tags/tags.service';
 import { RebalancingService } from '../src/rebalancing/rebalancing.service';
 import { BrokerageAccount } from '../src/brokerage/brokerage.entities';
-import { HoldingTag, Holding, HoldingSource } from '../src/holdings/holdings.entities';
+import {
+  HoldingTag,
+  Holding,
+  HoldingSource,
+} from '../src/holdings/holdings.entities';
 import { Tag } from '../src/tags/tags.entities';
 import {
   RebalancingAnalysis,

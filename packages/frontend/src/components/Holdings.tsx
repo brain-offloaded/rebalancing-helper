@@ -490,14 +490,20 @@ export const Holdings: React.FC = () => {
                   <Td>{holding.name}</Td>
                   <Td>{holding.quantity.toLocaleString()}</Td>
                   <Td>
-                    {formatCurrencyValue(holding.currentPrice, holding.currency)}
+                    {formatCurrencyValue(
+                      holding.currentPrice,
+                      holding.currency,
+                    )}
                   </Td>
                   <Td>
                     {formatCurrencyValue(holding.marketValue, holding.currency)}
                   </Td>
                   <Td>
                     {holding.averageCost != null
-                      ? formatCurrencyValue(holding.averageCost, holding.currency)
+                      ? formatCurrencyValue(
+                          holding.averageCost,
+                          holding.currency,
+                        )
                       : '-'}
                   </Td>
                   <Td>

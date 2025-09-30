@@ -22,9 +22,7 @@ const defaultMarkets = [
   { id: 'market-us', code: 'US', displayName: '미국', yahooSuffix: null },
 ];
 
-const createHolding = (
-  overrides: Partial<Record<string, unknown>> = {},
-) => ({
+const createHolding = (overrides: Partial<Record<string, unknown>> = {}) => ({
   id: 'holding-1',
   source: 'BROKERAGE',
   accountId: 'acc-1',
@@ -49,9 +47,11 @@ let tagsDataState: Array<Record<string, unknown>>;
 let tagsLoadingState: boolean;
 let marketsDataState: typeof defaultMarkets;
 let tagsForHoldingResolver:
-  | ((
-      options?: Parameters<typeof mockUseQuery>[1],
-    ) => { data?: unknown; loading: boolean; refetch: ReturnType<typeof vi.fn> })
+  | ((options?: Parameters<typeof mockUseQuery>[1]) => {
+      data?: unknown;
+      loading: boolean;
+      refetch: ReturnType<typeof vi.fn>;
+    })
   | null;
 
 vi.mock('@apollo/client', async () => {
@@ -198,9 +198,7 @@ describe('Holdings', () => {
 
     renderWithProviders(<Holdings />, { withApollo: false });
 
-    await user.click(
-      screen.getAllByRole('button', { name: '태그 관리' })[0],
-    );
+    await user.click(screen.getAllByRole('button', { name: '태그 관리' })[0]);
 
     const checkboxes = screen.getAllByRole('checkbox');
     expect(checkboxes[0]).toBeChecked();
@@ -378,7 +376,9 @@ describe('Holdings', () => {
 
     renderWithProviders(<Holdings />, { withApollo: false });
 
-    await user.click(screen.getAllByRole('button', { name: '현재가 동기화' })[0]);
+    await user.click(
+      screen.getAllByRole('button', { name: '현재가 동기화' })[0],
+    );
 
     await waitFor(() => {
       expect(syncManualHoldingPrice).toHaveBeenCalled();
