@@ -282,7 +282,6 @@ describe('HoldingsService', () => {
       quantity: 2,
       currentPrice: 412.35,
       marketValue: 824.7,
-      averageCost: null,
       currency: 'USD',
       lastUpdated: new Date('2024-01-02T00:00:00Z'),
       createdAt: new Date('2024-01-01T00:00:00Z'),
@@ -333,7 +332,6 @@ describe('HoldingsService', () => {
           quantity: input.quantity,
           currentPrice: quote.price,
           marketValue: input.quantity * quote.price,
-          averageCost: null,
           currency: quote.currency,
           lastUpdated: quote.lastUpdated,
         },
@@ -374,7 +372,6 @@ describe('HoldingsService', () => {
         currency: manualHolding.currency,
         name: manualHolding.name,
         lastUpdated: manualHolding.lastUpdated,
-        averageCost: null,
         createdAt: manualHolding.createdAt,
         updatedAt: manualHolding.updatedAt,
       });
@@ -439,7 +436,6 @@ describe('HoldingsService', () => {
         currency: manualHolding.currency,
         name: manualHolding.name,
         lastUpdated: manualHolding.lastUpdated,
-        averageCost: null,
         createdAt: manualHolding.createdAt,
         updatedAt: manualHolding.updatedAt,
       });
@@ -524,7 +520,6 @@ describe('HoldingsService', () => {
         currency: manualHolding.currency,
         name: manualHolding.name,
         lastUpdated: manualHolding.lastUpdated,
-        averageCost: null,
         createdAt: manualHolding.createdAt,
         updatedAt: manualHolding.updatedAt,
       });
@@ -582,7 +577,6 @@ describe('HoldingsService', () => {
         currency: manualHolding.currency,
         name: manualHolding.name,
         lastUpdated: manualHolding.lastUpdated,
-        averageCost: null,
         createdAt: manualHolding.createdAt,
         updatedAt: manualHolding.updatedAt,
       });
@@ -604,6 +598,94 @@ describe('HoldingsService', () => {
         orderBy: [{ market: 'asc' }, { symbol: 'asc' }],
       });
       expect(result).toEqual([manualHolding]);
+    });
+
+    it('syncAllManualHoldingPrices는 모든 수동 보유 종목의 가격을 동기화한다', async () => {
+      const holding1 = {
+        ...manualHolding,
+        id: 'holding-1',
+        symbol: 'VOO',
+        currentPrice: 400,
+        marketValue: 800,
+      };
+      const holding2 = {
+        ...manualHolding,
+        id: 'holding-2',
+        symbol: 'VTI',
+        currentPrice: 200,
+        marketValue: 400,
+      };
+
+      prismaMock.holding.findMany.mockResolvedValue([holding1, holding2]);
+      prismaMock.holding.findUnique
+        .mockResolvedValueOnce(holding1)
+        .mockResolvedValueOnce(holding2);
+
+      marketDataServiceMock.getQuote
+        .mockResolvedValueOnce({
+          ...quote,
+          symbol: 'VOO',
+          price: 420,
+        })
+        .mockResolvedValueOnce({
+          ...quote,
+          symbol: 'VTI',
+          price: 210,
+        });
+
+      prismaMock.holding.update
+        .mockResolvedValueOnce({
+          ...holding1,
+          currentPrice: 420,
+          marketValue: 840,
+        })
+        .mockResolvedValueOnce({
+          ...holding2,
+          currentPrice: 210,
+          marketValue: 420,
+        });
+
+      const result = await service.syncAllManualHoldingPrices(USER_ID);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].currentPrice).toBe(420);
+      expect(result[1].currentPrice).toBe(210);
+    });
+
+    it('syncAllManualHoldingPrices는 일부 동기화 실패 시에도 나머지를 처리한다', async () => {
+      const holding1 = {
+        ...manualHolding,
+        id: 'holding-1',
+        symbol: 'VOO',
+      };
+      const holding2 = {
+        ...manualHolding,
+        id: 'holding-2',
+        symbol: 'INVALID',
+      };
+
+      prismaMock.holding.findMany.mockResolvedValue([holding1, holding2]);
+      prismaMock.holding.findUnique
+        .mockResolvedValueOnce(holding1)
+        .mockResolvedValueOnce(holding2);
+
+      marketDataServiceMock.getQuote
+        .mockResolvedValueOnce({
+          ...quote,
+          price: 420,
+        })
+        .mockRejectedValueOnce(new NotFoundException());
+
+      prismaMock.holding.update.mockResolvedValueOnce({
+        ...holding1,
+        currentPrice: 420,
+      });
+
+      const result = await service.syncAllManualHoldingPrices(USER_ID);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].currentPrice).toBe(420);
+      expect(result[1]).toEqual(holding2);
     });
   });
 });
