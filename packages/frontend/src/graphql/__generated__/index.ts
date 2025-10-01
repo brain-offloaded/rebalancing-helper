@@ -114,7 +114,6 @@ export type CreateTagInput = {
 export type Holding = {
   __typename?: 'Holding';
   accountId: Maybe<Scalars['String']['output']>;
-  averageCost: Maybe<Scalars['Float']['output']>;
   createdAt: Scalars['DateTime']['output'];
   currency: Scalars['String']['output'];
   currentPrice: Scalars['Float']['output'];
@@ -200,6 +199,7 @@ export type Mutation = {
   setHoldingTags: Array<HoldingTag>;
   setManualHoldingQuantity: Holding;
   setTargetAllocations: Scalars['Boolean']['output'];
+  syncAllManualHoldingPrices: Array<Holding>;
   syncManualHoldingPrice: Holding;
   updateBroker: Broker;
   updateBrokerageAccount: BrokerageAccount;
@@ -604,7 +604,6 @@ export type GetBrokerageHoldingsQuery = {
     quantity: number;
     currentPrice: number;
     marketValue: number;
-    averageCost: number | null;
     currency: string;
     accountId: string | null;
     lastUpdated: string;
@@ -717,7 +716,6 @@ export type RefreshBrokerageHoldingsMutation = {
     quantity: number;
     currentPrice: number;
     marketValue: number;
-    averageCost: number | null;
     currency: string;
     accountId: string | null;
     lastUpdated: string;
@@ -814,7 +812,6 @@ export type GetHoldingsQuery = {
     quantity: number;
     currentPrice: number;
     marketValue: number;
-    averageCost: number | null;
     currency: string;
     lastUpdated: string;
     createdAt: string;
@@ -921,11 +918,34 @@ export type SyncManualHoldingPriceMutation = {
     marketValue: number;
     lastUpdated: string;
     quantity: number;
-    averageCost: number | null;
     currency: string;
     createdAt: string;
     updatedAt: string;
   };
+};
+
+export type SyncAllManualHoldingPricesMutationVariables = Exact<{
+  [key: string]: never;
+}>;
+
+export type SyncAllManualHoldingPricesMutation = {
+  __typename?: 'Mutation';
+  syncAllManualHoldingPrices: Array<{
+    __typename?: 'Holding';
+    id: string;
+    source: HoldingSource;
+    accountId: string | null;
+    market: string | null;
+    symbol: string;
+    name: string;
+    currentPrice: number;
+    marketValue: number;
+    lastUpdated: string;
+    quantity: number;
+    currency: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
 };
 
 export type GetMarketsQueryVariables = Exact<{ [key: string]: never }>;
@@ -1499,7 +1519,6 @@ export const GetBrokerageHoldingsDocument = gql`
       quantity
       currentPrice
       marketValue
-      averageCost
       currency
       accountId
       lastUpdated
@@ -1916,7 +1935,6 @@ export const RefreshBrokerageHoldingsDocument = gql`
       quantity
       currentPrice
       marketValue
-      averageCost
       currency
       accountId
       lastUpdated
@@ -2374,7 +2392,6 @@ export const GetHoldingsDocument = gql`
       quantity
       currentPrice
       marketValue
-      averageCost
       currency
       lastUpdated
       createdAt
@@ -2700,7 +2717,6 @@ export const SyncManualHoldingPriceDocument = gql`
       marketValue
       lastUpdated
       quantity
-      averageCost
       currency
       createdAt
       updatedAt
@@ -2750,6 +2766,68 @@ export type SyncManualHoldingPriceMutationOptions = Apollo.BaseMutationOptions<
   SyncManualHoldingPriceMutation,
   SyncManualHoldingPriceMutationVariables
 >;
+export const SyncAllManualHoldingPricesDocument = gql`
+  mutation SyncAllManualHoldingPrices {
+    syncAllManualHoldingPrices {
+      id
+      source
+      accountId
+      market
+      symbol
+      name
+      currentPrice
+      marketValue
+      lastUpdated
+      quantity
+      currency
+      createdAt
+      updatedAt
+    }
+  }
+`;
+export type SyncAllManualHoldingPricesMutationFn = Apollo.MutationFunction<
+  SyncAllManualHoldingPricesMutation,
+  SyncAllManualHoldingPricesMutationVariables
+>;
+
+/**
+ * __useSyncAllManualHoldingPricesMutation__
+ *
+ * To run a mutation, you first call `useSyncAllManualHoldingPricesMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useSyncAllManualHoldingPricesMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [syncAllManualHoldingPricesMutation, { data, loading, error }] = useSyncAllManualHoldingPricesMutation({
+ *   variables: {
+ *   },
+ * });
+ */
+export function useSyncAllManualHoldingPricesMutation(
+  baseOptions?: Apollo.MutationHookOptions<
+    SyncAllManualHoldingPricesMutation,
+    SyncAllManualHoldingPricesMutationVariables
+  >,
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return Apollo.useMutation<
+    SyncAllManualHoldingPricesMutation,
+    SyncAllManualHoldingPricesMutationVariables
+  >(SyncAllManualHoldingPricesDocument, options);
+}
+export type SyncAllManualHoldingPricesMutationHookResult = ReturnType<
+  typeof useSyncAllManualHoldingPricesMutation
+>;
+export type SyncAllManualHoldingPricesMutationResult =
+  Apollo.MutationResult<SyncAllManualHoldingPricesMutation>;
+export type SyncAllManualHoldingPricesMutationOptions =
+  Apollo.BaseMutationOptions<
+    SyncAllManualHoldingPricesMutation,
+    SyncAllManualHoldingPricesMutationVariables
+  >;
 export const GetMarketsDocument = gql`
   query GetMarkets {
     markets {

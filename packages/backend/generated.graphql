@@ -83,7 +83,6 @@ scalar DateTime
 
 type Holding {
   accountId: String
-  averageCost: Float
   createdAt: DateTime!
   currency: String!
   currentPrice: Float!
@@ -168,6 +167,7 @@ type Mutation {
   setHoldingTags(input: SetHoldingTagsInput!): [HoldingTag!]!
   setManualHoldingQuantity(input: SetManualHoldingQuantityInput!): Holding!
   setTargetAllocations(input: SetTargetAllocationsInput!): Boolean!
+  syncAllManualHoldingPrices: [Holding!]!
   syncManualHoldingPrice(input: ManualHoldingIdentifierInput!): Holding!
   updateBroker(input: UpdateBrokerInput!): Broker!
   updateBrokerageAccount(input: UpdateBrokerageAccountInput!): BrokerageAccount!
