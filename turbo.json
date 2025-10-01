@@ -50,7 +50,10 @@
       "outputs": [
         "src/graphql/__generated__/**"
       ],
-      "outputLogs": "new-only"
+      "outputLogs": "new-only",
+      "env": [
+        "BROKER_CREDENTIAL_ENCRYPTION_KEY"
+      ]
     },
     "prisma:generate": {
       "cache": false,
