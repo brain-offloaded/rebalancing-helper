@@ -44,16 +44,16 @@
       "outputs": [
         "generated.graphql"
       ],
-      "outputLogs": "new-only"
+      "outputLogs": "new-only",
+      "env": [
+        "BROKER_CREDENTIAL_ENCRYPTION_KEY"
+      ]
     },
     "gql:codegen": {
       "outputs": [
         "src/graphql/__generated__/**"
       ],
-      "outputLogs": "new-only",
-      "env": [
-        "BROKER_CREDENTIAL_ENCRYPTION_KEY"
-      ]
+      "outputLogs": "new-only"
     },
     "prisma:generate": {
       "cache": false,
