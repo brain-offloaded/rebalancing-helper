@@ -39,6 +39,39 @@
       "env": [
         "BROKER_CREDENTIAL_ENCRYPTION_KEY"
       ]
+    },
+    "schema:gen": {
+      "outputs": [
+        "generated.graphql"
+      ],
+      "outputLogs": "new-only"
+    },
+    "codegen": {
+      "outputs": [
+        "src/graphql/__generated__/**"
+      ],
+      "outputLogs": "new-only"
+    },
+    "prisma:generate": {
+      "cache": false,
+      "outputLogs": "new-only"
+    },
+    "prisma:migrate": {
+      "cache": false,
+      "outputLogs": "new-only"
+    },
+    "prisma:deploy": {
+      "cache": false,
+      "outputLogs": "new-only"
+    },
+    "prisma:seed": {
+      "cache": false,
+      "outputLogs": "new-only"
+    },
+    "prisma:studio": {
+      "cache": false,
+      "persistent": true,
+      "outputLogs": "new-only"
     }
   }
 }
