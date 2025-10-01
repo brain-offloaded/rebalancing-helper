@@ -40,13 +40,13 @@
         "BROKER_CREDENTIAL_ENCRYPTION_KEY"
       ]
     },
-    "schema:gen": {
+    "gql:schema": {
       "outputs": [
         "generated.graphql"
       ],
       "outputLogs": "new-only"
     },
-    "codegen": {
+    "gql:codegen": {
       "outputs": [
         "src/graphql/__generated__/**"
       ],

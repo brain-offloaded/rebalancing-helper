@@ -18,9 +18,9 @@
     "prisma:deploy": "turbo run prisma:deploy --filter backend",
     "prisma:seed": "turbo run prisma:seed --filter backend",
     "prisma:studio": "turbo run prisma:studio --filter backend",
-    "schema:gen": "turbo run schema:gen --filter backend",
-    "gql:codegen": "turbo run codegen --filter frontend",
-    "gql:all": "pnpm schema:gen && pnpm gql:codegen"
+    "gql:schema": "turbo run gql:schema --filter backend",
+    "gql:codegen": "turbo run gql:codegen --filter frontend",
+    "gql:all": "pnpm gql:schema && pnpm gql:codegen"
   },
   "devDependencies": {
     "turbo": "^2.4.4"
