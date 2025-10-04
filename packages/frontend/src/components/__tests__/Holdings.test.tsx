@@ -85,6 +85,17 @@ describe('Holdings', () => {
     tagsForHoldingResolver = null;
     brokerageAccountsDataState = [
       {
+        id: 'acc-1',
+        name: '증권사 계좌',
+        brokerId: 'broker-api',
+        syncMode: 'API',
+        broker: null,
+        description: null,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
         id: 'manual-account-1',
         name: '수동 계좌',
         brokerId: 'broker-manual',
@@ -181,9 +192,10 @@ describe('Holdings', () => {
 
     renderWithProviders(<Holdings />, { withApollo: false });
 
-    expect(screen.getByText('증권사')).toBeInTheDocument();
-    expect(screen.getByText('수동')).toBeInTheDocument();
+    expect(screen.getByText('증권사 계좌')).toBeInTheDocument();
+    expect(screen.getAllByText('수동 계좌').length).toBeGreaterThan(0);
     expect(screen.getByText('AAPL')).toBeInTheDocument();
+    expect(screen.getByText('US · VOO')).toBeInTheDocument();
     expect(screen.getByText('Vanguard S&P 500 ETF')).toBeInTheDocument();
     expect(screen.getByText('$412.35')).toBeInTheDocument();
   });
