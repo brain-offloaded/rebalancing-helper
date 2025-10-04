@@ -46,7 +46,8 @@
       ],
       "outputLogs": "new-only",
       "env": [
-        "BROKER_CREDENTIAL_ENCRYPTION_KEY"
+        "BROKER_CREDENTIAL_ENCRYPTION_KEY",
+        "DATABASE_URL"
       ]
     },
     "gql:codegen": {
