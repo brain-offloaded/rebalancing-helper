@@ -19,7 +19,9 @@
       "persistent": true
     },
     "lint": {
-      "outputs": [],
+      "cache": true
+    },
+    "lint:fix": {
       "cache": false
     },
     "test": {
