@@ -91,7 +91,6 @@ scalar DateTime
 
 type Holding {
   accountId: String!
-  averageCost: Float
   createdAt: DateTime!
   currency: String!
   currentPrice: Float!

@@ -63,7 +63,6 @@ export const GET_HOLDINGS = gql`
       quantity
       currentPrice
       marketValue
-      averageCost
       currency
       lastUpdated
       createdAt
@@ -151,7 +150,6 @@ export const SYNC_MANUAL_HOLDING_PRICE = gql`
       marketValue
       lastUpdated
       quantity
-      averageCost
       currency
       createdAt
       updatedAt

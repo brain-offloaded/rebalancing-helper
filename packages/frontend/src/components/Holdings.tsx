@@ -34,13 +34,34 @@ const Th = styled.th`
   background-color: ${(props) => props.theme.colors.primary};
   color: white;
   padding: ${(props) => props.theme.spacing.md};
-  text-align: left;
+  text-align: center;
   font-weight: ${(props) => props.theme.typography.fontWeight.semibold};
 `;
 
 const Td = styled.td`
   padding: ${(props) => props.theme.spacing.md};
   border-bottom: 1px solid ${(props) => props.theme.colors.border};
+  vertical-align: middle;
+  text-align: center;
+`;
+
+const CellContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: ${(props) => props.theme.spacing.xs};
+`;
+
+const PrimaryText = styled.span`
+  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
+  color: ${(props) => props.theme.colors.text};
+`;
+
+const SecondaryText = styled.span`
+  color: ${(props) => props.theme.colors.text};
+  font-size: ${(props) => props.theme.typography.fontSize.xs};
+  opacity: 0.7;
 `;
 
 const TagContainer = styled.div`
@@ -48,6 +69,7 @@ const TagContainer = styled.div`
   flex-wrap: wrap;
   gap: ${(props) => props.theme.spacing.xs};
   margin-top: ${(props) => props.theme.spacing.xs};
+  justify-content: center;
 `;
 
 const Tag = styled.span<{ color: string }>`
@@ -60,7 +82,7 @@ const Tag = styled.span<{ color: string }>`
   font-weight: ${(props) => props.theme.typography.fontWeight.medium};
 `;
 
-const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
+const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'danger' }>`
   padding: ${(props) => props.theme.spacing.xs}
     ${(props) => props.theme.spacing.sm};
   font-size: ${(props) => props.theme.typography.fontSize.xs};
@@ -68,18 +90,33 @@ const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
   border-radius: ${(props) => props.theme.borderRadius.sm};
   cursor: pointer;
   margin-left: ${(props) => props.theme.spacing.xs};
+  transition: background-color 0.2s ease;
 
-  ${(props) =>
-    props.variant === 'primary'
-      ? `
-    background-color: ${props.theme.colors.primary};
-    color: white;
-  `
-      : `
-    background-color: ${props.theme.colors.light};
-    color: ${props.theme.colors.text};
-    border: 1px solid ${props.theme.colors.border};
-  `}
+  ${(props) => {
+    switch (props.variant) {
+      case 'primary':
+        return `
+          background-color: ${props.theme.colors.primary};
+          color: white;
+        `;
+      case 'danger':
+        return `
+          background-color: ${props.theme.colors.danger};
+          color: white;
+        `;
+      default:
+        return `
+          background-color: ${props.theme.colors.light};
+          color: ${props.theme.colors.text};
+          border: 1px solid ${props.theme.colors.border};
+        `;
+    }
+  }}
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
 const Modal = styled.div`
@@ -163,16 +200,26 @@ const ManualSelect = styled.select`
 
 const ActionGroup = styled.div`
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: ${(props) => props.theme.spacing.xs};
 
   & > ${Button} {
     margin-left: 0;
+    width: 100%;
   }
 `;
 
 const PrimaryButton = styled(Button)`
   margin-left: 0;
+`;
+
+const Toolbar = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${(props) => props.theme.spacing.sm};
+  align-items: center;
+  margin-top: ${(props) => props.theme.spacing.md};
 `;
 
 interface Holding {
@@ -185,7 +232,6 @@ interface Holding {
   quantity: number;
   currentPrice: number;
   marketValue: number;
-  averageCost: number | null;
   currency: string;
   lastUpdated: string;
   createdAt: string;
@@ -208,6 +254,7 @@ export const Holdings: React.FC = () => {
   const [manualSymbol, setManualSymbol] = useState('');
   const [manualQuantity, setManualQuantity] = useState('');
   const [manualAccountId, setManualAccountId] = useState('');
+  const [syncingAll, setSyncingAll] = useState(false);
 
   const {
     data: holdingsData,
@@ -224,10 +271,8 @@ export const Holdings: React.FC = () => {
     variables: { holdingSymbol: selectedHolding as string },
     skip: !selectedHolding,
   });
-  const {
-    data: brokerageAccountsData,
-    loading: brokerageAccountsLoading,
-  } = useGetBrokerageAccountsQuery();
+  const { data: brokerageAccountsData, loading: brokerageAccountsLoading } =
+    useGetBrokerageAccountsQuery();
 
   const [setHoldingTags] = useSetHoldingTagsMutation();
   const [createManualHoldingMutation, { loading: creatingManualHolding }] =
@@ -289,6 +334,16 @@ export const Holdings: React.FC = () => {
       ),
     [brokerageAccountsData?.brokerageAccounts],
   );
+  const accountNameById = useMemo(
+    () =>
+      new Map(
+        (brokerageAccountsData?.brokerageAccounts ?? []).map((account) => [
+          account.id,
+          account.name,
+        ]),
+      ),
+    [brokerageAccountsData?.brokerageAccounts],
+  );
   const manualHoldings = holdings.filter(
     (holding) => holding.source === 'MANUAL',
   );
@@ -331,6 +386,36 @@ export const Holdings: React.FC = () => {
       return `₩${Math.round(value).toLocaleString()}`;
     }
     return `${currency} ${formatted}`;
+  };
+
+  const formatLastUpdated = (value: string) => {
+    if (!value) {
+      return '-';
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '-';
+    }
+
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    const hours = `${date.getHours()}`.padStart(2, '0');
+    const minutes = `${date.getMinutes()}`.padStart(2, '0');
+
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+  };
+
+  const formatMarketWithSymbol = (
+    market: string | null | undefined,
+    symbol: string,
+  ) => {
+    if (market && market.trim().length > 0) {
+      return `${market} · ${symbol}`;
+    }
+
+    return symbol;
   };
 
   const handleManualSubmit = async (
@@ -484,6 +569,38 @@ export const Holdings: React.FC = () => {
     }
   };
 
+  const handleManualSyncAll = async () => {
+    if (manualHoldings.length === 0) {
+      return;
+    }
+
+    setSyncingAll(true);
+    try {
+      const validHoldings = manualHoldings.filter(
+        (holding) => holding.market && holding.accountId,
+      );
+
+      await Promise.all(
+        validHoldings.map((holding) =>
+          syncManualHoldingPriceMutation({
+            variables: {
+              input: {
+                accountId: holding.accountId as string,
+                market: holding.market as string,
+                symbol: holding.symbol,
+              },
+            },
+          }),
+        ),
+      );
+      await refetchHoldings();
+    } catch (error) {
+      console.error('수동 보유 종목 일괄 동기화 실패:', error);
+    } finally {
+      setSyncingAll(false);
+    }
+  };
+
   if (holdingsLoading) return <div>로딩 중...</div>;
 
   return (
@@ -494,17 +611,25 @@ export const Holdings: React.FC = () => {
         있습니다.
       </p>
 
+      <Toolbar>
+        <Button
+          variant="secondary"
+          type="button"
+          onClick={handleManualSyncAll}
+          disabled={syncingAll || manualHoldings.length === 0}
+        >
+          {syncingAll ? '현재가 동기화 중...' : '수동 종목 현재가 전체 동기화'}
+        </Button>
+      </Toolbar>
+
       <Table>
         <thead>
           <tr>
-            <Th>구분</Th>
-            <Th>시장</Th>
-            <Th>종목코드</Th>
-            <Th>종목명</Th>
+            <Th>계좌</Th>
+            <Th>종목</Th>
             <Th>수량</Th>
             <Th>현재가</Th>
             <Th>평가금액</Th>
-            <Th>평균단가</Th>
             <Th>마지막 업데이트</Th>
             <Th>태그</Th>
             <Th>관리</Th>
@@ -513,19 +638,31 @@ export const Holdings: React.FC = () => {
         <tbody>
           {holdings.length === 0 ? (
             <tr>
-              <Td colSpan={11}>등록된 보유 종목이 없습니다.</Td>
+              <Td colSpan={8}>등록된 보유 종목이 없습니다.</Td>
             </tr>
           ) : (
             holdings.map((holding) => {
               const tags = getTagsForHolding(holding.symbol);
-              const sourceLabel =
-                holding.source === 'BROKERAGE' ? '증권사' : '수동';
+              const accountName =
+                accountNameById.get(holding.accountId) ?? '미지정 계좌';
+              const sourceDescription =
+                holding.source === 'MANUAL' ? '수동 입력' : '자동 연동';
               return (
                 <tr key={holding.id}>
-                  <Td>{sourceLabel}</Td>
-                  <Td>{holding.market ?? '-'}</Td>
-                  <Td>{holding.symbol}</Td>
-                  <Td>{holding.name}</Td>
+                  <Td>
+                    <CellContent>
+                      <PrimaryText>{accountName}</PrimaryText>
+                      <SecondaryText>{sourceDescription}</SecondaryText>
+                    </CellContent>
+                  </Td>
+                  <Td>
+                    <CellContent>
+                      <PrimaryText>{holding.name}</PrimaryText>
+                      <SecondaryText>
+                        {formatMarketWithSymbol(holding.market, holding.symbol)}
+                      </SecondaryText>
+                    </CellContent>
+                  </Td>
                   <Td>{holding.quantity.toLocaleString()}</Td>
                   <Td>
                     {formatCurrencyValue(
@@ -537,17 +674,11 @@ export const Holdings: React.FC = () => {
                     {formatCurrencyValue(holding.marketValue, holding.currency)}
                   </Td>
                   <Td>
-                    {holding.averageCost != null
-                      ? formatCurrencyValue(
-                          holding.averageCost,
-                          holding.currency,
-                        )
-                      : '-'}
-                  </Td>
-                  <Td>
-                    {new Date(holding.lastUpdated).toLocaleString('ko-KR', {
-                      hour12: false,
-                    })}
+                    <CellContent>
+                      <PrimaryText>
+                        {formatLastUpdated(holding.lastUpdated)}
+                      </PrimaryText>
+                    </CellContent>
                   </Td>
                   <Td>
                     <TagContainer>
@@ -570,24 +701,28 @@ export const Holdings: React.FC = () => {
                         <>
                           <Button
                             type="button"
+                            variant="secondary"
                             onClick={() => handleManualIncrease(holding)}
                           >
                             수량 증가
                           </Button>
                           <Button
                             type="button"
+                            variant="secondary"
                             onClick={() => handleManualQuantitySet(holding)}
                           >
                             수량 설정
                           </Button>
                           <Button
                             type="button"
+                            variant="secondary"
                             onClick={() => handleManualSync(holding)}
                           >
                             현재가 동기화
                           </Button>
                           <Button
                             type="button"
+                            variant="danger"
                             onClick={() => handleManualDelete(holding)}
                           >
                             삭제
@@ -616,9 +751,7 @@ export const Holdings: React.FC = () => {
             <ManualSelect
               value={manualAccountId}
               onChange={(event) => setManualAccountId(event.target.value)}
-              disabled={
-                brokerageAccountsLoading || manualAccounts.length === 0
-              }
+              disabled={brokerageAccountsLoading || manualAccounts.length === 0}
             >
               <option value="" disabled>
                 {brokerageAccountsLoading

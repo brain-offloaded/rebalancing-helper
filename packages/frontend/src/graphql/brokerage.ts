@@ -43,7 +43,6 @@ export const GET_BROKERAGE_HOLDINGS = gql`
       quantity
       currentPrice
       marketValue
-      averageCost
       currency
       accountId
       lastUpdated
@@ -140,7 +139,6 @@ export const REFRESH_BROKERAGE_HOLDINGS = gql`
       quantity
       currentPrice
       marketValue
-      averageCost
       currency
       accountId
       lastUpdated

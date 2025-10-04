@@ -119,7 +119,6 @@ export type CreateTagInput = {
 export type Holding = {
   __typename?: 'Holding';
   accountId: Scalars['String']['output'];
-  averageCost: Maybe<Scalars['Float']['output']>;
   createdAt: Scalars['DateTime']['output'];
   currency: Scalars['String']['output'];
   currentPrice: Scalars['Float']['output'];
@@ -614,7 +613,6 @@ export type GetBrokerageHoldingsQuery = {
     quantity: number;
     currentPrice: number;
     marketValue: number;
-    averageCost: number | null;
     currency: string;
     accountId: string;
     lastUpdated: string;
@@ -729,7 +727,6 @@ export type RefreshBrokerageHoldingsMutation = {
     quantity: number;
     currentPrice: number;
     marketValue: number;
-    averageCost: number | null;
     currency: string;
     accountId: string;
     lastUpdated: string;
@@ -826,7 +823,6 @@ export type GetHoldingsQuery = {
     quantity: number;
     currentPrice: number;
     marketValue: number;
-    averageCost: number | null;
     currency: string;
     lastUpdated: string;
     createdAt: string;
@@ -933,7 +929,6 @@ export type SyncManualHoldingPriceMutation = {
     marketValue: number;
     lastUpdated: string;
     quantity: number;
-    averageCost: number | null;
     currency: string;
     createdAt: string;
     updatedAt: string;
@@ -1512,7 +1507,6 @@ export const GetBrokerageHoldingsDocument = gql`
       quantity
       currentPrice
       marketValue
-      averageCost
       currency
       accountId
       lastUpdated
@@ -1931,7 +1925,6 @@ export const RefreshBrokerageHoldingsDocument = gql`
       quantity
       currentPrice
       marketValue
-      averageCost
       currency
       accountId
       lastUpdated
@@ -2389,7 +2382,6 @@ export const GetHoldingsDocument = gql`
       quantity
       currentPrice
       marketValue
-      averageCost
       currency
       lastUpdated
       createdAt
@@ -2715,7 +2707,6 @@ export const SyncManualHoldingPriceDocument = gql`
       marketValue
       lastUpdated
       quantity
-      averageCost
       currency
       createdAt
       updatedAt

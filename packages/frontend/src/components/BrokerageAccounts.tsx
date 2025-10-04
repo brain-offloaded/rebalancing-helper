@@ -243,7 +243,10 @@ export const BrokerageAccounts: React.FC = () => {
     }
   };
 
-  const handleRefresh = async (accountId: string, syncMode: 'API' | 'MANUAL') => {
+  const handleRefresh = async (
+    accountId: string,
+    syncMode: 'API' | 'MANUAL',
+  ) => {
     if (syncMode !== 'API') {
       alert('수동 입력 계좌는 자동 새로고침을 지원하지 않습니다.');
       return;

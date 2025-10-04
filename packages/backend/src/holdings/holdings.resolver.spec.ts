@@ -36,7 +36,6 @@ const createHolding = (overrides: Partial<Holding> = {}): Holding => ({
   marketValue:
     overrides.marketValue ??
     (overrides.quantity ?? 3) * (overrides.currentPrice ?? 410.2),
-  averageCost: overrides.averageCost ?? null,
   currency: overrides.currency ?? 'USD',
   lastUpdated: overrides.lastUpdated ?? new Date('2024-01-03T00:00:00Z'),
   createdAt: overrides.createdAt ?? new Date('2024-01-02T00:00:00Z'),

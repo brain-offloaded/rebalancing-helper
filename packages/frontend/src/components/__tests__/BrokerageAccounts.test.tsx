@@ -212,7 +212,7 @@ describe('BrokerageAccounts', () => {
 
     await waitFor(() => {
       expect(createAccount).toHaveBeenCalledWith({
-            variables: {
+        variables: {
           input: {
             name: '신규 계정',
             brokerId: 'broker-2',
@@ -400,7 +400,9 @@ describe('BrokerageAccounts', () => {
       }
       if (query === GetBrokersDocument) {
         return {
-          data: { brokers: [{ id: 'broker-1', name: '테스트 증권', code: 'TEST' }] },
+          data: {
+            brokers: [{ id: 'broker-1', name: '테스트 증권', code: 'TEST' }],
+          },
           loading: false,
           error: undefined,
         };
@@ -412,7 +414,9 @@ describe('BrokerageAccounts', () => {
 
     renderWithProviders(<BrokerageAccounts />, { withApollo: false });
 
-    const refreshButton = screen.getByRole('button', { name: '보유종목 새로고침' });
+    const refreshButton = screen.getByRole('button', {
+      name: '보유종목 새로고침',
+    });
     expect(refreshButton).toBeDisabled();
   });
 });
