@@ -96,7 +96,6 @@ model Holding {
   quantity     Float
   currentPrice Float
   marketValue  Float
-  averageCost  Float?
   currency     String
   lastUpdated  DateTime
   createdAt    DateTime         @default(now())

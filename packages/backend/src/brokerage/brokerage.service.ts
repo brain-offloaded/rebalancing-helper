@@ -373,7 +373,6 @@ export class BrokerageService {
         quantity: 10,
         currentPrice: 425.5,
         marketValue: 4255.0,
-        averageCost: 420.0,
         currency: 'USD',
       },
       {
@@ -383,7 +382,6 @@ export class BrokerageService {
         quantity: 5,
         currentPrice: 248.3,
         marketValue: 1241.5,
-        averageCost: 245.0,
         currency: 'USD',
       },
     ];
@@ -404,7 +402,6 @@ export class BrokerageService {
           quantity: holding.quantity,
           currentPrice: holding.currentPrice,
           marketValue: holding.marketValue,
-          averageCost: holding.averageCost ?? null,
           currency: holding.currency,
           lastUpdated: new Date(),
         })),

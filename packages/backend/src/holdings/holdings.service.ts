@@ -279,7 +279,6 @@ export class HoldingsService {
         quantity: input.quantity,
         currentPrice: quote.price,
         marketValue: input.quantity * quote.price,
-        averageCost: null,
         currency: quote.currency,
         lastUpdated: quote.lastUpdated,
       },

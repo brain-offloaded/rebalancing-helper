@@ -35,7 +35,6 @@ const createHolding = (overrides: Partial<Record<string, unknown>> = {}) => ({
   quantity: 1,
   currentPrice: 100,
   marketValue: 100,
-  averageCost: null,
   currency: 'USD',
   lastUpdated: new Date().toISOString(),
   createdAt: new Date().toISOString(),
@@ -172,7 +171,6 @@ describe('Holdings', () => {
         quantity: 3,
         currentPrice: 190.23,
         marketValue: 570.69,
-        averageCost: 150.1,
       }),
       createHolding({
         id: 'holding-manual',
@@ -184,7 +182,6 @@ describe('Holdings', () => {
         quantity: 2,
         currentPrice: 412.35,
         marketValue: 824.7,
-        averageCost: null,
       }),
     ];
 

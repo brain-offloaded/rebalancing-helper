@@ -228,7 +228,6 @@ interface Holding {
   quantity: number;
   currentPrice: number;
   marketValue: number;
-  averageCost: number | null;
   currency: string;
   lastUpdated: string;
   createdAt: string;

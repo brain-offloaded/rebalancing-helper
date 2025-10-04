@@ -300,7 +300,6 @@ describe('HoldingsService', () => {
       quantity: 2,
       currentPrice: 412.35,
       marketValue: 824.7,
-      averageCost: null,
       currency: 'USD',
       lastUpdated: new Date('2024-01-02T00:00:00Z'),
       createdAt: new Date('2024-01-01T00:00:00Z'),
@@ -357,7 +356,6 @@ describe('HoldingsService', () => {
           quantity: input.quantity,
           currentPrice: quote.price,
           marketValue: input.quantity * quote.price,
-          averageCost: null,
           currency: quote.currency,
           lastUpdated: quote.lastUpdated,
         },
@@ -396,7 +394,6 @@ describe('HoldingsService', () => {
           quantity: input.quantity,
           currentPrice: quote.price,
           marketValue: 0,
-          averageCost: null,
           currency: quote.currency,
           lastUpdated: quote.lastUpdated,
         },
@@ -440,7 +437,6 @@ describe('HoldingsService', () => {
         currency: manualHolding.currency,
         name: manualHolding.name,
         lastUpdated: manualHolding.lastUpdated,
-        averageCost: null,
         createdAt: manualHolding.createdAt,
         updatedAt: manualHolding.updatedAt,
       });
@@ -512,7 +508,6 @@ describe('HoldingsService', () => {
         currency: manualHolding.currency,
         name: manualHolding.name,
         lastUpdated: manualHolding.lastUpdated,
-        averageCost: null,
         createdAt: manualHolding.createdAt,
         updatedAt: manualHolding.updatedAt,
       });
@@ -569,7 +564,6 @@ describe('HoldingsService', () => {
         currency: manualHolding.currency,
         name: manualHolding.name,
         lastUpdated: manualHolding.lastUpdated,
-        averageCost: null,
         createdAt: manualHolding.createdAt,
         updatedAt: manualHolding.updatedAt,
       });
@@ -618,7 +612,6 @@ describe('HoldingsService', () => {
         currency: manualHolding.currency,
         name: manualHolding.name,
         lastUpdated: manualHolding.lastUpdated,
-        averageCost: null,
         createdAt: manualHolding.createdAt,
         updatedAt: manualHolding.updatedAt,
       });
@@ -646,7 +639,6 @@ describe('HoldingsService', () => {
         currency: manualHolding.currency,
         name: manualHolding.name,
         lastUpdated: manualHolding.lastUpdated,
-        averageCost: null,
         createdAt: manualHolding.createdAt,
         updatedAt: manualHolding.updatedAt,
       });
@@ -719,7 +711,6 @@ describe('HoldingsService', () => {
         currency: manualHolding.currency,
         name: manualHolding.name,
         lastUpdated: manualHolding.lastUpdated,
-        averageCost: null,
         createdAt: manualHolding.createdAt,
         updatedAt: manualHolding.updatedAt,
       });
