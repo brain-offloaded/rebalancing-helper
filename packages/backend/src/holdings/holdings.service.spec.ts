@@ -63,13 +63,11 @@ describe('HoldingsService', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 'tag-1' }),
       },
       holdingAccount: {
-        findFirst: jest
-          .fn()
-          .mockResolvedValue({
-            id: ACCOUNT_ID,
-            userId: USER_ID,
-            syncMode: PrismaHoldingAccountSyncMode.MANUAL,
-          }),
+        findFirst: jest.fn().mockResolvedValue({
+          id: ACCOUNT_ID,
+          userId: USER_ID,
+          syncMode: PrismaHoldingAccountSyncMode.MANUAL,
+        }),
       },
       holding: {
         findMany: jest.fn(),

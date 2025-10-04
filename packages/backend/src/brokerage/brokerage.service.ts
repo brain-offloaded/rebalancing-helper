@@ -119,10 +119,7 @@ export class BrokerageService {
     userId: string,
     input: CreateBrokerageAccountInput,
   ): Promise<BrokerageAccount> {
-    if (
-      input.syncMode === BrokerageAccountSyncMode.API &&
-      !input.apiKey
-    ) {
+    if (input.syncMode === BrokerageAccountSyncMode.API && !input.apiKey) {
       throw new BadRequestException('API 동기화 모드에는 API 키가 필요합니다.');
     }
 
@@ -363,7 +360,9 @@ export class BrokerageService {
     }
 
     if (account.syncMode !== PrismaHoldingAccountSyncMode.API) {
-      throw new BadRequestException('해당 계좌는 자동 동기화를 지원하지 않습니다.');
+      throw new BadRequestException(
+        '해당 계좌는 자동 동기화를 지원하지 않습니다.',
+      );
     }
 
     const mockHoldings = [
