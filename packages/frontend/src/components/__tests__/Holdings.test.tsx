@@ -1,3 +1,5 @@
+/// <reference types="@testing-library/jest-dom" />
+
 import userEvent from '@testing-library/user-event';
 import { screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,8 +8,8 @@ import { Holdings } from '../Holdings';
 import {
   CreateManualHoldingDocument,
   DeleteManualHoldingDocument,
-  GetBrokerageHoldingsDocument,
-  GetManualHoldingsDocument,
+  GetHoldingsDocument,
+  GetBrokerageAccountsDocument,
   GetMarketsDocument,
   GetTagsDocument,
   GetTagsForHoldingDocument,
@@ -22,6 +24,40 @@ const mockUseMutation = vi.fn();
 const defaultMarkets = [
   { id: 'market-us', code: 'US', displayName: '미국', yahooSuffix: null },
 ];
+
+const createHolding = (overrides: Partial<Record<string, unknown>> = {}) => ({
+  id: 'holding-1',
+  source: 'BROKERAGE',
+  accountId: 'acc-1',
+  market: null,
+  symbol: 'AAPL',
+  name: '애플',
+  quantity: 1,
+  currentPrice: 100,
+  marketValue: 100,
+  averageCost: null,
+  currency: 'USD',
+  lastUpdated: new Date().toISOString(),
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  ...overrides,
+});
+
+let holdingsData: Array<Record<string, unknown>>;
+let holdingsLoadingState: boolean;
+let holdingsRefetchFn: ReturnType<typeof vi.fn>;
+let tagsDataState: Array<Record<string, unknown>>;
+let tagsLoadingState: boolean;
+let marketsDataState: typeof defaultMarkets;
+let brokerageAccountsDataState: Array<Record<string, unknown>>;
+let brokerageAccountsLoadingState: boolean;
+let tagsForHoldingResolver:
+  | ((options?: Parameters<typeof mockUseQuery>[1]) => {
+      data?: unknown;
+      loading: boolean;
+      refetch: ReturnType<typeof vi.fn>;
+    })
+  | null;
 
 vi.mock('@apollo/client', async () => {
   const actual =
@@ -40,36 +76,74 @@ describe('Holdings', () => {
   beforeEach(() => {
     mockUseQuery.mockReset();
     mockUseMutation.mockReset();
-  });
+    holdingsData = [];
+    holdingsLoadingState = false;
+    holdingsRefetchFn = vi.fn();
+    tagsDataState = [];
+    tagsLoadingState = false;
+    marketsDataState = defaultMarkets;
+    tagsForHoldingResolver = null;
+    brokerageAccountsDataState = [
+      {
+        id: 'manual-account-1',
+        name: '수동 계좌',
+        brokerId: 'broker-manual',
+        syncMode: 'MANUAL',
+        broker: null,
+        description: null,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+    brokerageAccountsLoadingState = false;
 
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('보유 종목을 불러오는 동안 로딩 메시지를 보여준다', () => {
-    mockUseQuery.mockImplementation((query) => {
+    mockUseQuery.mockImplementation((query, options) => {
       if (query === GetMarketsDocument) {
-        return { data: { markets: defaultMarkets }, loading: false };
+        return { data: { markets: marketsDataState }, loading: false };
       }
-      if (query === GetBrokerageHoldingsDocument) {
-        return { data: undefined, loading: true, error: undefined };
-      }
-      if (query === GetManualHoldingsDocument) {
+      if (query === GetHoldingsDocument) {
         return {
-          data: { manualHoldings: [] },
-          loading: false,
-          refetch: vi.fn(),
+          data: holdingsLoadingState ? undefined : { holdings: holdingsData },
+          loading: holdingsLoadingState,
+          refetch: holdingsRefetchFn,
         };
       }
       if (query === GetTagsDocument) {
-        return { data: undefined, loading: false, error: undefined };
+        return {
+          data: { tags: tagsDataState },
+          loading: tagsLoadingState,
+        };
+      }
+      if (query === GetBrokerageAccountsDocument) {
+        return {
+          data: brokerageAccountsLoadingState
+            ? undefined
+            : { brokerageAccounts: brokerageAccountsDataState },
+          loading: brokerageAccountsLoadingState,
+        };
       }
       if (query === GetTagsForHoldingDocument) {
+        if (tagsForHoldingResolver) {
+          return tagsForHoldingResolver(options);
+        }
         return { data: undefined, loading: false, refetch: vi.fn() };
       }
 
       throw new Error('예상치 못한 쿼리 호출');
     });
+
+    mockUseMutation.mockImplementation(() => [vi.fn(), { loading: false }]);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+    vi.restoreAllMocks();
+  });
+
+  it('보유 종목을 불러오는 동안 로딩 메시지를 보여준다', () => {
+    holdingsLoadingState = true;
+
     mockUseMutation.mockImplementation(() => [vi.fn(), { loading: false }]);
 
     renderWithProviders(<Holdings />, { withApollo: false });
@@ -77,127 +151,81 @@ describe('Holdings', () => {
     expect(screen.getByText('로딩 중...')).toBeInTheDocument();
   });
 
-  it('보유 종목 정보를 테이블에 표시한다', () => {
-    const holdings = [
-      {
-        id: 'holding-1',
+  it('통합된 보유 테이블에 증권사/수동 보유 종목을 표시한다', () => {
+    holdingsData = [
+      createHolding({
+        id: 'holding-brokerage',
+        source: 'BROKERAGE',
         symbol: 'AAPL',
         name: '애플',
-        quantity: 12,
+        quantity: 3,
         currentPrice: 190.23,
-        marketValue: 2282.76,
+        marketValue: 570.69,
         averageCost: 150.1,
-        currency: 'USD',
-        accountId: 'acc-1',
-        lastUpdated: new Date().toISOString(),
-      },
+      }),
+      createHolding({
+        id: 'holding-manual',
+        source: 'MANUAL',
+        accountId: 'manual-account-1',
+        market: 'US',
+        symbol: 'VOO',
+        name: 'Vanguard S&P 500 ETF',
+        quantity: 2,
+        currentPrice: 412.35,
+        marketValue: 824.7,
+        averageCost: null,
+      }),
     ];
 
-    mockUseQuery.mockImplementation((query) => {
-      if (query === GetMarketsDocument) {
-        return { data: { markets: defaultMarkets }, loading: false };
-      }
-      if (query === GetBrokerageHoldingsDocument) {
-        return { data: { brokerageHoldings: holdings }, loading: false };
-      }
-      if (query === GetManualHoldingsDocument) {
-        return {
-          data: { manualHoldings: [] },
-          loading: false,
-          refetch: vi.fn(),
-        };
-      }
-      if (query === GetTagsDocument) {
-        return { data: { tags: [] }, loading: false };
-      }
-      if (query === GetTagsForHoldingDocument) {
-        return { data: undefined, loading: false, refetch: vi.fn() };
-      }
-
-      throw new Error('예상치 못한 쿼리 호출');
-    });
     mockUseMutation.mockImplementation(() => [vi.fn(), { loading: false }]);
 
     renderWithProviders(<Holdings />, { withApollo: false });
 
+    expect(screen.getByText('증권사')).toBeInTheDocument();
+    expect(screen.getByText('수동')).toBeInTheDocument();
     expect(screen.getByText('AAPL')).toBeInTheDocument();
-    expect(screen.getByText('애플')).toBeInTheDocument();
-    expect(screen.getByText('12')).toBeInTheDocument();
-    expect(screen.getByText('$190.23')).toBeInTheDocument();
-    expect(screen.getByText('$2282.76')).toBeInTheDocument();
-    expect(screen.getByText('$150.10')).toBeInTheDocument();
+    expect(screen.getByText('Vanguard S&P 500 ETF')).toBeInTheDocument();
+    expect(screen.getByText('$412.35')).toBeInTheDocument();
   });
 
   it('태그 관리 모달에서 태그를 갱신한다', async () => {
+    const user = userEvent.setup();
     const holdings = [
-      {
+      createHolding({
         id: 'holding-1',
-        symbol: 'AAPL',
-        name: '애플',
-        quantity: 5,
-        currentPrice: 180,
-        marketValue: 900,
-        averageCost: 150,
-        currency: 'USD',
-        accountId: 'acc-1',
-        lastUpdated: new Date().toISOString(),
-      },
+        symbol: 'QQQ',
+        name: 'Invesco QQQ Trust',
+      }),
     ];
-    const tags = [
+    holdingsData = holdings;
+    tagsDataState = [
       { id: 'tag-1', name: '성장주', description: '성장', color: '#ff0000' },
       { id: 'tag-2', name: '배당주', description: '배당', color: '#00ff00' },
     ];
     const refetchHoldingTags = vi.fn();
     const setHoldingTags = vi.fn().mockResolvedValue({});
 
-    mockUseQuery.mockImplementation((query, options) => {
-      if (query === GetMarketsDocument) {
-        return { data: { markets: defaultMarkets }, loading: false };
+    tagsForHoldingResolver = (options) => {
+      if (options?.skip || !options?.variables?.holdingSymbol) {
+        return { data: undefined, loading: false, refetch: refetchHoldingTags };
       }
-      if (query === GetBrokerageHoldingsDocument) {
-        return { data: { brokerageHoldings: holdings }, loading: false };
-      }
-      if (query === GetManualHoldingsDocument) {
-        return {
-          data: { manualHoldings: [] },
-          loading: false,
-          refetch: vi.fn(),
-        };
-      }
-      if (query === GetTagsDocument) {
-        return { data: { tags }, loading: false };
-      }
-      if (query === GetTagsForHoldingDocument) {
-        if (options?.skip || !options?.variables?.holdingSymbol) {
-          return {
-            data: undefined,
-            loading: false,
-            refetch: refetchHoldingTags,
-          };
-        }
+      return {
+        data: { tagsForHolding: ['tag-1'] },
+        loading: false,
+        refetch: refetchHoldingTags,
+      };
+    };
 
-        return {
-          data: { tagsForHolding: ['tag-1'] },
-          loading: false,
-          refetch: refetchHoldingTags,
-        };
-      }
-
-      throw new Error('예상치 못한 쿼리 호출');
-    });
     mockUseMutation.mockImplementation((document) => {
       if (document === SetHoldingTagsDocument) {
         return [setHoldingTags, { loading: false }];
       }
-
       return [vi.fn(), { loading: false }];
     });
 
-    const user = userEvent.setup();
-
     renderWithProviders(<Holdings />, { withApollo: false });
 
-    await user.click(screen.getByRole('button', { name: '태그 관리' }));
+    await user.click(screen.getAllByRole('button', { name: '태그 관리' })[0]);
 
     const checkboxes = screen.getAllByRole('checkbox');
     expect(checkboxes[0]).toBeChecked();
@@ -210,563 +238,267 @@ describe('Holdings', () => {
       expect(setHoldingTags).toHaveBeenCalledWith({
         variables: {
           input: {
-            holdingSymbol: 'AAPL',
+            holdingSymbol: 'QQQ',
             tagIds: ['tag-1', 'tag-2'],
           },
         },
       });
     });
-
     expect(refetchHoldingTags).toHaveBeenCalled();
-
-    await waitFor(() => {
-      expect(screen.queryByText('AAPL 태그 관리')).not.toBeInTheDocument();
-    });
   });
 
-  it('태그 정보를 불러오는 동안 모달에서 로딩 메시지를 보여준다', async () => {
-    const holdings = [
-      {
-        id: 'holding-1',
-        symbol: 'AAPL',
-        name: '애플',
-        quantity: 5,
-        currentPrice: 180,
-        marketValue: 900,
-        averageCost: 150,
-        currency: 'USD',
-        accountId: 'acc-1',
-        lastUpdated: new Date().toISOString(),
-      },
-    ];
-    const tags = [
-      { id: 'tag-1', name: '성장주', description: '성장', color: '#ff0000' },
-    ];
-
-    mockUseQuery.mockImplementation((query, options) => {
-      if (query === GetMarketsDocument) {
-        return { data: { markets: defaultMarkets }, loading: false };
-      }
-      if (query === GetBrokerageHoldingsDocument) {
-        return { data: { brokerageHoldings: holdings }, loading: false };
-      }
-      if (query === GetManualHoldingsDocument) {
-        return {
-          data: { manualHoldings: [] },
-          loading: false,
-          refetch: vi.fn(),
-        };
-      }
-      if (query === GetTagsDocument) {
-        return { data: { tags }, loading: false };
-      }
-      if (query === GetTagsForHoldingDocument) {
-        if (options?.skip || !options?.variables?.holdingSymbol) {
-          return { data: undefined, loading: false, refetch: vi.fn() };
-        }
-
-        return { data: undefined, loading: true, refetch: vi.fn() };
-      }
-
-      throw new Error('예상치 못한 쿼리 호출');
-    });
-    mockUseMutation.mockImplementation(() => [vi.fn(), { loading: false }]);
-
+  it('수동 보유 종목을 추가하면 refetch를 호출한다', async () => {
     const user = userEvent.setup();
+    holdingsRefetchFn = vi.fn();
+    holdingsData = [];
+    marketsDataState = defaultMarkets;
+
+    const createManualHolding = vi.fn().mockResolvedValue({});
+    mockUseMutation.mockImplementation((document) => {
+      if (document === CreateManualHoldingDocument) {
+        return [createManualHolding, { loading: false }];
+      }
+      return [vi.fn(), { loading: false }];
+    });
 
     renderWithProviders(<Holdings />, { withApollo: false });
 
-    await user.click(screen.getByRole('button', { name: '태그 관리' }));
+    await waitFor(() => {
+      expect(screen.getByLabelText('계좌')).toHaveValue('manual-account-1');
+    });
+    await user.selectOptions(
+      screen.getByLabelText('시장'),
+      screen.getByRole('option', { name: /미국/ }),
+    );
+    await user.type(screen.getByLabelText('종목 코드'), 'VOO');
+    await user.type(screen.getByLabelText('수량'), '2');
+    await user.click(screen.getByRole('button', { name: '수동 추가' }));
 
-    expect(screen.getByText('태그를 불러오는 중...')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(createManualHolding).toHaveBeenCalledWith({
+        variables: {
+          input: {
+            accountId: 'manual-account-1',
+            market: 'US',
+            symbol: 'VOO',
+            quantity: 2,
+          },
+        },
+      });
+    });
+    expect(holdingsRefetchFn).toHaveBeenCalled();
   });
 
-  describe('수동 보유 종목 관리', () => {
-    it('수동 보유 종목을 테이블에 표시한다', () => {
-      const holdings = [
-        {
-          id: 'manual-1',
-          market: 'US',
-          symbol: 'VOO',
-          name: 'Vanguard S&P 500 ETF',
-          quantity: 2,
-          currentPrice: 412.35,
-          marketValue: 824.7,
-          currency: 'USD',
-          lastUpdated: new Date('2024-01-01T00:00:00Z').toISOString(),
+  it('수동 보유 종목을 수량 0으로도 추가할 수 있다', async () => {
+    const user = userEvent.setup();
+    holdingsRefetchFn = vi.fn();
+    holdingsData = [];
+    marketsDataState = defaultMarkets;
+
+    const createManualHolding = vi.fn().mockResolvedValue({});
+    mockUseMutation.mockImplementation((document) => {
+      if (document === CreateManualHoldingDocument) {
+        return [createManualHolding, { loading: false }];
+      }
+      return [vi.fn(), { loading: false }];
+    });
+
+    renderWithProviders(<Holdings />, { withApollo: false });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('계좌')).toHaveValue('manual-account-1');
+    });
+    await user.selectOptions(
+      screen.getByLabelText('시장'),
+      screen.getByRole('option', { name: /미국/ }),
+    );
+    await user.type(screen.getByLabelText('종목 코드'), 'BRK');
+    await user.clear(screen.getByLabelText('수량'));
+    await user.type(screen.getByLabelText('수량'), '0');
+    await user.click(screen.getByRole('button', { name: '수동 추가' }));
+
+    await waitFor(() => {
+      expect(createManualHolding).toHaveBeenCalledWith({
+        variables: {
+          input: {
+            accountId: 'manual-account-1',
+            market: 'US',
+            symbol: 'BRK',
+            quantity: 0,
+          },
         },
-      ];
-
-      mockUseQuery.mockImplementation((query) => {
-        if (query === GetMarketsDocument) {
-          return { data: { markets: defaultMarkets }, loading: false };
-        }
-        if (query === GetBrokerageHoldingsDocument) {
-          return { data: { brokerageHoldings: [] }, loading: false };
-        }
-        if (query === GetManualHoldingsDocument) {
-          return {
-            data: { manualHoldings: holdings },
-            loading: false,
-            refetch: vi.fn(),
-          };
-        }
-        if (query === GetTagsDocument) {
-          return { data: { tags: [] }, loading: false };
-        }
-        if (query === GetTagsForHoldingDocument) {
-          return { data: undefined, loading: false, refetch: vi.fn() };
-        }
-
-        throw new Error('예상치 못한 쿼리 호출');
       });
-      mockUseMutation.mockImplementation(() => [vi.fn(), { loading: false }]);
+    });
+    expect(holdingsRefetchFn).toHaveBeenCalled();
+  });
 
-      renderWithProviders(<Holdings />, { withApollo: false });
+  it('수동 보유 종목 수량을 증가시킨다', async () => {
+    const user = userEvent.setup();
+    holdingsRefetchFn = vi.fn();
+    holdingsData = [
+      createHolding({
+        id: 'manual-1',
+        source: 'MANUAL',
+        accountId: 'manual-account-1',
+        market: 'US',
+        symbol: 'VOO',
+        name: 'Vanguard S&P 500 ETF',
+        quantity: 2,
+      }),
+    ];
 
-      expect(screen.getByText('수동 보유 종목')).toBeInTheDocument();
-      expect(screen.getByText('VOO')).toBeInTheDocument();
-      expect(screen.getByText('US')).toBeInTheDocument();
-      expect(screen.getByText('2')).toBeInTheDocument();
-      expect(screen.getByText('$412.35')).toBeInTheDocument();
+    const increaseManualHolding = vi.fn().mockResolvedValue({});
+    const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('1');
+    mockUseMutation.mockImplementation((document) => {
+      if (document === IncreaseManualHoldingDocument) {
+        return [increaseManualHolding, { loading: false }];
+      }
+      return [vi.fn(), { loading: false }];
     });
 
-    it('수동 보유 종목에서도 태그를 관리할 수 있다', async () => {
-      const manualHoldings = [
-        {
-          id: 'manual-1',
-          market: 'US',
-          symbol: 'VOO',
-          name: 'Vanguard S&P 500 ETF',
-          quantity: 2,
-          currentPrice: 400,
-          marketValue: 800,
-          currency: 'USD',
-          lastUpdated: new Date().toISOString(),
+    renderWithProviders(<Holdings />, { withApollo: false });
+
+    await user.click(screen.getAllByRole('button', { name: '수량 증가' })[0]);
+
+    await waitFor(() => {
+      expect(increaseManualHolding).toHaveBeenCalledWith({
+        variables: {
+          input: {
+            accountId: 'manual-account-1',
+            market: 'US',
+            symbol: 'VOO',
+            quantityDelta: 1,
+          },
         },
-      ];
-      const tags = [
-        { id: 'tag-1', name: '장기투자', description: null, color: '#000000' },
-        { id: 'tag-2', name: 'ETF', description: null, color: '#111111' },
-      ];
-      const refetchHoldingTags = vi.fn();
-      const setHoldingTags = vi.fn().mockResolvedValue({});
-
-      mockUseQuery.mockImplementation((query, options) => {
-        if (query === GetMarketsDocument) {
-          return { data: { markets: defaultMarkets }, loading: false };
-        }
-        if (query === GetBrokerageHoldingsDocument) {
-          return { data: { brokerageHoldings: [] }, loading: false };
-        }
-        if (query === GetManualHoldingsDocument) {
-          return {
-            data: { manualHoldings },
-            loading: false,
-            refetch: vi.fn(),
-          };
-        }
-        if (query === GetTagsDocument) {
-          return { data: { tags }, loading: false };
-        }
-        if (query === GetTagsForHoldingDocument) {
-          if (options?.skip || !options?.variables?.holdingSymbol) {
-            return {
-              data: undefined,
-              loading: false,
-              refetch: refetchHoldingTags,
-            };
-          }
-
-          return {
-            data: { tagsForHolding: ['tag-2'] },
-            loading: false,
-            refetch: refetchHoldingTags,
-          };
-        }
-
-        throw new Error('예상치 못한 쿼리 호출');
-      });
-      mockUseMutation.mockImplementation((document) => {
-        if (document === SetHoldingTagsDocument) {
-          return [setHoldingTags, { loading: false }];
-        }
-
-        return [vi.fn(), { loading: false }];
-      });
-
-      const user = userEvent.setup();
-
-      renderWithProviders(<Holdings />, { withApollo: false });
-
-      await user.click(
-        screen.getByRole('button', { name: '태그 관리', exact: false }),
-      );
-
-      expect(screen.getByText('VOO 태그 관리')).toBeInTheDocument();
-
-      const checkboxes = screen.getAllByRole('checkbox');
-      expect(checkboxes[0]).not.toBeChecked();
-      expect(checkboxes[1]).toBeChecked();
-
-      await user.click(checkboxes[0]);
-      await user.click(screen.getByRole('button', { name: '적용' }));
-
-      await waitFor(() => {
-        expect(setHoldingTags).toHaveBeenCalledWith({
-          variables: {
-            input: {
-              holdingSymbol: 'VOO',
-              tagIds: ['tag-2', 'tag-1'],
-            },
-          },
-        });
-      });
-
-      expect(refetchHoldingTags).toHaveBeenCalled();
-
-      await waitFor(() => {
-        expect(screen.queryByText('VOO 태그 관리')).not.toBeInTheDocument();
       });
     });
+    expect(holdingsRefetchFn).toHaveBeenCalled();
+    promptSpy.mockRestore();
+  });
 
-    it('새로운 수동 보유 종목을 등록한다', async () => {
-      const user = userEvent.setup();
-      const refetchManualHoldings = vi.fn();
-      const createManualHolding = vi.fn().mockResolvedValue({});
+  it('수동 보유 종목 수량을 설정한다', async () => {
+    const user = userEvent.setup();
+    holdingsRefetchFn = vi.fn();
+    holdingsData = [
+      createHolding({
+        id: 'manual-1',
+        source: 'MANUAL',
+        accountId: 'manual-account-1',
+        market: 'US',
+        symbol: 'VOO',
+        name: 'Vanguard S&P 500 ETF',
+        quantity: 5,
+      }),
+    ];
 
-      mockUseQuery.mockImplementation((query) => {
-        if (query === GetMarketsDocument) {
-          return { data: { markets: defaultMarkets }, loading: false };
-        }
-        if (query === GetBrokerageHoldingsDocument) {
-          return { data: { brokerageHoldings: [] }, loading: false };
-        }
-        if (query === GetManualHoldingsDocument) {
-          return {
-            data: { manualHoldings: [] },
-            loading: false,
-            refetch: refetchManualHoldings,
-          };
-        }
-        if (query === GetTagsDocument) {
-          return { data: { tags: [] }, loading: false };
-        }
-        if (query === GetTagsForHoldingDocument) {
-          return { data: undefined, loading: false, refetch: vi.fn() };
-        }
-
-        throw new Error('예상치 못한 쿼리 호출');
-      });
-      mockUseMutation.mockImplementation((document) => {
-        if (document === CreateManualHoldingDocument) {
-          return [createManualHolding, { loading: false }];
-        }
-
-        return [vi.fn(), { loading: false }];
-      });
-
-      renderWithProviders(<Holdings />, { withApollo: false });
-
-      await user.selectOptions(screen.getByLabelText('시장'), 'US');
-      await user.type(screen.getByLabelText('종목 코드'), 'VOO');
-      await user.type(screen.getByLabelText('수량'), '2');
-      await user.click(screen.getByRole('button', { name: '수동 추가' }));
-
-      await waitFor(() => {
-        expect(createManualHolding).toHaveBeenCalledWith({
-          variables: {
-            input: {
-              market: 'US',
-              symbol: 'VOO',
-              quantity: 2,
-            },
-          },
-        });
-      });
-
-      expect(refetchManualHoldings).toHaveBeenCalled();
+    const setManualHoldingQuantity = vi.fn().mockResolvedValue({});
+    const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('10');
+    mockUseMutation.mockImplementation((document) => {
+      if (document === SetManualHoldingQuantityDocument) {
+        return [setManualHoldingQuantity, { loading: false }];
+      }
+      return [vi.fn(), { loading: false }];
     });
 
-    it('수동 보유 종목 수량을 증가시킨다', async () => {
-      const user = userEvent.setup();
-      const refetchManualHoldings = vi.fn();
-      const increaseManualHolding = vi.fn().mockResolvedValue({});
-      const originalPrompt = window.prompt;
-      window.prompt = vi.fn().mockReturnValue('3');
+    renderWithProviders(<Holdings />, { withApollo: false });
 
-      mockUseQuery.mockImplementation((query) => {
-        if (query === GetMarketsDocument) {
-          return { data: { markets: defaultMarkets }, loading: false };
-        }
-        if (query === GetBrokerageHoldingsDocument) {
-          return { data: { brokerageHoldings: [] }, loading: false };
-        }
-        if (query === GetManualHoldingsDocument) {
-          return {
-            data: {
-              manualHoldings: [
-                {
-                  id: 'manual-1',
-                  market: 'US',
-                  symbol: 'VOO',
-                  name: 'VOO',
-                  quantity: 2,
-                  currentPrice: 400,
-                  marketValue: 800,
-                  currency: 'USD',
-                  lastUpdated: new Date().toISOString(),
-                },
-              ],
-            },
-            loading: false,
-            refetch: refetchManualHoldings,
-          };
-        }
-        if (query === GetTagsDocument) {
-          return { data: { tags: [] }, loading: false };
-        }
-        if (query === GetTagsForHoldingDocument) {
-          return { data: undefined, loading: false, refetch: vi.fn() };
-        }
+    await user.click(screen.getAllByRole('button', { name: '수량 설정' })[0]);
 
-        throw new Error('예상치 못한 쿼리 호출');
-      });
-      mockUseMutation.mockImplementation((document) => {
-        if (document === IncreaseManualHoldingDocument) {
-          return [increaseManualHolding, { loading: false }];
-        }
-
-        return [vi.fn(), { loading: false }];
-      });
-
-      renderWithProviders(<Holdings />, { withApollo: false });
-
-      await user.click(screen.getByRole('button', { name: '수량 증가' }));
-
-      await waitFor(() => {
-        expect(window.prompt).toHaveBeenCalled();
-        expect(increaseManualHolding).toHaveBeenCalledWith({
-          variables: {
-            input: {
-              market: 'US',
-              symbol: 'VOO',
-              quantityDelta: 3,
-            },
+    await waitFor(() => {
+      expect(setManualHoldingQuantity).toHaveBeenCalledWith({
+        variables: {
+          input: {
+            accountId: 'manual-account-1',
+            market: 'US',
+            symbol: 'VOO',
+            quantity: 10,
           },
-        });
+        },
       });
+    });
+    expect(holdingsRefetchFn).toHaveBeenCalled();
+    promptSpy.mockRestore();
+  });
 
-      expect(refetchManualHoldings).toHaveBeenCalled();
-      window.prompt = originalPrompt;
+  it('수동 보유 종목을 삭제한다', async () => {
+    const user = userEvent.setup();
+    holdingsRefetchFn = vi.fn();
+    holdingsData = [
+      createHolding({
+        id: 'manual-1',
+        source: 'MANUAL',
+        accountId: 'manual-account-1',
+        market: 'US',
+        symbol: 'VOO',
+        name: 'Vanguard S&P 500 ETF',
+      }),
+    ];
+
+    const deleteManualHolding = vi.fn().mockResolvedValue({});
+    mockUseMutation.mockImplementation((document) => {
+      if (document === DeleteManualHoldingDocument) {
+        return [deleteManualHolding, { loading: false }];
+      }
+      return [vi.fn(), { loading: false }];
     });
 
-    it('수동 보유 종목 수량을 설정한다', async () => {
-      const user = userEvent.setup();
-      const refetchManualHoldings = vi.fn();
-      const setManualHoldingQuantity = vi.fn().mockResolvedValue({});
-      const originalPrompt = window.prompt;
-      window.prompt = vi.fn().mockReturnValue('5');
+    renderWithProviders(<Holdings />, { withApollo: false });
 
-      mockUseQuery.mockImplementation((query) => {
-        if (query === GetMarketsDocument) {
-          return { data: { markets: defaultMarkets }, loading: false };
-        }
-        if (query === GetBrokerageHoldingsDocument) {
-          return { data: { brokerageHoldings: [] }, loading: false };
-        }
-        if (query === GetManualHoldingsDocument) {
-          return {
-            data: {
-              manualHoldings: [
-                {
-                  id: 'manual-2',
-                  market: 'US',
-                  symbol: 'VOO',
-                  name: 'VOO',
-                  quantity: 2,
-                  currentPrice: 400,
-                  marketValue: 800,
-                  currency: 'USD',
-                  lastUpdated: new Date().toISOString(),
-                },
-              ],
-            },
-            loading: false,
-            refetch: refetchManualHoldings,
-          };
-        }
-        if (query === GetTagsDocument) {
-          return { data: { tags: [] }, loading: false };
-        }
-        if (query === GetTagsForHoldingDocument) {
-          return { data: undefined, loading: false, refetch: vi.fn() };
-        }
+    await user.click(screen.getAllByRole('button', { name: '삭제' })[0]);
 
-        throw new Error('예상치 못한 쿼리 호출');
-      });
-      mockUseMutation.mockImplementation((document) => {
-        if (document === SetManualHoldingQuantityDocument) {
-          return [setManualHoldingQuantity, { loading: false }];
-        }
-
-        return [vi.fn(), { loading: false }];
-      });
-
-      renderWithProviders(<Holdings />, { withApollo: false });
-
-      await user.click(screen.getByRole('button', { name: '수량 설정' }));
-
-      await waitFor(() => {
-        expect(setManualHoldingQuantity).toHaveBeenCalledWith({
-          variables: {
-            input: {
-              market: 'US',
-              symbol: 'VOO',
-              quantity: 5,
-            },
+    await waitFor(() => {
+      expect(deleteManualHolding).toHaveBeenCalledWith({
+        variables: {
+          input: {
+            accountId: 'manual-account-1',
+            market: 'US',
+            symbol: 'VOO',
           },
-        });
+        },
       });
+    });
+    expect(holdingsRefetchFn).toHaveBeenCalled();
+  });
 
-      expect(refetchManualHoldings).toHaveBeenCalled();
-      window.prompt = originalPrompt;
+  it('수동 보유 종목 가격을 동기화한다', async () => {
+    const user = userEvent.setup();
+    holdingsRefetchFn = vi.fn();
+    holdingsData = [
+      createHolding({
+        id: 'manual-1',
+        source: 'MANUAL',
+        accountId: 'manual-account-1',
+        market: 'US',
+        symbol: 'VOO',
+        name: 'Vanguard S&P 500 ETF',
+      }),
+    ];
+
+    const syncManualHoldingPrice = vi.fn().mockResolvedValue({});
+    mockUseMutation.mockImplementation((document) => {
+      if (document === SyncManualHoldingPriceDocument) {
+        return [syncManualHoldingPrice, { loading: false }];
+      }
+      return [vi.fn(), { loading: false }];
     });
 
-    it('수동 보유 종목을 삭제한다', async () => {
-      const user = userEvent.setup();
-      const refetchManualHoldings = vi.fn();
-      const deleteManualHolding = vi.fn().mockResolvedValue({});
+    renderWithProviders(<Holdings />, { withApollo: false });
 
-      mockUseQuery.mockImplementation((query) => {
-        if (query === GetMarketsDocument) {
-          return { data: { markets: defaultMarkets }, loading: false };
-        }
-        if (query === GetBrokerageHoldingsDocument) {
-          return { data: { brokerageHoldings: [] }, loading: false };
-        }
-        if (query === GetManualHoldingsDocument) {
-          return {
-            data: {
-              manualHoldings: [
-                {
-                  id: 'manual-3',
-                  market: 'US',
-                  symbol: 'VOO',
-                  name: 'VOO',
-                  quantity: 2,
-                  currentPrice: 400,
-                  marketValue: 800,
-                  currency: 'USD',
-                  lastUpdated: new Date().toISOString(),
-                },
-              ],
-            },
-            loading: false,
-            refetch: refetchManualHoldings,
-          };
-        }
-        if (query === GetTagsDocument) {
-          return { data: { tags: [] }, loading: false };
-        }
-        if (query === GetTagsForHoldingDocument) {
-          return { data: undefined, loading: false, refetch: vi.fn() };
-        }
+    await user.click(
+      screen.getAllByRole('button', { name: '현재가 동기화' })[0],
+    );
 
-        throw new Error('예상치 못한 쿼리 호출');
-      });
-      mockUseMutation.mockImplementation((document) => {
-        if (document === DeleteManualHoldingDocument) {
-          return [deleteManualHolding, { loading: false }];
-        }
-
-        return [vi.fn(), { loading: false }];
-      });
-
-      renderWithProviders(<Holdings />, { withApollo: false });
-
-      await user.click(screen.getByRole('button', { name: '삭제' }));
-
-      await waitFor(() => {
-        expect(deleteManualHolding).toHaveBeenCalledWith({
-          variables: {
-            input: {
-              market: 'US',
-              symbol: 'VOO',
-            },
+    await waitFor(() => {
+      expect(syncManualHoldingPrice).toHaveBeenCalledWith({
+        variables: {
+          input: {
+            accountId: 'manual-account-1',
+            market: 'US',
+            symbol: 'VOO',
           },
-        });
+        },
       });
-
-      expect(refetchManualHoldings).toHaveBeenCalled();
     });
-
-    it('수동 보유 종목 가격을 동기화한다', async () => {
-      const user = userEvent.setup();
-      const refetchManualHoldings = vi.fn();
-      const syncManualHoldingPrice = vi.fn().mockResolvedValue({});
-
-      mockUseQuery.mockImplementation((query) => {
-        if (query === GetMarketsDocument) {
-          return { data: { markets: defaultMarkets }, loading: false };
-        }
-        if (query === GetBrokerageHoldingsDocument) {
-          return { data: { brokerageHoldings: [] }, loading: false };
-        }
-        if (query === GetManualHoldingsDocument) {
-          return {
-            data: {
-              manualHoldings: [
-                {
-                  id: 'manual-4',
-                  market: 'US',
-                  symbol: 'VOO',
-                  name: 'VOO',
-                  quantity: 2,
-                  currentPrice: 400,
-                  marketValue: 800,
-                  currency: 'USD',
-                  lastUpdated: new Date().toISOString(),
-                },
-              ],
-            },
-            loading: false,
-            refetch: refetchManualHoldings,
-          };
-        }
-        if (query === GetTagsDocument) {
-          return { data: { tags: [] }, loading: false };
-        }
-        if (query === GetTagsForHoldingDocument) {
-          return { data: undefined, loading: false, refetch: vi.fn() };
-        }
-
-        throw new Error('예상치 못한 쿼리 호출');
-      });
-      mockUseMutation.mockImplementation((document) => {
-        if (document === SyncManualHoldingPriceDocument) {
-          return [syncManualHoldingPrice, { loading: false }];
-        }
-
-        return [vi.fn(), { loading: false }];
-      });
-
-      renderWithProviders(<Holdings />, { withApollo: false });
-
-      await user.click(screen.getByRole('button', { name: '현재가 동기화' }));
-
-      await waitFor(() => {
-        expect(syncManualHoldingPrice).toHaveBeenCalledWith({
-          variables: {
-            input: {
-              market: 'US',
-              symbol: 'VOO',
-            },
-          },
-        });
-      });
-
-      expect(refetchManualHoldings).toHaveBeenCalled();
-    });
+    expect(holdingsRefetchFn).toHaveBeenCalled();
   });
 });

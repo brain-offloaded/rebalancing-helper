@@ -8,55 +8,52 @@ datasource db {
 }
 
 model Broker {
-  id          String             @id @default(cuid())
-  code        String             @unique
-  name        String
-  description String?
-  apiBaseUrl  String?
-  isActive    Boolean            @default(true)
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  accounts    BrokerageAccount[]
+  id              String           @id @default(cuid())
+  code            String           @unique
+  name            String
+  description     String?
+  apiBaseUrl      String?
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  holdingAccounts HoldingAccount[]
 }
 
-model BrokerageAccount {
-  id           String           @id @default(cuid())
+enum HoldingAccountProviderType {
+  BROKERAGE
+  EXCHANGE
+  WALLET
+  OTHER
+}
+
+enum HoldingAccountSyncMode {
+  MANUAL
+  API
+}
+
+model HoldingAccount {
+  id           String                     @id @default(cuid())
   name         String
   description  String?
-  isActive     Boolean          @default(true)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  isActive     Boolean                    @default(true)
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
   userId       String
-  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  brokerId     String
-  broker       Broker           @relation(fields: [brokerId], references: [id], onDelete: Restrict)
-  apiKeyCipher String
-  apiKeyIv     String
-  apiKeyTag    String
+  user         User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providerType HoldingAccountProviderType
+  syncMode     HoldingAccountSyncMode
+  brokerId     String?
+  broker       Broker?                    @relation(fields: [brokerId], references: [id], onDelete: SetNull)
+  apiKeyCipher String?
+  apiKeyIv     String?
+  apiKeyTag    String?
   apiSecretCipher String?
   apiSecretIv     String?
   apiSecretTag    String?
-  holdings     BrokerageHolding[]
+  holdings     Holding[]
 
   @@index([userId])
   @@index([brokerId])
-}
-
-model BrokerageHolding {
-  id           String           @id @default(cuid())
-  symbol       String
-  name         String
-  quantity     Float
-  currentPrice Float
-  marketValue  Float
-  averageCost  Float?
-  currency     String
-  lastUpdated  DateTime         @default(now())
-  accountId    String
-  account      BrokerageAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-
-  @@index([accountId])
-  @@unique([accountId, symbol])
 }
 
 model MarketSecurity {
@@ -83,22 +80,33 @@ model Market {
   updatedAt              DateTime @updatedAt
 }
 
-model ManualHolding {
-  id           String   @id @default(cuid())
+enum HoldingSource {
+  BROKERAGE
+  MANUAL
+}
+
+model Holding {
+  id           String           @id @default(cuid())
   userId       String
-  market       String
+  source       HoldingSource
+  accountId    String
+  market       String?
   symbol       String
   name         String
   quantity     Float
   currentPrice Float
   marketValue  Float
+  averageCost  Float?
   currency     String
   lastUpdated  DateTime
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      HoldingAccount    @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, market, symbol], name: "userId_market_symbol")
+  @@index([userId])
+  @@index([accountId])
+  @@unique([accountId, symbol], name: "accountId_symbol_unique")
 }
 
 model Tag {
@@ -171,9 +179,9 @@ model User {
   passwordHash       String
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
-  brokerageAccounts  BrokerageAccount[]
+  holdingAccounts    HoldingAccount[]
   tags               Tag[]
   holdingTags        HoldingTag[]
-  manualHoldings     ManualHolding[]
+  holdings           Holding[]
   rebalancingGroups  RebalancingGroup[]
 }

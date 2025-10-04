@@ -10,7 +10,11 @@ import { HoldingsService } from '../src/holdings/holdings.service';
 import { TagsService } from '../src/tags/tags.service';
 import { RebalancingService } from '../src/rebalancing/rebalancing.service';
 import { BrokerageAccount } from '../src/brokerage/brokerage.entities';
-import { HoldingTag, ManualHolding } from '../src/holdings/holdings.entities';
+import {
+  HoldingTag,
+  Holding,
+  HoldingSource,
+} from '../src/holdings/holdings.entities';
 import { Tag } from '../src/tags/tags.entities';
 import {
   RebalancingAnalysis,
@@ -43,13 +47,31 @@ const holdingsServiceMock = {
   addTag: jest.fn(),
   removeTag: jest.fn(),
   setTags: jest.fn(),
-  getManualHoldings: jest.fn(),
+  getHoldings: jest.fn(),
   createManualHolding: jest.fn(),
   increaseManualHolding: jest.fn(),
   setManualHoldingQuantity: jest.fn(),
   deleteManualHolding: jest.fn(),
   syncManualHoldingPrice: jest.fn(),
 } as unknown as jest.Mocked<HoldingsService>;
+
+const createManualHolding = (overrides: Partial<Holding> = {}): Holding => ({
+  id: 'manual-1',
+  source: HoldingSource.MANUAL,
+  accountId: 'account-1',
+  market: 'US',
+  symbol: 'VOO',
+  name: 'Vanguard S&P 500 ETF',
+  quantity: 3,
+  currentPrice: 410.2,
+  marketValue: 1230.6,
+  averageCost: null,
+  currency: 'USD',
+  lastUpdated: new Date('2024-01-03T00:00:00Z'),
+  createdAt: new Date('2024-01-01T00:00:00Z'),
+  updatedAt: new Date('2024-01-03T00:00:00Z'),
+  ...overrides,
+});
 
 const tagsServiceMock = {
   getTags: jest.fn(),
@@ -284,28 +306,32 @@ describe('GraphQL API (e2e)', () => {
     expect(holdingsServiceMock.setTags).toHaveBeenCalledWith(variables.input);
   });
 
-  it('manualHoldings 쿼리는 수동 보유 종목을 반환한다', async () => {
-    const holdings: ManualHolding[] = [
+  it('holdings 쿼리는 보유 종목을 반환한다', async () => {
+    const holdings: Holding[] = [
       {
-        id: 'manual-1',
+        id: 'holding-1',
+        source: HoldingSource.MANUAL,
+        accountId: null,
         market: 'US',
         symbol: 'VOO',
         name: 'Vanguard S&P 500 ETF',
         quantity: 3,
         currentPrice: 410.2,
         marketValue: 1230.6,
+        averageCost: null,
         currency: 'USD',
         lastUpdated: new Date('2024-01-03T00:00:00Z'),
         createdAt: new Date('2024-01-01T00:00:00Z'),
         updatedAt: new Date('2024-01-03T00:00:00Z'),
-      } as ManualHolding,
+      } as Holding,
     ];
-    holdingsServiceMock.getManualHoldings.mockResolvedValue(holdings);
+    holdingsServiceMock.getHoldings.mockResolvedValue(holdings);
 
     const query = `
       query {
-        manualHoldings {
+        holdings(source: MANUAL) {
           id
+          source
           market
           symbol
           name
@@ -323,9 +349,10 @@ describe('GraphQL API (e2e)', () => {
     expect(response.status).toBe(200);
     expect(response.body.errors).toBeUndefined();
     expect(response.body.data).toEqual({
-      manualHoldings: [
+      holdings: [
         {
-          id: 'manual-1',
+          id: 'holding-1',
+          source: 'MANUAL',
           market: 'US',
           symbol: 'VOO',
           name: 'Vanguard S&P 500 ETF',
@@ -337,23 +364,21 @@ describe('GraphQL API (e2e)', () => {
         },
       ],
     });
-    expect(holdingsServiceMock.getManualHoldings).toHaveBeenCalled();
+    expect(holdingsServiceMock.getHoldings).toHaveBeenCalled();
   });
 
   it('createManualHolding 뮤테이션은 보유 종목을 생성한다', async () => {
-    const holding: ManualHolding = {
+    const holding = createManualHolding({
       id: 'manual-2',
-      market: 'US',
       symbol: 'SPY',
       name: 'SPDR S&P 500 ETF Trust',
       quantity: 2,
       currentPrice: 430.4,
       marketValue: 860.8,
-      currency: 'USD',
       lastUpdated: new Date('2024-01-04T00:00:00Z'),
       createdAt: new Date('2024-01-04T00:00:00Z'),
       updatedAt: new Date('2024-01-04T00:00:00Z'),
-    } as ManualHolding;
+    });
     holdingsServiceMock.createManualHolding.mockResolvedValue(holding);
 
     const mutation = `
@@ -369,6 +394,7 @@ describe('GraphQL API (e2e)', () => {
     `;
     const variables = {
       input: {
+        accountId: 'account-1',
         market: 'US',
         symbol: 'SPY',
         quantity: 2,
@@ -397,19 +423,15 @@ describe('GraphQL API (e2e)', () => {
   });
 
   it('increaseManualHolding 뮤테이션은 수량을 증가시킨다', async () => {
-    const holding: ManualHolding = {
+    const holding = createManualHolding({
       id: 'manual-3',
-      market: 'US',
-      symbol: 'VOO',
-      name: 'Vanguard S&P 500 ETF',
       quantity: 4,
       currentPrice: 412.35,
       marketValue: 1649.4,
-      currency: 'USD',
       lastUpdated: new Date('2024-01-05T00:00:00Z'),
       createdAt: new Date('2024-01-03T00:00:00Z'),
       updatedAt: new Date('2024-01-05T00:00:00Z'),
-    } as ManualHolding;
+    });
     holdingsServiceMock.increaseManualHolding.mockResolvedValue(holding);
 
     const mutation = `
@@ -423,6 +445,7 @@ describe('GraphQL API (e2e)', () => {
     `;
     const variables = {
       input: {
+        accountId: 'account-1',
         market: 'US',
         symbol: 'VOO',
         quantityDelta: 1,
@@ -449,19 +472,17 @@ describe('GraphQL API (e2e)', () => {
   });
 
   it('setManualHoldingQuantity 뮤테이션은 수량을 설정한다', async () => {
-    const holding: ManualHolding = {
+    const holding = createManualHolding({
       id: 'manual-4',
-      market: 'US',
       symbol: 'QQQ',
       name: 'Invesco QQQ Trust',
       quantity: 5,
       currentPrice: 360.1,
       marketValue: 1800.5,
-      currency: 'USD',
       lastUpdated: new Date('2024-01-06T00:00:00Z'),
       createdAt: new Date('2024-01-05T00:00:00Z'),
       updatedAt: new Date('2024-01-06T00:00:00Z'),
-    } as ManualHolding;
+    });
     holdingsServiceMock.setManualHoldingQuantity.mockResolvedValue(holding);
 
     const mutation = `
@@ -475,6 +496,7 @@ describe('GraphQL API (e2e)', () => {
     `;
     const variables = {
       input: {
+        accountId: 'account-1',
         market: 'US',
         symbol: 'QQQ',
         quantity: 5,
@@ -510,6 +532,7 @@ describe('GraphQL API (e2e)', () => {
     `;
     const variables = {
       input: {
+        accountId: 'account-1',
         market: 'US',
         symbol: 'VOO',
       },
@@ -531,19 +554,15 @@ describe('GraphQL API (e2e)', () => {
   });
 
   it('syncManualHoldingPrice 뮤테이션은 현재가를 갱신한다', async () => {
-    const holding: ManualHolding = {
+    const holding = createManualHolding({
       id: 'manual-5',
-      market: 'US',
-      symbol: 'VOO',
-      name: 'Vanguard S&P 500 ETF',
       quantity: 3,
       currentPrice: 418.2,
       marketValue: 1254.6,
-      currency: 'USD',
       lastUpdated: new Date('2024-01-07T00:00:00Z'),
       createdAt: new Date('2024-01-03T00:00:00Z'),
       updatedAt: new Date('2024-01-07T00:00:00Z'),
-    } as ManualHolding;
+    });
     holdingsServiceMock.syncManualHoldingPrice.mockResolvedValue(holding);
 
     const mutation = `
@@ -557,6 +576,7 @@ describe('GraphQL API (e2e)', () => {
     `;
     const variables = {
       input: {
+        accountId: 'account-1',
         market: 'US',
         symbol: 'VOO',
       },

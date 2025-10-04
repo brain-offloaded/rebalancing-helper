@@ -6,6 +6,7 @@ export const GET_BROKERAGE_ACCOUNTS = gql`
       id
       name
       brokerId
+      syncMode
       broker {
         id
         name
@@ -55,6 +56,7 @@ export const CREATE_BROKERAGE_ACCOUNT = gql`
     createBrokerageAccount(input: $input) {
       id
       name
+      syncMode
       broker {
         id
         name
@@ -73,6 +75,7 @@ export const UPDATE_BROKERAGE_ACCOUNT = gql`
     updateBrokerageAccount(input: $input) {
       id
       name
+      syncMode
       broker {
         id
         name

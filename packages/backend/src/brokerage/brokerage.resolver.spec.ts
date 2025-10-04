@@ -9,8 +9,9 @@ import {
 import {
   Broker,
   BrokerageAccount,
-  BrokerageHolding,
+  BrokerageAccountSyncMode,
 } from './brokerage.entities';
+import { Holding, HoldingSource } from '../holdings/holdings.entities';
 import { ActiveUserData } from '../auth/auth.types';
 
 const mockUser: ActiveUserData = {
@@ -24,6 +25,7 @@ const createAccount = (
   id: overrides.id ?? 'account-1',
   name: overrides.name ?? '기본 계좌',
   brokerId: overrides.brokerId ?? 'broker-1',
+  syncMode: overrides.syncMode ?? BrokerageAccountSyncMode.MANUAL,
   description: overrides.description ?? null,
   isActive: overrides.isActive ?? true,
   broker:
@@ -53,10 +55,11 @@ const createBroker = (overrides: Partial<Broker> = {}): Broker => ({
   updatedAt: overrides.updatedAt ?? new Date('2024-01-02T00:00:00Z'),
 });
 
-const createHolding = (
-  overrides: Partial<BrokerageHolding> = {},
-): BrokerageHolding => ({
+const createHolding = (overrides: Partial<Holding> = {}): Holding => ({
   id: overrides.id ?? 'holding-1',
+  source: overrides.source ?? HoldingSource.BROKERAGE,
+  accountId: overrides.accountId ?? 'account-1',
+  market: overrides.market ?? null,
   symbol: overrides.symbol ?? 'SPY',
   name: overrides.name ?? 'S&P 500 ETF',
   quantity: overrides.quantity ?? 1,
@@ -64,8 +67,9 @@ const createHolding = (
   marketValue: overrides.marketValue ?? 100,
   averageCost: overrides.averageCost ?? null,
   currency: overrides.currency ?? 'USD',
-  accountId: overrides.accountId ?? 'account-1',
   lastUpdated: overrides.lastUpdated ?? new Date('2024-01-02T00:00:00Z'),
+  createdAt: overrides.createdAt ?? new Date('2024-01-01T00:00:00Z'),
+  updatedAt: overrides.updatedAt ?? new Date('2024-01-02T00:00:00Z'),
 });
 
 describe('BrokerageResolver', () => {
@@ -137,6 +141,7 @@ describe('BrokerageResolver', () => {
     const input: CreateBrokerageAccountInput = {
       name: '새 계좌',
       brokerId: 'broker-1',
+      syncMode: BrokerageAccountSyncMode.API,
       apiKey: 'api-key',
     };
     const account = createAccount({ name: input.name });

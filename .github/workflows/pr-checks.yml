@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI: true
-      DATABASE_URL: file:${{ github.workspace }}/packages/backend/prisma/dev.db
+      DATABASE_URL: file:${{ github.workspace }}/packages/backend/prisma/ci.db
       # 시크릿이 있는 내부 PR이면 시크릿을, 포크 PR이면 빈 문자열이 들어와 fallback 단계에서 채워집니다.
       BROKER_CREDENTIAL_ENCRYPTION_KEY: ${{ secrets.BROKER_CREDENTIAL_ENCRYPTION_KEY }}
     steps:
@@ -52,8 +52,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Prisma Client
-        run: pnpm --filter backend prisma:generate
+      - name: Setup Prisma
+        run: pnpm prisma:generate && pnpm prisma:deploy && pnpm prisma:seed
 
       - name: Generate GraphQL schema & types (gql:all)
         run: pnpm gql:all
@@ -61,12 +61,12 @@ jobs:
       - name: Check GraphQL artifacts up-to-date
         run: |
           # Limit diff check to known generated artifacts to avoid noise
-          git add -N packages/backend/schema.graphql || true
+          git add -N packages/backend/generated.graphql || true
           git add -N packages/frontend/src/graphql/__generated__/index.ts || true
-          if ! git diff --quiet -- packages/backend/schema.graphql packages/frontend/src/graphql/__generated__/index.ts; then
+          if ! git diff --quiet -- packages/backend/generated.graphql packages/frontend/src/graphql/__generated__/index.ts; then
             echo "❌ GraphQL generated artifacts are outdated. Run 'pnpm gql:all' locally and commit the changes." >&2
             echo "Changed files:" >&2
-            git diff --name-only -- packages/backend/schema.graphql packages/frontend/src/graphql/__generated__/index.ts >&2
+            git diff --name-only -- packages/backend/generated.graphql packages/frontend/src/graphql/__generated__/index.ts >&2
             exit 1
           else
             echo "✅ GraphQL artifacts are up-to-date.";

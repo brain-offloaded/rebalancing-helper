@@ -69,22 +69,11 @@ export type BrokerageAccount = {
   id: Scalars['ID']['output'];
   isActive: Scalars['Boolean']['output'];
   name: Scalars['String']['output'];
+  syncMode: BrokerageAccountSyncMode;
   updatedAt: Scalars['DateTime']['output'];
 };
 
-export type BrokerageHolding = {
-  __typename?: 'BrokerageHolding';
-  accountId: Scalars['String']['output'];
-  averageCost: Maybe<Scalars['Float']['output']>;
-  currency: Scalars['String']['output'];
-  currentPrice: Scalars['Float']['output'];
-  id: Scalars['ID']['output'];
-  lastUpdated: Scalars['DateTime']['output'];
-  marketValue: Scalars['Float']['output'];
-  name: Scalars['String']['output'];
-  quantity: Scalars['Float']['output'];
-  symbol: Scalars['String']['output'];
-};
+export type BrokerageAccountSyncMode = 'API' | 'MANUAL';
 
 export type CalculateInvestmentInput = {
   groupId: Scalars['String']['input'];
@@ -99,15 +88,17 @@ export type CreateBrokerInput = {
 };
 
 export type CreateBrokerageAccountInput = {
-  apiKey: Scalars['String']['input'];
+  apiKey: InputMaybe<Scalars['String']['input']>;
   apiSecret: InputMaybe<Scalars['String']['input']>;
   brokerId: Scalars['String']['input'];
   description: InputMaybe<Scalars['String']['input']>;
   isActive: InputMaybe<Scalars['Boolean']['input']>;
   name: Scalars['String']['input'];
+  syncMode: BrokerageAccountSyncMode;
 };
 
 export type CreateManualHoldingInput = {
+  accountId: Scalars['String']['input'];
   market: Scalars['String']['input'];
   quantity: Scalars['Float']['input'];
   symbol: Scalars['String']['input'];
@@ -125,6 +116,26 @@ export type CreateTagInput = {
   name: Scalars['String']['input'];
 };
 
+export type Holding = {
+  __typename?: 'Holding';
+  accountId: Scalars['String']['output'];
+  averageCost: Maybe<Scalars['Float']['output']>;
+  createdAt: Scalars['DateTime']['output'];
+  currency: Scalars['String']['output'];
+  currentPrice: Scalars['Float']['output'];
+  id: Scalars['ID']['output'];
+  lastUpdated: Scalars['DateTime']['output'];
+  market: Maybe<Scalars['String']['output']>;
+  marketValue: Scalars['Float']['output'];
+  name: Scalars['String']['output'];
+  quantity: Scalars['Float']['output'];
+  source: HoldingSource;
+  symbol: Scalars['String']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type HoldingSource = 'BROKERAGE' | 'MANUAL';
+
 export type HoldingTag = {
   __typename?: 'HoldingTag';
   createdAt: Scalars['DateTime']['output'];
@@ -134,6 +145,7 @@ export type HoldingTag = {
 };
 
 export type IncreaseManualHoldingInput = {
+  accountId: Scalars['String']['input'];
   market: Scalars['String']['input'];
   quantityDelta: Scalars['Float']['input'];
   symbol: Scalars['String']['input'];
@@ -154,22 +166,8 @@ export type LoginInput = {
   password: Scalars['String']['input'];
 };
 
-export type ManualHolding = {
-  __typename?: 'ManualHolding';
-  createdAt: Scalars['DateTime']['output'];
-  currency: Scalars['String']['output'];
-  currentPrice: Scalars['Float']['output'];
-  id: Scalars['ID']['output'];
-  lastUpdated: Scalars['DateTime']['output'];
-  market: Scalars['String']['output'];
-  marketValue: Scalars['Float']['output'];
-  name: Scalars['String']['output'];
-  quantity: Scalars['Float']['output'];
-  symbol: Scalars['String']['output'];
-  updatedAt: Scalars['DateTime']['output'];
-};
-
 export type ManualHoldingIdentifierInput = {
+  accountId: Scalars['String']['input'];
   market: Scalars['String']['input'];
   symbol: Scalars['String']['input'];
 };
@@ -191,7 +189,7 @@ export type Mutation = {
   addTagsToRebalancingGroup: RebalancingGroup;
   createBroker: Broker;
   createBrokerageAccount: BrokerageAccount;
-  createManualHolding: ManualHolding;
+  createManualHolding: Holding;
   createRebalancingGroup: RebalancingGroup;
   createTag: Tag;
   deleteBroker: Scalars['Boolean']['output'];
@@ -199,17 +197,17 @@ export type Mutation = {
   deleteManualHolding: Scalars['Boolean']['output'];
   deleteRebalancingGroup: Scalars['Boolean']['output'];
   deleteTag: Scalars['Boolean']['output'];
-  increaseManualHolding: ManualHolding;
+  increaseManualHolding: Holding;
   login: AuthPayload;
-  refreshBrokerageHoldings: Array<BrokerageHolding>;
+  refreshBrokerageHoldings: Array<Holding>;
   register: AuthPayload;
   removeHoldingTag: Scalars['Boolean']['output'];
   removeTagsFromRebalancingGroup: RebalancingGroup;
   renameRebalancingGroup: RebalancingGroup;
   setHoldingTags: Array<HoldingTag>;
-  setManualHoldingQuantity: ManualHolding;
+  setManualHoldingQuantity: Holding;
   setTargetAllocations: Scalars['Boolean']['output'];
-  syncManualHoldingPrice: ManualHolding;
+  syncManualHoldingPrice: Holding;
   updateBroker: Broker;
   updateBrokerageAccount: BrokerageAccount;
   updateRebalancingGroup: RebalancingGroup;
@@ -328,12 +326,12 @@ export type Query = {
   __typename?: 'Query';
   brokerageAccount: Maybe<BrokerageAccount>;
   brokerageAccounts: Array<BrokerageAccount>;
-  brokerageHoldings: Array<BrokerageHolding>;
+  brokerageHoldings: Array<Holding>;
   brokers: Array<Broker>;
   holdingTags: Array<HoldingTag>;
+  holdings: Array<Holding>;
   holdingsForTag: Array<Scalars['String']['output']>;
   investmentRecommendation: Array<InvestmentRecommendation>;
-  manualHoldings: Array<ManualHolding>;
   markets: Array<Market>;
   me: User;
   rebalancingAnalysis: RebalancingAnalysis;
@@ -354,6 +352,11 @@ export type QueryBrokerageHoldingsArgs = {
 
 export type QueryHoldingTagsArgs = {
   holdingSymbol: InputMaybe<Scalars['String']['input']>;
+};
+
+export type QueryHoldingsArgs = {
+  accountId: InputMaybe<Scalars['String']['input']>;
+  source: InputMaybe<HoldingSource>;
 };
 
 export type QueryHoldingsForTagArgs = {
@@ -426,6 +429,7 @@ export type SetHoldingTagsInput = {
 };
 
 export type SetManualHoldingQuantityInput = {
+  accountId: Scalars['String']['input'];
   market: Scalars['String']['input'];
   quantity: Scalars['Float']['input'];
   symbol: Scalars['String']['input'];
@@ -479,6 +483,7 @@ export type UpdateBrokerageAccountInput = {
   id: Scalars['String']['input'];
   isActive: InputMaybe<Scalars['Boolean']['input']>;
   name: InputMaybe<Scalars['String']['input']>;
+  syncMode: InputMaybe<BrokerageAccountSyncMode>;
 };
 
 export type UpdateRebalancingGroupInput = {
@@ -565,6 +570,7 @@ export type GetBrokerageAccountsQuery = {
     id: string;
     name: string;
     brokerId: string;
+    syncMode: BrokerageAccountSyncMode;
     description: string | null;
     isActive: boolean;
     createdAt: string;
@@ -601,7 +607,7 @@ export type GetBrokerageHoldingsQueryVariables = Exact<{
 export type GetBrokerageHoldingsQuery = {
   __typename?: 'Query';
   brokerageHoldings: Array<{
-    __typename?: 'BrokerageHolding';
+    __typename?: 'Holding';
     id: string;
     symbol: string;
     name: string;
@@ -625,6 +631,7 @@ export type CreateBrokerageAccountMutation = {
     __typename?: 'BrokerageAccount';
     id: string;
     name: string;
+    syncMode: BrokerageAccountSyncMode;
     description: string | null;
     isActive: boolean;
     createdAt: string;
@@ -643,6 +650,7 @@ export type UpdateBrokerageAccountMutation = {
     __typename?: 'BrokerageAccount';
     id: string;
     name: string;
+    syncMode: BrokerageAccountSyncMode;
     description: string | null;
     isActive: boolean;
     createdAt: string;
@@ -714,7 +722,7 @@ export type RefreshBrokerageHoldingsMutationVariables = Exact<{
 export type RefreshBrokerageHoldingsMutation = {
   __typename?: 'Mutation';
   refreshBrokerageHoldings: Array<{
-    __typename?: 'BrokerageHolding';
+    __typename?: 'Holding';
     id: string;
     symbol: string;
     name: string;
@@ -800,21 +808,29 @@ export type SetHoldingTagsMutation = {
   }>;
 };
 
-export type GetManualHoldingsQueryVariables = Exact<{ [key: string]: never }>;
+export type GetHoldingsQueryVariables = Exact<{
+  source: InputMaybe<HoldingSource>;
+  accountId: InputMaybe<Scalars['String']['input']>;
+}>;
 
-export type GetManualHoldingsQuery = {
+export type GetHoldingsQuery = {
   __typename?: 'Query';
-  manualHoldings: Array<{
-    __typename?: 'ManualHolding';
+  holdings: Array<{
+    __typename?: 'Holding';
     id: string;
-    market: string;
+    source: HoldingSource;
+    accountId: string;
+    market: string | null;
     symbol: string;
     name: string;
     quantity: number;
     currentPrice: number;
     marketValue: number;
+    averageCost: number | null;
     currency: string;
     lastUpdated: string;
+    createdAt: string;
+    updatedAt: string;
   }>;
 };
 
@@ -825,13 +841,20 @@ export type CreateManualHoldingMutationVariables = Exact<{
 export type CreateManualHoldingMutation = {
   __typename?: 'Mutation';
   createManualHolding: {
-    __typename?: 'ManualHolding';
+    __typename?: 'Holding';
     id: string;
-    market: string;
+    source: HoldingSource;
+    accountId: string;
+    market: string | null;
     symbol: string;
+    name: string;
     quantity: number;
     currentPrice: number;
     marketValue: number;
+    currency: string;
+    lastUpdated: string;
+    createdAt: string;
+    updatedAt: string;
   };
 };
 
@@ -842,12 +865,20 @@ export type IncreaseManualHoldingMutationVariables = Exact<{
 export type IncreaseManualHoldingMutation = {
   __typename?: 'Mutation';
   increaseManualHolding: {
-    __typename?: 'ManualHolding';
+    __typename?: 'Holding';
     id: string;
-    market: string;
+    source: HoldingSource;
+    accountId: string;
+    market: string | null;
     symbol: string;
+    name: string;
     quantity: number;
+    currentPrice: number;
     marketValue: number;
+    currency: string;
+    lastUpdated: string;
+    createdAt: string;
+    updatedAt: string;
   };
 };
 
@@ -858,12 +889,20 @@ export type SetManualHoldingQuantityMutationVariables = Exact<{
 export type SetManualHoldingQuantityMutation = {
   __typename?: 'Mutation';
   setManualHoldingQuantity: {
-    __typename?: 'ManualHolding';
+    __typename?: 'Holding';
     id: string;
-    market: string;
+    source: HoldingSource;
+    accountId: string;
+    market: string | null;
     symbol: string;
+    name: string;
     quantity: number;
+    currentPrice: number;
     marketValue: number;
+    currency: string;
+    lastUpdated: string;
+    createdAt: string;
+    updatedAt: string;
   };
 };
 
@@ -883,13 +922,21 @@ export type SyncManualHoldingPriceMutationVariables = Exact<{
 export type SyncManualHoldingPriceMutation = {
   __typename?: 'Mutation';
   syncManualHoldingPrice: {
-    __typename?: 'ManualHolding';
+    __typename?: 'Holding';
     id: string;
-    market: string;
+    source: HoldingSource;
+    accountId: string;
+    market: string | null;
     symbol: string;
+    name: string;
     currentPrice: number;
     marketValue: number;
     lastUpdated: string;
+    quantity: number;
+    averageCost: number | null;
+    currency: string;
+    createdAt: string;
+    updatedAt: string;
   };
 };
 
@@ -1292,6 +1339,7 @@ export const GetBrokerageAccountsDocument = gql`
       id
       name
       brokerId
+      syncMode
       broker {
         id
         name
@@ -1547,6 +1595,7 @@ export const CreateBrokerageAccountDocument = gql`
     createBrokerageAccount(input: $input) {
       id
       name
+      syncMode
       broker {
         id
         name
@@ -1607,6 +1656,7 @@ export const UpdateBrokerageAccountDocument = gql`
     updateBrokerageAccount(input: $input) {
       id
       name
+      syncMode
       broker {
         id
         name
@@ -2327,10 +2377,102 @@ export type SetHoldingTagsMutationOptions = Apollo.BaseMutationOptions<
   SetHoldingTagsMutation,
   SetHoldingTagsMutationVariables
 >;
-export const GetManualHoldingsDocument = gql`
-  query GetManualHoldings {
-    manualHoldings {
+export const GetHoldingsDocument = gql`
+  query GetHoldings($source: HoldingSource, $accountId: String) {
+    holdings(source: $source, accountId: $accountId) {
       id
+      source
+      accountId
+      market
+      symbol
+      name
+      quantity
+      currentPrice
+      marketValue
+      averageCost
+      currency
+      lastUpdated
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+/**
+ * __useGetHoldingsQuery__
+ *
+ * To run a query within a React component, call `useGetHoldingsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetHoldingsQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetHoldingsQuery({
+ *   variables: {
+ *      source: // value for 'source'
+ *      accountId: // value for 'accountId'
+ *   },
+ * });
+ */
+export function useGetHoldingsQuery(
+  baseOptions?: Apollo.QueryHookOptions<
+    GetHoldingsQuery,
+    GetHoldingsQueryVariables
+  >,
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return Apollo.useQuery<GetHoldingsQuery, GetHoldingsQueryVariables>(
+    GetHoldingsDocument,
+    options,
+  );
+}
+export function useGetHoldingsLazyQuery(
+  baseOptions?: Apollo.LazyQueryHookOptions<
+    GetHoldingsQuery,
+    GetHoldingsQueryVariables
+  >,
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return Apollo.useLazyQuery<GetHoldingsQuery, GetHoldingsQueryVariables>(
+    GetHoldingsDocument,
+    options,
+  );
+}
+export function useGetHoldingsSuspenseQuery(
+  baseOptions?:
+    | Apollo.SkipToken
+    | Apollo.SuspenseQueryHookOptions<
+        GetHoldingsQuery,
+        GetHoldingsQueryVariables
+      >,
+) {
+  const options =
+    baseOptions === Apollo.skipToken
+      ? baseOptions
+      : { ...defaultOptions, ...baseOptions };
+  return Apollo.useSuspenseQuery<GetHoldingsQuery, GetHoldingsQueryVariables>(
+    GetHoldingsDocument,
+    options,
+  );
+}
+export type GetHoldingsQueryHookResult = ReturnType<typeof useGetHoldingsQuery>;
+export type GetHoldingsLazyQueryHookResult = ReturnType<
+  typeof useGetHoldingsLazyQuery
+>;
+export type GetHoldingsSuspenseQueryHookResult = ReturnType<
+  typeof useGetHoldingsSuspenseQuery
+>;
+export type GetHoldingsQueryResult = Apollo.QueryResult<
+  GetHoldingsQuery,
+  GetHoldingsQueryVariables
+>;
+export const CreateManualHoldingDocument = gql`
+  mutation CreateManualHolding($input: CreateManualHoldingInput!) {
+    createManualHolding(input: $input) {
+      id
+      source
+      accountId
       market
       symbol
       name
@@ -2339,88 +2481,8 @@ export const GetManualHoldingsDocument = gql`
       marketValue
       currency
       lastUpdated
-    }
-  }
-`;
-
-/**
- * __useGetManualHoldingsQuery__
- *
- * To run a query within a React component, call `useGetManualHoldingsQuery` and pass it any options that fit your needs.
- * When your component renders, `useGetManualHoldingsQuery` returns an object from Apollo Client that contains loading, error, and data properties
- * you can use to render your UI.
- *
- * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
- *
- * @example
- * const { data, loading, error } = useGetManualHoldingsQuery({
- *   variables: {
- *   },
- * });
- */
-export function useGetManualHoldingsQuery(
-  baseOptions?: Apollo.QueryHookOptions<
-    GetManualHoldingsQuery,
-    GetManualHoldingsQueryVariables
-  >,
-) {
-  const options = { ...defaultOptions, ...baseOptions };
-  return Apollo.useQuery<
-    GetManualHoldingsQuery,
-    GetManualHoldingsQueryVariables
-  >(GetManualHoldingsDocument, options);
-}
-export function useGetManualHoldingsLazyQuery(
-  baseOptions?: Apollo.LazyQueryHookOptions<
-    GetManualHoldingsQuery,
-    GetManualHoldingsQueryVariables
-  >,
-) {
-  const options = { ...defaultOptions, ...baseOptions };
-  return Apollo.useLazyQuery<
-    GetManualHoldingsQuery,
-    GetManualHoldingsQueryVariables
-  >(GetManualHoldingsDocument, options);
-}
-export function useGetManualHoldingsSuspenseQuery(
-  baseOptions?:
-    | Apollo.SkipToken
-    | Apollo.SuspenseQueryHookOptions<
-        GetManualHoldingsQuery,
-        GetManualHoldingsQueryVariables
-      >,
-) {
-  const options =
-    baseOptions === Apollo.skipToken
-      ? baseOptions
-      : { ...defaultOptions, ...baseOptions };
-  return Apollo.useSuspenseQuery<
-    GetManualHoldingsQuery,
-    GetManualHoldingsQueryVariables
-  >(GetManualHoldingsDocument, options);
-}
-export type GetManualHoldingsQueryHookResult = ReturnType<
-  typeof useGetManualHoldingsQuery
->;
-export type GetManualHoldingsLazyQueryHookResult = ReturnType<
-  typeof useGetManualHoldingsLazyQuery
->;
-export type GetManualHoldingsSuspenseQueryHookResult = ReturnType<
-  typeof useGetManualHoldingsSuspenseQuery
->;
-export type GetManualHoldingsQueryResult = Apollo.QueryResult<
-  GetManualHoldingsQuery,
-  GetManualHoldingsQueryVariables
->;
-export const CreateManualHoldingDocument = gql`
-  mutation CreateManualHolding($input: CreateManualHoldingInput!) {
-    createManualHolding(input: $input) {
-      id
-      market
-      symbol
-      quantity
-      currentPrice
-      marketValue
+      createdAt
+      updatedAt
     }
   }
 `;
@@ -2471,10 +2533,18 @@ export const IncreaseManualHoldingDocument = gql`
   mutation IncreaseManualHolding($input: IncreaseManualHoldingInput!) {
     increaseManualHolding(input: $input) {
       id
+      source
+      accountId
       market
       symbol
+      name
       quantity
+      currentPrice
       marketValue
+      currency
+      lastUpdated
+      createdAt
+      updatedAt
     }
   }
 `;
@@ -2525,10 +2595,18 @@ export const SetManualHoldingQuantityDocument = gql`
   mutation SetManualHoldingQuantity($input: SetManualHoldingQuantityInput!) {
     setManualHoldingQuantity(input: $input) {
       id
+      source
+      accountId
       market
       symbol
+      name
       quantity
+      currentPrice
       marketValue
+      currency
+      lastUpdated
+      createdAt
+      updatedAt
     }
   }
 `;
@@ -2628,11 +2706,19 @@ export const SyncManualHoldingPriceDocument = gql`
   mutation SyncManualHoldingPrice($input: ManualHoldingIdentifierInput!) {
     syncManualHoldingPrice(input: $input) {
       id
+      source
+      accountId
       market
       symbol
+      name
       currentPrice
       marketValue
       lastUpdated
+      quantity
+      averageCost
+      currency
+      createdAt
+      updatedAt
     }
   }
 `;

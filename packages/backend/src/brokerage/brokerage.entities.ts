@@ -1,4 +1,13 @@
-import { Field, ID, ObjectType } from '@nestjs/graphql';
+import { Field, ID, ObjectType, registerEnumType } from '@nestjs/graphql';
+
+export enum BrokerageAccountSyncMode {
+  MANUAL = 'MANUAL',
+  API = 'API',
+}
+
+registerEnumType(BrokerageAccountSyncMode, {
+  name: 'BrokerageAccountSyncMode',
+});
 
 @ObjectType()
 export class Broker {
@@ -38,6 +47,9 @@ export class BrokerageAccount {
   @Field(() => String)
   brokerId: string;
 
+  @Field(() => BrokerageAccountSyncMode)
+  syncMode: BrokerageAccountSyncMode;
+
   @Field(() => String, { nullable: true })
   description: string | null;
 
@@ -52,37 +64,4 @@ export class BrokerageAccount {
 
   @Field(() => Date)
   updatedAt: Date;
-}
-
-@ObjectType()
-export class BrokerageHolding {
-  @Field(() => ID)
-  id: string;
-
-  @Field(() => String)
-  symbol: string;
-
-  @Field(() => String)
-  name: string;
-
-  @Field(() => Number)
-  quantity: number;
-
-  @Field(() => Number)
-  currentPrice: number;
-
-  @Field(() => Number)
-  marketValue: number;
-
-  @Field(() => Number, { nullable: true })
-  averageCost: number | null;
-
-  @Field(() => String)
-  currency: string;
-
-  @Field(() => String)
-  accountId: string;
-
-  @Field(() => Date)
-  lastUpdated: Date;
 }

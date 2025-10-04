@@ -1,7 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import {
+  HoldingSource as PrismaHoldingSource,
+  Prisma,
+  Holding as PrismaHolding,
+  HoldingAccount as PrismaHoldingAccount,
+  HoldingAccountSyncMode as PrismaHoldingAccountSyncMode,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { HoldingTag, ManualHolding } from './holdings.entities';
+import { HoldingTag, Holding, HoldingSource } from './holdings.entities';
 import {
   AddHoldingTagInput,
   RemoveHoldingTagInput,
@@ -19,6 +25,45 @@ export class HoldingsService {
     private readonly prisma: PrismaService,
     private readonly marketDataService: MarketDataService,
   ) {}
+
+  private mapHolding(holding: PrismaHolding): Holding {
+    return {
+      ...holding,
+      source: holding.source as HoldingSource,
+    };
+  }
+
+  private mapHoldings(holdings: PrismaHolding[]): Holding[] {
+    return holdings.map((holding) => this.mapHolding(holding));
+  }
+
+  private async getAccountOrThrow(
+    userId: string,
+    accountId: string,
+  ): Promise<PrismaHoldingAccount> {
+    const account = await this.prisma.holdingAccount.findFirst({
+      where: { id: accountId, userId },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Account not found');
+    }
+
+    return account;
+  }
+
+  private async getManualAccountOrThrow(
+    userId: string,
+    accountId: string,
+  ): Promise<PrismaHoldingAccount> {
+    const account = await this.getAccountOrThrow(userId, accountId);
+
+    if (account.syncMode !== PrismaHoldingAccountSyncMode.MANUAL) {
+      throw new NotFoundException('Manual account not found');
+    }
+
+    return account;
+  }
 
   private async assertTagBelongsToUser(
     userId: string,
@@ -159,83 +204,123 @@ export class HoldingsService {
     userId: string,
     identifier: ManualHoldingIdentifierInput,
   ) {
-    const holding = await this.prisma.manualHolding.findUnique({
+    await this.getManualAccountOrThrow(userId, identifier.accountId);
+
+    const holding = await this.prisma.holding.findFirst({
       where: {
-        userId_market_symbol: {
-          userId,
-          market: identifier.market,
-          symbol: identifier.symbol,
-        },
+        userId,
+        accountId: identifier.accountId,
+        market: identifier.market,
+        symbol: identifier.symbol,
+        source: PrismaHoldingSource.MANUAL,
       },
     });
 
     if (!holding) {
-      throw new NotFoundException('Manual holding not found');
+      throw new NotFoundException('Holding not found');
     }
 
     return holding;
   }
 
-  getManualHoldings(userId: string): Promise<ManualHolding[]> {
-    return this.prisma.manualHolding.findMany({
-      where: { userId },
-      orderBy: [{ market: 'asc' }, { symbol: 'asc' }],
+  async getHoldings(
+    userId: string,
+    options: {
+      source?: PrismaHoldingSource;
+      accountId?: string;
+    } = {},
+  ): Promise<Holding[]> {
+    if (options.accountId) {
+      await this.getAccountOrThrow(userId, options.accountId);
+    }
+
+    const where: Prisma.HoldingWhereInput = {
+      userId,
+      ...(options.source ? { source: options.source } : {}),
+      ...(options.accountId ? { accountId: options.accountId } : {}),
+    };
+
+    const orderBy: Prisma.HoldingOrderByWithRelationInput[] =
+      options.source === PrismaHoldingSource.MANUAL
+        ? [{ market: Prisma.SortOrder.asc }, { symbol: Prisma.SortOrder.asc }]
+        : [{ symbol: Prisma.SortOrder.asc }, { market: Prisma.SortOrder.asc }];
+
+    const results = await this.prisma.holding.findMany({
+      where,
+      orderBy,
     });
+
+    return this.mapHoldings(results);
+  }
+
+  getManualHoldings(userId: string): Promise<Holding[]> {
+    return this.getHoldings(userId, { source: PrismaHoldingSource.MANUAL });
   }
 
   async createManualHolding(
     userId: string,
     input: CreateManualHoldingInput,
-  ): Promise<ManualHolding> {
+  ): Promise<Holding> {
+    await this.getManualAccountOrThrow(userId, input.accountId);
+
     const quote = await this.marketDataService.getQuote(
       input.market,
       input.symbol,
     );
 
-    return this.prisma.manualHolding.create({
+    const created = await this.prisma.holding.create({
       data: {
         userId,
+        source: PrismaHoldingSource.MANUAL,
+        accountId: input.accountId,
         market: quote.market,
         symbol: quote.symbol,
         name: quote.name,
         quantity: input.quantity,
         currentPrice: quote.price,
         marketValue: input.quantity * quote.price,
+        averageCost: null,
         currency: quote.currency,
         lastUpdated: quote.lastUpdated,
       },
     });
+
+    return this.mapHolding(created);
   }
 
   async increaseManualHolding(
     userId: string,
     input: IncreaseManualHoldingInput,
-  ): Promise<ManualHolding> {
+  ): Promise<Holding> {
     const holding = await this.getManualHoldingOrThrow(userId, input);
     const nextQuantity = holding.quantity + input.quantityDelta;
 
-    return this.prisma.manualHolding.update({
+    const updated = await this.prisma.holding.update({
       where: { id: holding.id },
       data: {
         quantity: nextQuantity,
         marketValue: nextQuantity * holding.currentPrice,
       },
     });
+
+    return this.mapHolding(updated);
   }
 
   async setManualHoldingQuantity(
     userId: string,
     input: SetManualHoldingQuantityInput,
-  ): Promise<ManualHolding> {
+  ): Promise<Holding> {
     const holding = await this.getManualHoldingOrThrow(userId, input);
 
-    return this.prisma.manualHolding.update({
+    const updated = await this.prisma.holding.update({
       where: { id: holding.id },
       data: {
         quantity: input.quantity,
         marketValue: input.quantity * holding.currentPrice,
       },
     });
+
+    return this.mapHolding(updated);
   }
 
   async deleteManualHolding(
@@ -243,14 +328,10 @@ export class HoldingsService {
     input: ManualHoldingIdentifierInput,
   ): Promise<boolean> {
     try {
-      await this.prisma.manualHolding.delete({
-        where: {
-          userId_market_symbol: {
-            userId,
-            market: input.market,
-            symbol: input.symbol,
-          },
-        },
+      const holding = await this.getManualHoldingOrThrow(userId, input);
+
+      await this.prisma.holding.delete({
+        where: { id: holding.id },
       });
 
       return true;
@@ -268,14 +349,14 @@ export class HoldingsService {
   async syncManualHoldingPrice(
     userId: string,
     input: ManualHoldingIdentifierInput,
-  ): Promise<ManualHolding> {
+  ): Promise<Holding> {
     const holding = await this.getManualHoldingOrThrow(userId, input);
     const quote = await this.marketDataService.getQuote(
       input.market,
       input.symbol,
     );
 
-    return this.prisma.manualHolding.update({
+    const updated = await this.prisma.holding.update({
       where: { id: holding.id },
       data: {
         currentPrice: quote.price,
@@ -285,5 +366,7 @@ export class HoldingsService {
         lastUpdated: quote.lastUpdated,
       },
     });
+
+    return this.mapHolding(updated);
   }
 }

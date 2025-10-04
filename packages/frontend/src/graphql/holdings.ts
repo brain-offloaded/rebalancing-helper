@@ -51,18 +51,23 @@ export const SET_HOLDING_TAGS = gql`
   }
 `;
 
-export const GET_MANUAL_HOLDINGS = gql`
-  query GetManualHoldings {
-    manualHoldings {
+export const GET_HOLDINGS = gql`
+  query GetHoldings($source: HoldingSource, $accountId: String) {
+    holdings(source: $source, accountId: $accountId) {
       id
+      source
+      accountId
       market
       symbol
       name
       quantity
       currentPrice
       marketValue
+      averageCost
       currency
       lastUpdated
+      createdAt
+      updatedAt
     }
   }
 `;
@@ -71,11 +76,18 @@ export const CREATE_MANUAL_HOLDING = gql`
   mutation CreateManualHolding($input: CreateManualHoldingInput!) {
     createManualHolding(input: $input) {
       id
+      source
+      accountId
       market
       symbol
+      name
       quantity
       currentPrice
       marketValue
+      currency
+      lastUpdated
+      createdAt
+      updatedAt
     }
   }
 `;
@@ -84,10 +96,18 @@ export const INCREASE_MANUAL_HOLDING = gql`
   mutation IncreaseManualHolding($input: IncreaseManualHoldingInput!) {
     increaseManualHolding(input: $input) {
       id
+      source
+      accountId
       market
       symbol
+      name
       quantity
+      currentPrice
       marketValue
+      currency
+      lastUpdated
+      createdAt
+      updatedAt
     }
   }
 `;
@@ -96,10 +116,18 @@ export const SET_MANUAL_HOLDING_QUANTITY = gql`
   mutation SetManualHoldingQuantity($input: SetManualHoldingQuantityInput!) {
     setManualHoldingQuantity(input: $input) {
       id
+      source
+      accountId
       market
       symbol
+      name
       quantity
+      currentPrice
       marketValue
+      currency
+      lastUpdated
+      createdAt
+      updatedAt
     }
   }
 `;
@@ -114,11 +142,19 @@ export const SYNC_MANUAL_HOLDING_PRICE = gql`
   mutation SyncManualHoldingPrice($input: ManualHoldingIdentifierInput!) {
     syncManualHoldingPrice(input: $input) {
       id
+      source
+      accountId
       market
       symbol
+      name
       currentPrice
       marketValue
       lastUpdated
+      quantity
+      averageCost
+      currency
+      createdAt
+      updatedAt
     }
   }
 `;

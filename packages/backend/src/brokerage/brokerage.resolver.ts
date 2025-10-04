@@ -1,11 +1,7 @@
 import { UseGuards } from '@nestjs/common';
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import { BrokerageService } from './brokerage.service';
-import {
-  Broker,
-  BrokerageAccount,
-  BrokerageHolding,
-} from './brokerage.entities';
+import { Broker, BrokerageAccount } from './brokerage.entities';
 import {
   CreateBrokerInput,
   CreateBrokerageAccountInput,
@@ -15,6 +11,7 @@ import {
 import { GqlAuthGuard } from '../auth/gql-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ActiveUserData } from '../auth/auth.types';
+import { Holding } from '../holdings/holdings.entities';
 
 @UseGuards(GqlAuthGuard)
 @Resolver(() => BrokerageAccount)
@@ -65,11 +62,11 @@ export class BrokerageResolver {
     return this.brokerageService.getAccount(user.userId, id);
   }
 
-  @Query(() => [BrokerageHolding])
+  @Query(() => [Holding])
   brokerageHoldings(
     @CurrentUser() user: ActiveUserData,
     @Args('accountId', { nullable: true }) accountId?: string,
-  ): Promise<BrokerageHolding[]> {
+  ): Promise<Holding[]> {
     const normalizedAccountId = accountId ?? undefined;
 
     return this.brokerageService.getHoldings(user.userId, normalizedAccountId);
@@ -99,11 +96,11 @@ export class BrokerageResolver {
     return this.brokerageService.deleteAccount(user.userId, id);
   }
 
-  @Mutation(() => [BrokerageHolding])
+  @Mutation(() => [Holding])
   refreshBrokerageHoldings(
     @CurrentUser() user: ActiveUserData,
     @Args('accountId') accountId: string,
-  ): Promise<BrokerageHolding[]> {
+  ): Promise<Holding[]> {
     return this.brokerageService.refreshHoldings(user.userId, accountId);
   }
 }

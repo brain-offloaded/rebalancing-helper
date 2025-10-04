@@ -65,6 +65,11 @@ const Button = styled.button.attrs<{
         `;
     }
   }}
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
 const Form = styled.form`
@@ -94,6 +99,11 @@ const Input = styled.input`
     outline: none;
     border-color: ${(props) => props.theme.colors.primary};
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  }
+
+  &:disabled {
+    background-color: ${(props) => props.theme.colors.light};
+    cursor: not-allowed;
   }
 `;
 
@@ -154,6 +164,7 @@ export const BrokerageAccounts: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     brokerId: '',
+    syncMode: 'API' as 'API' | 'MANUAL',
     apiKey: '',
     apiSecret: '',
     description: '',
@@ -183,14 +194,24 @@ export const BrokerageAccounts: React.FC = () => {
       alert('증권사를 선택해주세요.');
       return;
     }
+    if (formData.syncMode === 'API' && !formData.apiKey) {
+      alert('API 키를 입력해주세요.');
+      return;
+    }
+    const isApiMode = formData.syncMode === 'API';
     try {
       await createAccount({
         variables: {
           input: {
             name: formData.name,
             brokerId: formData.brokerId,
-            apiKey: formData.apiKey,
-            apiSecret: formData.apiSecret ? formData.apiSecret : null,
+            syncMode: formData.syncMode,
+            apiKey: isApiMode ? formData.apiKey : null,
+            apiSecret: isApiMode
+              ? formData.apiSecret
+                ? formData.apiSecret
+                : null
+              : null,
             description: formData.description ? formData.description : null,
             isActive: true,
           },
@@ -199,6 +220,7 @@ export const BrokerageAccounts: React.FC = () => {
       setFormData({
         name: '',
         brokerId: brokers[0]?.id ?? '',
+        syncMode: formData.syncMode,
         apiKey: '',
         apiSecret: '',
         description: '',
@@ -221,7 +243,11 @@ export const BrokerageAccounts: React.FC = () => {
     }
   };
 
-  const handleRefresh = async (accountId: string) => {
+  const handleRefresh = async (accountId: string, syncMode: 'API' | 'MANUAL') => {
+    if (syncMode !== 'API') {
+      alert('수동 입력 계좌는 자동 새로고침을 지원하지 않습니다.');
+      return;
+    }
     try {
       await refreshHoldings({ variables: { accountId } });
       alert('보유 종목이 업데이트되었습니다.');
@@ -286,27 +312,52 @@ export const BrokerageAccounts: React.FC = () => {
               </FormGroup>
 
               <FormGroup>
-                <Label>API 키</Label>
-                <Input
-                  type="text"
-                  value={formData.apiKey}
+                <Label>동기화 방식</Label>
+                <Select
+                  value={formData.syncMode}
                   onChange={(e) =>
-                    setFormData({ ...formData, apiKey: e.target.value })
+                    setFormData({
+                      ...formData,
+                      syncMode: e.target.value as 'API' | 'MANUAL',
+                    })
                   }
-                  required
-                />
+                >
+                  <option value="API">자동 동기화 (API)</option>
+                  <option value="MANUAL">수동 입력</option>
+                </Select>
               </FormGroup>
 
-              <FormGroup>
-                <Label>API 시크릿</Label>
-                <Input
-                  type="password"
-                  value={formData.apiSecret}
-                  onChange={(e) =>
-                    setFormData({ ...formData, apiSecret: e.target.value })
-                  }
-                />
-              </FormGroup>
+              {formData.syncMode === 'API' && (
+                <FormGroup>
+                  <Label>API 키</Label>
+                  <Input
+                    type="text"
+                    value={formData.apiKey}
+                    onChange={(e) =>
+                      setFormData({ ...formData, apiKey: e.target.value })
+                    }
+                    required={formData.syncMode === 'API'}
+                    disabled={formData.syncMode !== 'API'}
+                  />
+                </FormGroup>
+              )}
+
+              {formData.syncMode === 'API' && (
+                <FormGroup>
+                  <Label>API 시크릿</Label>
+                  <Input
+                    type="password"
+                    value={formData.apiSecret}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        apiSecret: e.target.value,
+                      })
+                    }
+                    disabled={formData.syncMode !== 'API'}
+                  />
+                </FormGroup>
+              )}
 
               <FormGroup>
                 <Label>설명</Label>
@@ -347,6 +398,12 @@ export const BrokerageAccounts: React.FC = () => {
                   </span>
                 </InfoRow>
                 <InfoRow>
+                  <Label2>동기화 방식:</Label2>
+                  <span>
+                    {account.syncMode === 'API' ? '자동 동기화' : '수동 입력'}
+                  </span>
+                </InfoRow>
+                <InfoRow>
                   <Label2>상태:</Label2>
                   <span>{account.isActive ? '활성' : '비활성'}</span>
                 </InfoRow>
@@ -365,7 +422,15 @@ export const BrokerageAccounts: React.FC = () => {
               </AccountInfo>
 
               <div>
-                <Button onClick={() => handleRefresh(account.id)}>
+                <Button
+                  onClick={() => handleRefresh(account.id, account.syncMode)}
+                  disabled={account.syncMode !== 'API'}
+                  title={
+                    account.syncMode === 'API'
+                      ? undefined
+                      : '수동 입력 계좌는 자동 새로고침을 지원하지 않습니다.'
+                  }
+                >
                   보유종목 새로고침
                 </Button>
                 <Button

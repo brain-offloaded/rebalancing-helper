@@ -26,7 +26,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio",
-    "schema:gen": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/generate-schema.ts"
+    "gql:schema": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/generate-schema.ts"
   },
   "dependencies": {
     "@apollo/server": "^4.12.2",

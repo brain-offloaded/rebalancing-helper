@@ -52,6 +52,11 @@ export class ManualHoldingIdentifierInput {
   @Field()
   @IsString()
   @IsNotEmpty()
+  accountId: string;
+
+  @Field()
+  @IsString()
+  @IsNotEmpty()
   market: string;
 
   @Field()
@@ -64,7 +69,7 @@ export class ManualHoldingIdentifierInput {
 export class CreateManualHoldingInput extends ManualHoldingIdentifierInput {
   @Field(() => Number)
   @IsNumber()
-  @IsPositive()
+  @Min(0)
   quantity: number;
 }
 

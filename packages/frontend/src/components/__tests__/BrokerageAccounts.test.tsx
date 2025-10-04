@@ -108,6 +108,7 @@ describe('BrokerageAccounts', () => {
         },
         description: '주식 계좌',
         isActive: true,
+        syncMode: 'API' as const,
         createdAt: new Date('2024-01-10T00:00:00Z').toISOString(),
         updatedAt: new Date('2024-01-11T00:00:00Z').toISOString(),
       },
@@ -143,6 +144,7 @@ describe('BrokerageAccounts', () => {
     expect(screen.getByText('미래에셋 계정')).toBeInTheDocument();
     const brokerTexts = screen.getAllByText(/미래에셋/);
     expect(brokerTexts.length).toBeGreaterThan(0);
+    expect(screen.getByText('자동 동기화')).toBeInTheDocument();
     expect(screen.getByText('활성')).toBeInTheDocument();
     expect(screen.getByText('주식 계좌')).toBeInTheDocument();
   });
@@ -210,10 +212,11 @@ describe('BrokerageAccounts', () => {
 
     await waitFor(() => {
       expect(createAccount).toHaveBeenCalledWith({
-        variables: {
+            variables: {
           input: {
             name: '신규 계정',
             brokerId: 'broker-2',
+            syncMode: 'API',
             apiKey: 'api-key',
             apiSecret: 'secret',
             description: '계정 설명',
@@ -244,6 +247,7 @@ describe('BrokerageAccounts', () => {
                 broker: { id: 'broker-1', name: '테스트 증권', code: 'TEST' },
                 description: null,
                 isActive: true,
+                syncMode: 'API' as const,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
               },
@@ -316,6 +320,7 @@ describe('BrokerageAccounts', () => {
                 broker: { id: 'broker-1', name: '테스트 증권', code: 'TEST' },
                 description: null,
                 isActive: true,
+                syncMode: 'API' as const,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
               },
@@ -368,5 +373,46 @@ describe('BrokerageAccounts', () => {
     expect(alertSpy).toHaveBeenCalledWith('보유 종목이 업데이트되었습니다.');
 
     alertSpy.mockRestore();
+  });
+
+  it('수동 입력 계좌는 새로고침 버튼이 비활성화된다', async () => {
+    mockUseQuery.mockImplementation((query) => {
+      if (query === GetBrokerageAccountsDocument) {
+        return {
+          data: {
+            brokerageAccounts: [
+              {
+                id: 'acc-2',
+                name: '수동 계좌',
+                broker: { id: 'broker-1', name: '테스트 증권', code: 'TEST' },
+                description: null,
+                isActive: true,
+                syncMode: 'MANUAL' as const,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              },
+            ],
+          },
+          loading: false,
+          error: undefined,
+          refetch: vi.fn(),
+        };
+      }
+      if (query === GetBrokersDocument) {
+        return {
+          data: { brokers: [{ id: 'broker-1', name: '테스트 증권', code: 'TEST' }] },
+          loading: false,
+          error: undefined,
+        };
+      }
+      return {};
+    });
+
+    mockUseMutation.mockReturnValue([vi.fn(), { loading: false }]);
+
+    renderWithProviders(<BrokerageAccounts />, { withApollo: false });
+
+    const refreshButton = screen.getByRole('button', { name: '보유종목 새로고침' });
+    expect(refreshButton).toBeDisabled();
   });
 });

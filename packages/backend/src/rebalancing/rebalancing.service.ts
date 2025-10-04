@@ -21,7 +21,6 @@ import {
   RemoveTagsFromRebalancingGroupInput,
   RenameRebalancingGroupInput,
 } from './rebalancing.dto';
-import { BrokerageService } from '../brokerage/brokerage.service';
 import { HoldingsService } from '../holdings/holdings.service';
 import { CurrencyConversionService } from '../yahoo/currency-conversion.service';
 import { TypedConfigService } from '../typed-config';
@@ -39,7 +38,6 @@ export class RebalancingService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly brokerageService: BrokerageService,
     private readonly holdingsService: HoldingsService,
     private readonly currencyConversionService: CurrencyConversionService,
     private readonly configService: TypedConfigService,
@@ -327,23 +325,13 @@ export class RebalancingService {
     });
     const tagMap = new Map(tags.map((tag) => [tag.id, tag]));
 
-    const [brokerageHoldings, manualHoldings] = await Promise.all([
-      this.brokerageService.getHoldings(userId),
-      this.holdingsService.getManualHoldings(userId),
-    ]);
+    const holdings = await this.holdingsService.getHoldings(userId);
 
-    const holdingsForValue = [
-      ...brokerageHoldings.map((holding) => ({
-        symbol: holding.symbol,
-        marketValue: holding.marketValue,
-        currency: (holding.currency ?? this.baseCurrency).toUpperCase(),
-      })),
-      ...manualHoldings.map((holding) => ({
-        symbol: holding.symbol,
-        marketValue: holding.marketValue,
-        currency: (holding.currency ?? this.baseCurrency).toUpperCase(),
-      })),
-    ];
+    const holdingsForValue = holdings.map((holding) => ({
+      symbol: holding.symbol,
+      marketValue: holding.marketValue,
+      currency: (holding.currency ?? this.baseCurrency).toUpperCase(),
+    }));
     const targetAllocations = await this.prisma.targetAllocation.findMany({
       where: { groupId },
     });

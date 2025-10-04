@@ -30,6 +30,7 @@
 ### Backend (NestJS)
 - **Framework**: NestJS with TypeScript
 - **API**: GraphQL (Code First)
+  - generated.graphql 파일은 반드시 `pnpm gql:all` 으로 자동 생성합니다. 절대 수동 수정하지 않습니다.
 - **Architecture**: 모듈형 구조 (Brokerage, Holdings, Tags, Rebalancing)
 
 ### Frontend (React)
