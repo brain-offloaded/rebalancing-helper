@@ -73,6 +73,12 @@ async function main() {
       description: '삼성증권 Open API',
       apiBaseUrl: 'https://api.samsungsec.com',
     },
+    {
+      code: 'NH_BANK',
+      name: 'NH농협은행',
+      description: 'NH농협은행 오픈 API',
+      apiBaseUrl: 'https://openapi.nonghyup.com',
+    },
   ];
 
   for (const broker of defaultBrokers) {
