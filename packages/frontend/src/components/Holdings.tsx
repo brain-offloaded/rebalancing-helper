@@ -34,19 +34,22 @@ const Th = styled.th`
   background-color: ${(props) => props.theme.colors.primary};
   color: white;
   padding: ${(props) => props.theme.spacing.md};
-  text-align: left;
+  text-align: center;
   font-weight: ${(props) => props.theme.typography.fontWeight.semibold};
 `;
 
 const Td = styled.td`
   padding: ${(props) => props.theme.spacing.md};
   border-bottom: 1px solid ${(props) => props.theme.colors.border};
-  vertical-align: top;
+  vertical-align: middle;
+  text-align: center;
 `;
 
 const CellContent = styled.div`
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
   gap: ${(props) => props.theme.spacing.xs};
 `;
 
@@ -66,6 +69,7 @@ const TagContainer = styled.div`
   flex-wrap: wrap;
   gap: ${(props) => props.theme.spacing.xs};
   margin-top: ${(props) => props.theme.spacing.xs};
+  justify-content: center;
 `;
 
 const Tag = styled.span<{ color: string }>`
@@ -197,7 +201,7 @@ const ManualSelect = styled.select`
 const ActionGroup = styled.div`
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: center;
   gap: ${(props) => props.theme.spacing.xs};
 
   & > ${Button} {
