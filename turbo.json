@@ -61,20 +61,32 @@
     },
     "prisma:migrate": {
       "cache": false,
-      "outputLogs": "new-only"
+      "outputLogs": "new-only",
+      "env": [
+        "DATABASE_URL"
+      ]
     },
     "prisma:deploy": {
       "cache": false,
-      "outputLogs": "new-only"
+      "outputLogs": "new-only",
+      "env": [
+        "DATABASE_URL"
+      ]
     },
     "prisma:seed": {
       "cache": false,
-      "outputLogs": "new-only"
+      "outputLogs": "new-only",
+      "env": [
+        "DATABASE_URL"
+      ]
     },
     "prisma:studio": {
       "cache": false,
       "persistent": true,
-      "outputLogs": "new-only"
+      "outputLogs": "new-only",
+      "env": [
+        "DATABASE_URL"
+      ]
     }
   }
 }

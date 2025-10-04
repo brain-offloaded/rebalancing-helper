@@ -53,7 +53,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Setup Prisma
-        run: pnpm prisma:generate && pnpm prisma:deploy
+        run: pnpm prisma:generate && pnpm prisma:deploy && pnpm prisma:seed
 
       - name: Generate GraphQL schema & types (gql:all)
         run: pnpm gql:all
