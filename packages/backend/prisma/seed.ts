@@ -67,6 +67,12 @@ async function main() {
       description: 'NH투자증권 Open API',
       apiBaseUrl: 'https://openapi.nhqv.com',
     },
+    {
+      code: 'SAMSUNG_SEC',
+      name: '삼성증권',
+      description: '삼성증권 Open API',
+      apiBaseUrl: 'https://api.samsungsec.com',
+    },
   ];
 
   for (const broker of defaultBrokers) {
@@ -198,10 +204,10 @@ async function main() {
 }
 
 main()
-  .catch(error => {
+  .catch((error) => {
     console.error('Failed to seed database', error);
     process.exit(1);
   })
-  .finally(async () => {
-    await prisma.$disconnect();
+  .finally(() => {
+    void prisma.$disconnect();
   });
