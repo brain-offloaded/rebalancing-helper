@@ -6,7 +6,11 @@ import {
   UpdateBrokerInput,
   UpdateBrokerageAccountInput,
 } from './brokerage.dto';
-import { Broker, BrokerageAccount } from './brokerage.entities';
+import {
+  Broker,
+  BrokerageAccount,
+  BrokerageAccountSyncMode,
+} from './brokerage.entities';
 import { Holding, HoldingSource } from '../holdings/holdings.entities';
 import { ActiveUserData } from '../auth/auth.types';
 
@@ -21,6 +25,7 @@ const createAccount = (
   id: overrides.id ?? 'account-1',
   name: overrides.name ?? '기본 계좌',
   brokerId: overrides.brokerId ?? 'broker-1',
+  syncMode: overrides.syncMode ?? BrokerageAccountSyncMode.MANUAL,
   description: overrides.description ?? null,
   isActive: overrides.isActive ?? true,
   broker:
@@ -136,6 +141,7 @@ describe('BrokerageResolver', () => {
     const input: CreateBrokerageAccountInput = {
       name: '새 계좌',
       brokerId: 'broker-1',
+      syncMode: BrokerageAccountSyncMode.API,
       apiKey: 'api-key',
     };
     const account = createAccount({ name: input.name });

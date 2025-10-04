@@ -27,7 +27,7 @@ const createHoldingTag = (overrides: Partial<HoldingTag> = {}): HoldingTag => ({
 const createHolding = (overrides: Partial<Holding> = {}): Holding => ({
   id: overrides.id ?? 'holding-1',
   source: overrides.source ?? HoldingSource.MANUAL,
-  accountId: overrides.accountId ?? null,
+  accountId: overrides.accountId ?? 'account-1',
   market: overrides.market ?? 'US',
   symbol: overrides.symbol ?? 'VOO',
   name: overrides.name ?? 'Vanguard S&P 500 ETF',
@@ -177,6 +177,7 @@ describe('HoldingsResolver', () => {
 
   it('createManualHolding은 사용자 ID와 입력값을 전달한다', async () => {
     const input: CreateManualHoldingInput = {
+      accountId: 'account-1',
       market: 'US',
       symbol: 'VOO',
       quantity: 2,
@@ -195,6 +196,7 @@ describe('HoldingsResolver', () => {
 
   it('increaseManualHolding은 사용자 ID와 입력값을 전달한다', async () => {
     const input: IncreaseManualHoldingInput = {
+      accountId: 'account-1',
       market: 'US',
       symbol: 'VOO',
       quantityDelta: 1,
@@ -213,6 +215,7 @@ describe('HoldingsResolver', () => {
 
   it('setManualHoldingQuantity는 사용자 ID와 입력값을 전달한다', async () => {
     const input: SetManualHoldingQuantityInput = {
+      accountId: 'account-1',
       market: 'US',
       symbol: 'VOO',
       quantity: 5,
@@ -231,6 +234,7 @@ describe('HoldingsResolver', () => {
 
   it('deleteManualHolding은 사용자 ID와 식별자를 전달한다', async () => {
     const input: ManualHoldingIdentifierInput = {
+      accountId: 'account-1',
       market: 'US',
       symbol: 'VOO',
     };
@@ -247,6 +251,7 @@ describe('HoldingsResolver', () => {
 
   it('syncManualHoldingPrice는 사용자 ID와 식별자를 전달한다', async () => {
     const input: ManualHoldingIdentifierInput = {
+      accountId: 'account-1',
       market: 'US',
       symbol: 'VOO',
     };

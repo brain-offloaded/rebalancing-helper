@@ -58,7 +58,7 @@ const holdingsServiceMock = {
 const createManualHolding = (overrides: Partial<Holding> = {}): Holding => ({
   id: 'manual-1',
   source: HoldingSource.MANUAL,
-  accountId: null,
+  accountId: 'account-1',
   market: 'US',
   symbol: 'VOO',
   name: 'Vanguard S&P 500 ETF',
@@ -394,6 +394,7 @@ describe('GraphQL API (e2e)', () => {
     `;
     const variables = {
       input: {
+        accountId: 'account-1',
         market: 'US',
         symbol: 'SPY',
         quantity: 2,
@@ -444,6 +445,7 @@ describe('GraphQL API (e2e)', () => {
     `;
     const variables = {
       input: {
+        accountId: 'account-1',
         market: 'US',
         symbol: 'VOO',
         quantityDelta: 1,
@@ -494,6 +496,7 @@ describe('GraphQL API (e2e)', () => {
     `;
     const variables = {
       input: {
+        accountId: 'account-1',
         market: 'US',
         symbol: 'QQQ',
         quantity: 5,
@@ -529,6 +532,7 @@ describe('GraphQL API (e2e)', () => {
     `;
     const variables = {
       input: {
+        accountId: 'account-1',
         market: 'US',
         symbol: 'VOO',
       },
@@ -572,6 +576,7 @@ describe('GraphQL API (e2e)', () => {
     `;
     const variables = {
       input: {
+        accountId: 'account-1',
         market: 'US',
         symbol: 'VOO',
       },

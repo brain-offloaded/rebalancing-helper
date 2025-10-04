@@ -52,6 +52,11 @@ export class ManualHoldingIdentifierInput {
   @Field()
   @IsString()
   @IsNotEmpty()
+  accountId: string;
+
+  @Field()
+  @IsString()
+  @IsNotEmpty()
   market: string;
 
   @Field()

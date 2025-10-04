@@ -1,5 +1,9 @@
-import { NotFoundException } from '@nestjs/common';
-import { HoldingSource as PrismaHoldingSource } from '@prisma/client';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  HoldingSource as PrismaHoldingSource,
+  HoldingAccountProviderType as PrismaHoldingAccountProviderType,
+  HoldingAccountSyncMode as PrismaHoldingAccountSyncMode,
+} from '@prisma/client';
 import { BrokerageService } from './brokerage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -7,6 +11,7 @@ import {
   UpdateBrokerageAccountInput,
 } from './brokerage.dto';
 import { CredentialCryptoService } from './credential-crypto.service';
+import { BrokerageAccountSyncMode } from './brokerage.entities';
 
 const USER_ID = 'user-1';
 
@@ -17,13 +22,12 @@ type MockedPrisma = {
     update: jest.Mock;
     deleteMany: jest.Mock;
   };
-  brokerageAccount: {
+  holdingAccount: {
     create: jest.Mock;
     update: jest.Mock;
     delete: jest.Mock;
     findMany: jest.Mock;
     findFirst: jest.Mock;
-    findUnique: jest.Mock;
   };
   holding: {
     findMany: jest.Mock;
@@ -48,13 +52,12 @@ describe('BrokerageService', () => {
         update: jest.fn(),
         deleteMany: jest.fn(),
       },
-      brokerageAccount: {
+      holdingAccount: {
         create: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
         findMany: jest.fn(),
         findFirst: jest.fn(),
-        findUnique: jest.fn(),
       },
       holding: {
         findMany: jest.fn(),
@@ -82,17 +85,48 @@ describe('BrokerageService', () => {
     const input: CreateBrokerageAccountInput = {
       name: '미래에셋 계좌',
       brokerId: 'broker-1',
+      syncMode: BrokerageAccountSyncMode.API,
       apiKey: 'api-key',
     };
-    prismaMock.brokerageAccount.create.mockResolvedValue({ id: 'acc-1' });
+    const now = new Date();
+    prismaMock.holdingAccount.create.mockResolvedValue({
+      id: 'acc-1',
+      name: input.name,
+      brokerId: input.brokerId,
+      providerType: PrismaHoldingAccountProviderType.BROKERAGE,
+      syncMode: PrismaHoldingAccountSyncMode.API,
+      description: null,
+      isActive: true,
+      apiKeyCipher: 'api-key-cipher',
+      apiKeyIv: 'api-key-iv',
+      apiKeyTag: 'api-key-tag',
+      apiSecretCipher: null,
+      apiSecretIv: null,
+      apiSecretTag: null,
+      userId: USER_ID,
+      broker: {
+        id: input.brokerId,
+        code: 'CODE',
+        name: '브로커',
+        description: null,
+        apiBaseUrl: null,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
 
     await service.createAccount(USER_ID, input);
 
     expect(credentialCryptoMock.encrypt).toHaveBeenCalledWith('api-key');
-    expect(prismaMock.brokerageAccount.create).toHaveBeenCalledWith({
+    expect(prismaMock.holdingAccount.create).toHaveBeenCalledWith({
       data: {
         name: input.name,
         broker: { connect: { id: input.brokerId } },
+        providerType: PrismaHoldingAccountProviderType.BROKERAGE,
+        syncMode: PrismaHoldingAccountSyncMode.API,
         apiKeyCipher: 'api-key-cipher',
         apiKeyIv: 'api-key-iv',
         apiKeyTag: 'api-key-tag',
@@ -107,21 +141,70 @@ describe('BrokerageService', () => {
     });
   });
 
+  it('createAccount는 API 모드에 API 키가 없으면 예외를 던진다', async () => {
+    const input: CreateBrokerageAccountInput = {
+      name: '미래에셋 계좌',
+      brokerId: 'broker-1',
+      syncMode: BrokerageAccountSyncMode.API,
+    };
+
+    await expect(service.createAccount(USER_ID, input)).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(prismaMock.holdingAccount.create).not.toHaveBeenCalled();
+  });
+
   it('updateAccount는 소유권을 검증하고 업데이트한다', async () => {
-    prismaMock.brokerageAccount.findFirst.mockResolvedValue({ id: 'acc-1' });
+    prismaMock.holdingAccount.findFirst.mockResolvedValue({
+      id: 'acc-1',
+      syncMode: PrismaHoldingAccountSyncMode.API,
+      apiKeyCipher: 'cipher',
+    });
     const input: UpdateBrokerageAccountInput = {
       id: 'acc-1',
       name: '새 이름',
     };
-    prismaMock.brokerageAccount.update.mockResolvedValue({ id: 'acc-1' });
+    const now = new Date();
+    prismaMock.holdingAccount.update.mockResolvedValue({
+      id: 'acc-1',
+      name: input.name!,
+      brokerId: 'broker-1',
+      providerType: PrismaHoldingAccountProviderType.BROKERAGE,
+      syncMode: PrismaHoldingAccountSyncMode.API,
+      description: null,
+      isActive: true,
+      apiKeyCipher: 'cipher',
+      apiKeyIv: 'iv',
+      apiKeyTag: 'tag',
+      apiSecretCipher: null,
+      apiSecretIv: null,
+      apiSecretTag: null,
+      userId: USER_ID,
+      broker: {
+        id: 'broker-1',
+        code: 'CODE',
+        name: '브로커',
+        description: null,
+        apiBaseUrl: null,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
 
     await service.updateAccount(USER_ID, input);
 
-    expect(prismaMock.brokerageAccount.findFirst).toHaveBeenCalledWith({
-      where: { id: input.id, userId: USER_ID },
-      select: { id: true },
+    expect(prismaMock.holdingAccount.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: input.id,
+        userId: USER_ID,
+        providerType: PrismaHoldingAccountProviderType.BROKERAGE,
+      },
+      select: { id: true, syncMode: true, apiKeyCipher: true },
     });
-    expect(prismaMock.brokerageAccount.update).toHaveBeenCalledWith({
+    expect(prismaMock.holdingAccount.update).toHaveBeenCalledWith({
       where: { id: input.id },
       data: { name: input.name },
       include: { broker: true },
@@ -129,19 +212,51 @@ describe('BrokerageService', () => {
   });
 
   it('updateAccount는 자격 증명 갱신 시 암호화한다', async () => {
-    prismaMock.brokerageAccount.findFirst.mockResolvedValue({ id: 'acc-1' });
+    prismaMock.holdingAccount.findFirst.mockResolvedValue({
+      id: 'acc-1',
+      syncMode: PrismaHoldingAccountSyncMode.API,
+      apiKeyCipher: 'old-cipher',
+    });
     const input: UpdateBrokerageAccountInput = {
       id: 'acc-1',
       apiKey: 'new-key',
       apiSecret: 'new-secret',
     };
-    prismaMock.brokerageAccount.update.mockResolvedValue({ id: 'acc-1' });
+    const now = new Date();
+    prismaMock.holdingAccount.update.mockResolvedValue({
+      id: 'acc-1',
+      name: '계좌',
+      brokerId: 'broker-1',
+      providerType: PrismaHoldingAccountProviderType.BROKERAGE,
+      syncMode: PrismaHoldingAccountSyncMode.API,
+      description: null,
+      isActive: true,
+      apiKeyCipher: 'new-key-cipher',
+      apiKeyIv: 'new-key-iv',
+      apiKeyTag: 'new-key-tag',
+      apiSecretCipher: 'new-secret-cipher',
+      apiSecretIv: 'new-secret-iv',
+      apiSecretTag: 'new-secret-tag',
+      userId: USER_ID,
+      broker: {
+        id: 'broker-1',
+        code: 'CODE',
+        name: '브로커',
+        description: null,
+        apiBaseUrl: null,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
 
     await service.updateAccount(USER_ID, input);
 
     expect(credentialCryptoMock.encrypt).toHaveBeenCalledWith('new-key');
     expect(credentialCryptoMock.encrypt).toHaveBeenCalledWith('new-secret');
-    expect(prismaMock.brokerageAccount.update).toHaveBeenCalledWith({
+    expect(prismaMock.holdingAccount.update).toHaveBeenCalledWith({
       where: { id: input.id },
       data: {
         apiKeyCipher: 'new-key-cipher',
@@ -156,18 +271,50 @@ describe('BrokerageService', () => {
   });
 
   it('updateAccount는 brokerId 변경과 비밀키 제거를 처리한다', async () => {
-    prismaMock.brokerageAccount.findFirst.mockResolvedValue({ id: 'acc-1' });
+    prismaMock.holdingAccount.findFirst.mockResolvedValue({
+      id: 'acc-1',
+      syncMode: PrismaHoldingAccountSyncMode.MANUAL,
+      apiKeyCipher: null,
+    });
     const input: UpdateBrokerageAccountInput = {
       id: 'acc-1',
       brokerId: 'broker-2',
       isActive: false,
     };
-    prismaMock.brokerageAccount.update.mockResolvedValue({ id: 'acc-1' });
+    const now = new Date();
+    prismaMock.holdingAccount.update.mockResolvedValue({
+      id: 'acc-1',
+      name: '계좌',
+      brokerId: 'broker-2',
+      providerType: PrismaHoldingAccountProviderType.BROKERAGE,
+      syncMode: PrismaHoldingAccountSyncMode.MANUAL,
+      description: null,
+      isActive: false,
+      apiKeyCipher: null,
+      apiKeyIv: null,
+      apiKeyTag: null,
+      apiSecretCipher: null,
+      apiSecretIv: null,
+      apiSecretTag: null,
+      userId: USER_ID,
+      broker: {
+        id: 'broker-2',
+        code: 'CODE',
+        name: '브로커',
+        description: null,
+        apiBaseUrl: null,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
 
     await service.updateAccount(USER_ID, input);
 
     expect(credentialCryptoMock.encrypt).not.toHaveBeenCalled();
-    expect(prismaMock.brokerageAccount.update).toHaveBeenCalledWith({
+    expect(prismaMock.holdingAccount.update).toHaveBeenCalledWith({
       where: { id: input.id },
       data: {
         broker: { connect: { id: 'broker-2' } },
@@ -178,48 +325,71 @@ describe('BrokerageService', () => {
   });
 
   it('updateAccount는 타인의 계좌면 NotFoundException을 던진다', async () => {
-    prismaMock.brokerageAccount.findFirst.mockResolvedValue(null);
+    prismaMock.holdingAccount.findFirst.mockResolvedValue(null);
 
     await expect(
       service.updateAccount(USER_ID, { id: 'acc-x', name: 'foo' }),
     ).rejects.toThrow(NotFoundException);
-    expect(prismaMock.brokerageAccount.update).not.toHaveBeenCalled();
+    expect(prismaMock.holdingAccount.update).not.toHaveBeenCalled();
+  });
+
+  it('updateAccount는 API 모드 전환 시 API 키가 없으면 예외를 던진다', async () => {
+    prismaMock.holdingAccount.findFirst.mockResolvedValue({
+      id: 'acc-1',
+      syncMode: PrismaHoldingAccountSyncMode.MANUAL,
+      apiKeyCipher: null,
+    });
+
+    await expect(
+      service.updateAccount(USER_ID, {
+        id: 'acc-1',
+        syncMode: BrokerageAccountSyncMode.API,
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(prismaMock.holdingAccount.update).not.toHaveBeenCalled();
   });
 
   it('deleteAccount는 소유권을 확인한 뒤 삭제한다', async () => {
-    prismaMock.brokerageAccount.findFirst.mockResolvedValue({ id: 'acc-1' });
-    prismaMock.brokerageAccount.delete.mockResolvedValue({});
+    prismaMock.holdingAccount.findFirst.mockResolvedValue({ id: 'acc-1' });
+    prismaMock.holdingAccount.delete.mockResolvedValue({});
 
     await expect(service.deleteAccount(USER_ID, 'acc-1')).resolves.toBe(true);
-    expect(prismaMock.brokerageAccount.delete).toHaveBeenCalledWith({
+    expect(prismaMock.holdingAccount.delete).toHaveBeenCalledWith({
       where: { id: 'acc-1' },
     });
   });
 
   it('deleteAccount는 타인의 계좌면 false를 반환한다', async () => {
-    prismaMock.brokerageAccount.findFirst.mockResolvedValue(null);
+    prismaMock.holdingAccount.findFirst.mockResolvedValue(null);
 
     await expect(service.deleteAccount(USER_ID, 'acc-1')).resolves.toBe(false);
-    expect(prismaMock.brokerageAccount.delete).not.toHaveBeenCalled();
+    expect(prismaMock.holdingAccount.delete).not.toHaveBeenCalled();
   });
 
   it('getAccounts는 사용자에 연결된 계좌를 조회한다', async () => {
-    prismaMock.brokerageAccount.findMany.mockResolvedValue([]);
+    prismaMock.holdingAccount.findMany.mockResolvedValue([]);
 
     await service.getAccounts(USER_ID);
-    expect(prismaMock.brokerageAccount.findMany).toHaveBeenCalledWith({
-      where: { userId: USER_ID },
+    expect(prismaMock.holdingAccount.findMany).toHaveBeenCalledWith({
+      where: {
+        userId: USER_ID,
+        providerType: PrismaHoldingAccountProviderType.BROKERAGE,
+      },
       orderBy: { createdAt: 'asc' },
       include: { broker: true },
     });
   });
 
   it('getAccount는 사용자 필터를 포함한다', async () => {
-    prismaMock.brokerageAccount.findFirst.mockResolvedValue({ id: 'acc-1' });
+    prismaMock.holdingAccount.findFirst.mockResolvedValue(null);
 
     await service.getAccount(USER_ID, 'acc-1');
-    expect(prismaMock.brokerageAccount.findFirst).toHaveBeenCalledWith({
-      where: { id: 'acc-1', userId: USER_ID },
+    expect(prismaMock.holdingAccount.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'acc-1',
+        userId: USER_ID,
+        providerType: PrismaHoldingAccountProviderType.BROKERAGE,
+      },
       include: { broker: true },
     });
   });
@@ -237,6 +407,7 @@ describe('BrokerageService', () => {
     });
 
     prismaMock.holding.findMany.mockClear();
+    prismaMock.holdingAccount.findFirst.mockResolvedValue({ id: 'acc-1' });
     await service.getHoldings(USER_ID, 'acc-1');
     expect(prismaMock.holding.findMany).toHaveBeenCalledWith({
       where: {
@@ -249,20 +420,32 @@ describe('BrokerageService', () => {
   });
 
   it('refreshHoldings는 사용자 계좌가 아니면 예외를 던진다', async () => {
-    prismaMock.brokerageAccount.findUnique.mockResolvedValue({
-      id: 'acc-1',
-      userId: 'other-user',
-    });
+    prismaMock.holdingAccount.findFirst.mockResolvedValue(null);
 
     await expect(service.refreshHoldings(USER_ID, 'acc-1')).rejects.toThrow(
       NotFoundException,
     );
   });
 
-  it('refreshHoldings는 성공 시 갱신된 보유 정보를 반환한다', async () => {
-    prismaMock.brokerageAccount.findUnique.mockResolvedValue({
+  it('refreshHoldings는 수동 동기화 계좌면 BadRequestException을 던진다', async () => {
+    prismaMock.holdingAccount.findFirst.mockResolvedValue({
       id: 'acc-1',
       userId: USER_ID,
+      providerType: PrismaHoldingAccountProviderType.BROKERAGE,
+      syncMode: PrismaHoldingAccountSyncMode.MANUAL,
+    });
+
+    await expect(service.refreshHoldings(USER_ID, 'acc-1')).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('refreshHoldings는 성공 시 갱신된 보유 정보를 반환한다', async () => {
+    prismaMock.holdingAccount.findFirst.mockResolvedValue({
+      id: 'acc-1',
+      userId: USER_ID,
+      providerType: PrismaHoldingAccountProviderType.BROKERAGE,
+      syncMode: PrismaHoldingAccountSyncMode.API,
     });
     prismaMock.$transaction.mockResolvedValue(undefined);
     prismaMock.holding.findMany.mockResolvedValue([]);

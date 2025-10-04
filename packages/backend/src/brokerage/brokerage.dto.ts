@@ -5,7 +5,9 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  IsEnum,
 } from 'class-validator';
+import { BrokerageAccountSyncMode } from './brokerage.entities';
 
 @InputType()
 export class CreateBrokerInput {
@@ -75,10 +77,14 @@ export class CreateBrokerageAccountInput {
   @IsNotEmpty()
   brokerId: string;
 
-  @Field()
+  @Field(() => BrokerageAccountSyncMode)
+  @IsEnum(BrokerageAccountSyncMode)
+  syncMode: BrokerageAccountSyncMode;
+
+  @Field({ nullable: true })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  apiKey: string;
+  apiKey?: string;
 
   @Field({ nullable: true })
   @IsOptional()
@@ -112,6 +118,11 @@ export class UpdateBrokerageAccountInput {
   @IsOptional()
   @IsString()
   brokerId?: string;
+
+  @Field(() => BrokerageAccountSyncMode, { nullable: true })
+  @IsOptional()
+  @IsEnum(BrokerageAccountSyncMode)
+  syncMode?: BrokerageAccountSyncMode;
 
   @Field({ nullable: true })
   @IsOptional()

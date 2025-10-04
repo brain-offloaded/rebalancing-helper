@@ -32,8 +32,8 @@ export class Holding {
   @Field(() => HoldingSource)
   source: HoldingSource;
 
-  @Field(() => String, { nullable: true })
-  accountId: string | null;
+  @Field(() => String)
+  accountId: string;
 
   @Field(() => String, { nullable: true })
   market: string | null;

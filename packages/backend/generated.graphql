@@ -34,7 +34,13 @@ type BrokerageAccount {
   id: ID!
   isActive: Boolean!
   name: String!
+  syncMode: BrokerageAccountSyncMode!
   updatedAt: DateTime!
+}
+
+enum BrokerageAccountSyncMode {
+  API
+  MANUAL
 }
 
 input CalculateInvestmentInput {
@@ -50,15 +56,17 @@ input CreateBrokerInput {
 }
 
 input CreateBrokerageAccountInput {
-  apiKey: String!
+  apiKey: String
   apiSecret: String
   brokerId: String!
   description: String
   isActive: Boolean
   name: String!
+  syncMode: BrokerageAccountSyncMode!
 }
 
 input CreateManualHoldingInput {
+  accountId: String!
   market: String!
   quantity: Float!
   symbol: String!
@@ -82,7 +90,7 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 scalar DateTime
 
 type Holding {
-  accountId: String
+  accountId: String!
   averageCost: Float
   createdAt: DateTime!
   currency: String!
@@ -111,6 +119,7 @@ type HoldingTag {
 }
 
 input IncreaseManualHoldingInput {
+  accountId: String!
   market: String!
   quantityDelta: Float!
   symbol: String!
@@ -131,6 +140,7 @@ input LoginInput {
 }
 
 input ManualHoldingIdentifierInput {
+  accountId: String!
   market: String!
   symbol: String!
 }
@@ -238,6 +248,7 @@ input SetHoldingTagsInput {
 }
 
 input SetManualHoldingQuantityInput {
+  accountId: String!
   market: String!
   quantity: Float!
   symbol: String!
@@ -289,6 +300,7 @@ input UpdateBrokerageAccountInput {
   id: String!
   isActive: Boolean
   name: String
+  syncMode: BrokerageAccountSyncMode
 }
 
 input UpdateRebalancingGroupInput {

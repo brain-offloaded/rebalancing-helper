@@ -1,12 +1,22 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   Broker as BrokerModel,
   HoldingSource as PrismaHoldingSource,
   Prisma,
   Holding as PrismaHolding,
+  HoldingAccount as PrismaHoldingAccount,
+  HoldingAccountProviderType as PrismaHoldingAccountProviderType,
+  HoldingAccountSyncMode as PrismaHoldingAccountSyncMode,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { BrokerageAccount } from './brokerage.entities';
+import {
+  BrokerageAccount,
+  BrokerageAccountSyncMode,
+} from './brokerage.entities';
 import {
   CreateBrokerInput,
   CreateBrokerageAccountInput,
@@ -27,6 +37,26 @@ export class BrokerageService {
     return {
       ...holding,
       source: holding.source as HoldingSource,
+    };
+  }
+
+  private mapAccount(
+    account: PrismaHoldingAccount & { broker: BrokerModel | null },
+  ): BrokerageAccount {
+    if (!account.broker) {
+      throw new NotFoundException('Broker not found');
+    }
+
+    return {
+      id: account.id,
+      name: account.name,
+      brokerId: account.brokerId!,
+      syncMode: account.syncMode as BrokerageAccountSyncMode,
+      description: account.description ?? null,
+      isActive: account.isActive,
+      broker: account.broker,
+      createdAt: account.createdAt,
+      updatedAt: account.updatedAt,
     };
   }
 
@@ -85,23 +115,36 @@ export class BrokerageService {
     return result.count > 0;
   }
 
-  createAccount(
+  async createAccount(
     userId: string,
     input: CreateBrokerageAccountInput,
   ): Promise<BrokerageAccount> {
-    const encryptedApiKey = this.credentialCrypto.encrypt(input.apiKey);
-    const encryptedApiSecret = input.apiSecret
-      ? this.credentialCrypto.encrypt(input.apiSecret)
-      : null;
+    if (
+      input.syncMode === BrokerageAccountSyncMode.API &&
+      !input.apiKey
+    ) {
+      throw new BadRequestException('API 동기화 모드에는 API 키가 필요합니다.');
+    }
 
-    const data: Prisma.BrokerageAccountCreateInput = {
+    const encryptedApiKey =
+      input.syncMode === BrokerageAccountSyncMode.API && input.apiKey
+        ? this.credentialCrypto.encrypt(input.apiKey)
+        : null;
+    const encryptedApiSecret =
+      input.syncMode === BrokerageAccountSyncMode.API && input.apiSecret
+        ? this.credentialCrypto.encrypt(input.apiSecret)
+        : null;
+
+    const data: Prisma.HoldingAccountCreateInput = {
       name: input.name,
       broker: {
         connect: { id: input.brokerId },
       },
-      apiKeyCipher: encryptedApiKey.cipher,
-      apiKeyIv: encryptedApiKey.iv,
-      apiKeyTag: encryptedApiKey.authTag,
+      providerType: PrismaHoldingAccountProviderType.BROKERAGE,
+      syncMode: input.syncMode as PrismaHoldingAccountSyncMode,
+      apiKeyCipher: encryptedApiKey?.cipher ?? null,
+      apiKeyIv: encryptedApiKey?.iv ?? null,
+      apiKeyTag: encryptedApiKey?.authTag ?? null,
       apiSecretCipher: encryptedApiSecret?.cipher ?? null,
       apiSecretIv: encryptedApiSecret?.iv ?? null,
       apiSecretTag: encryptedApiSecret?.authTag ?? null,
@@ -112,10 +155,12 @@ export class BrokerageService {
       },
     };
 
-    return this.prisma.brokerageAccount.create({
+    const account = await this.prisma.holdingAccount.create({
       data,
       include: { broker: true },
     });
+
+    return this.mapAccount(account);
   }
 
   async updateAccount(
@@ -123,7 +168,7 @@ export class BrokerageService {
     input: UpdateBrokerageAccountInput,
   ): Promise<BrokerageAccount> {
     const { id, ...updates } = input;
-    const data: Prisma.BrokerageAccountUpdateInput = {};
+    const data: Prisma.HoldingAccountUpdateInput = {};
 
     if (updates.name !== undefined) {
       data.name = updates.name;
@@ -135,11 +180,29 @@ export class BrokerageService {
       };
     }
 
+    if (updates.syncMode !== undefined) {
+      data.syncMode = updates.syncMode as PrismaHoldingAccountSyncMode;
+      if (updates.syncMode === BrokerageAccountSyncMode.MANUAL) {
+        data.apiKeyCipher = null;
+        data.apiKeyIv = null;
+        data.apiKeyTag = null;
+        data.apiSecretCipher = null;
+        data.apiSecretIv = null;
+        data.apiSecretTag = null;
+      }
+    }
+
     if (updates.apiKey !== undefined) {
-      const encryptedApiKey = this.credentialCrypto.encrypt(updates.apiKey);
-      data.apiKeyCipher = encryptedApiKey.cipher;
-      data.apiKeyIv = encryptedApiKey.iv;
-      data.apiKeyTag = encryptedApiKey.authTag;
+      if (!updates.apiKey) {
+        data.apiKeyCipher = null;
+        data.apiKeyIv = null;
+        data.apiKeyTag = null;
+      } else {
+        const encryptedApiKey = this.credentialCrypto.encrypt(updates.apiKey);
+        data.apiKeyCipher = encryptedApiKey.cipher;
+        data.apiKeyIv = encryptedApiKey.iv;
+        data.apiKeyTag = encryptedApiKey.authTag;
+      }
     }
 
     if (updates.apiSecret !== undefined) {
@@ -165,26 +228,48 @@ export class BrokerageService {
       data.isActive = updates.isActive;
     }
 
-    const existing = await this.prisma.brokerageAccount.findFirst({
-      where: { id, userId },
-      select: { id: true },
+    const existing = await this.prisma.holdingAccount.findFirst({
+      where: {
+        id,
+        userId,
+        providerType: PrismaHoldingAccountProviderType.BROKERAGE,
+      },
+      select: {
+        id: true,
+        syncMode: true,
+        apiKeyCipher: true,
+      },
     });
 
     if (!existing) {
       throw new NotFoundException('Brokerage account not found');
     }
 
-    return this.prisma.brokerageAccount.update({
-      where: { id },
-      data,
-      include: { broker: true },
-    });
+    if (
+      updates.syncMode === BrokerageAccountSyncMode.API &&
+      !updates.apiKey &&
+      !existing.apiKeyCipher
+    ) {
+      throw new BadRequestException('API 동기화 모드에는 API 키가 필요합니다.');
+    }
+
+    return this.prisma.holdingAccount
+      .update({
+        where: { id },
+        data,
+        include: { broker: true },
+      })
+      .then((account) => this.mapAccount(account));
   }
 
   async deleteAccount(userId: string, id: string): Promise<boolean> {
     try {
-      const existing = await this.prisma.brokerageAccount.findFirst({
-        where: { id, userId },
+      const existing = await this.prisma.holdingAccount.findFirst({
+        where: {
+          id,
+          userId,
+          providerType: PrismaHoldingAccountProviderType.BROKERAGE,
+        },
         select: { id: true },
       });
 
@@ -192,7 +277,7 @@ export class BrokerageService {
         return false;
       }
 
-      await this.prisma.brokerageAccount.delete({ where: { id } });
+      await this.prisma.holdingAccount.delete({ where: { id } });
       return true;
     } catch (error: unknown) {
       if (
@@ -205,23 +290,52 @@ export class BrokerageService {
     }
   }
 
-  getAccounts(userId: string): Promise<BrokerageAccount[]> {
-    return this.prisma.brokerageAccount.findMany({
-      where: { userId },
+  async getAccounts(userId: string): Promise<BrokerageAccount[]> {
+    const accounts = await this.prisma.holdingAccount.findMany({
+      where: {
+        userId,
+        providerType: PrismaHoldingAccountProviderType.BROKERAGE,
+      },
       orderBy: { createdAt: 'asc' },
       include: { broker: true },
     });
+
+    return accounts.map((account) => this.mapAccount(account));
   }
 
-  getAccount(userId: string, id: string): Promise<BrokerageAccount | null> {
-    return this.prisma.brokerageAccount.findFirst({
-      where: { id, userId },
+  async getAccount(
+    userId: string,
+    id: string,
+  ): Promise<BrokerageAccount | null> {
+    const account = await this.prisma.holdingAccount.findFirst({
+      where: {
+        id,
+        userId,
+        providerType: PrismaHoldingAccountProviderType.BROKERAGE,
+      },
       include: { broker: true },
     });
+
+    return account ? this.mapAccount(account) : null;
   }
 
   async getHoldings(userId: string, accountId?: string): Promise<Holding[]> {
     const normalizedAccountId = accountId ?? undefined;
+
+    if (normalizedAccountId) {
+      const account = await this.prisma.holdingAccount.findFirst({
+        where: {
+          id: normalizedAccountId,
+          userId,
+          providerType: PrismaHoldingAccountProviderType.BROKERAGE,
+        },
+        select: { id: true },
+      });
+
+      if (!account) {
+        throw new NotFoundException('Account not found');
+      }
+    }
 
     const results = await this.prisma.holding.findMany({
       where: {
@@ -236,11 +350,20 @@ export class BrokerageService {
   }
 
   async refreshHoldings(userId: string, accountId: string): Promise<Holding[]> {
-    const account = await this.prisma.brokerageAccount.findUnique({
-      where: { id: accountId },
+    const account = await this.prisma.holdingAccount.findFirst({
+      where: {
+        id: accountId,
+        userId,
+        providerType: PrismaHoldingAccountProviderType.BROKERAGE,
+      },
     });
-    if (!account || account.userId !== userId) {
+
+    if (!account) {
       throw new NotFoundException('Account not found');
+    }
+
+    if (account.syncMode !== PrismaHoldingAccountSyncMode.API) {
+      throw new BadRequestException('해당 계좌는 자동 동기화를 지원하지 않습니다.');
     }
 
     const mockHoldings = [

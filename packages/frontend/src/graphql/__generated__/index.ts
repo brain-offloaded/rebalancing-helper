@@ -69,8 +69,11 @@ export type BrokerageAccount = {
   id: Scalars['ID']['output'];
   isActive: Scalars['Boolean']['output'];
   name: Scalars['String']['output'];
+  syncMode: BrokerageAccountSyncMode;
   updatedAt: Scalars['DateTime']['output'];
 };
+
+export type BrokerageAccountSyncMode = 'API' | 'MANUAL';
 
 export type CalculateInvestmentInput = {
   groupId: Scalars['String']['input'];
@@ -85,15 +88,17 @@ export type CreateBrokerInput = {
 };
 
 export type CreateBrokerageAccountInput = {
-  apiKey: Scalars['String']['input'];
+  apiKey: InputMaybe<Scalars['String']['input']>;
   apiSecret: InputMaybe<Scalars['String']['input']>;
   brokerId: Scalars['String']['input'];
   description: InputMaybe<Scalars['String']['input']>;
   isActive: InputMaybe<Scalars['Boolean']['input']>;
   name: Scalars['String']['input'];
+  syncMode: BrokerageAccountSyncMode;
 };
 
 export type CreateManualHoldingInput = {
+  accountId: Scalars['String']['input'];
   market: Scalars['String']['input'];
   quantity: Scalars['Float']['input'];
   symbol: Scalars['String']['input'];
@@ -113,7 +118,7 @@ export type CreateTagInput = {
 
 export type Holding = {
   __typename?: 'Holding';
-  accountId: Maybe<Scalars['String']['output']>;
+  accountId: Scalars['String']['output'];
   averageCost: Maybe<Scalars['Float']['output']>;
   createdAt: Scalars['DateTime']['output'];
   currency: Scalars['String']['output'];
@@ -140,6 +145,7 @@ export type HoldingTag = {
 };
 
 export type IncreaseManualHoldingInput = {
+  accountId: Scalars['String']['input'];
   market: Scalars['String']['input'];
   quantityDelta: Scalars['Float']['input'];
   symbol: Scalars['String']['input'];
@@ -161,6 +167,7 @@ export type LoginInput = {
 };
 
 export type ManualHoldingIdentifierInput = {
+  accountId: Scalars['String']['input'];
   market: Scalars['String']['input'];
   symbol: Scalars['String']['input'];
 };
@@ -422,6 +429,7 @@ export type SetHoldingTagsInput = {
 };
 
 export type SetManualHoldingQuantityInput = {
+  accountId: Scalars['String']['input'];
   market: Scalars['String']['input'];
   quantity: Scalars['Float']['input'];
   symbol: Scalars['String']['input'];
@@ -475,6 +483,7 @@ export type UpdateBrokerageAccountInput = {
   id: Scalars['String']['input'];
   isActive: InputMaybe<Scalars['Boolean']['input']>;
   name: InputMaybe<Scalars['String']['input']>;
+  syncMode: InputMaybe<BrokerageAccountSyncMode>;
 };
 
 export type UpdateRebalancingGroupInput = {
@@ -561,6 +570,7 @@ export type GetBrokerageAccountsQuery = {
     id: string;
     name: string;
     brokerId: string;
+    syncMode: BrokerageAccountSyncMode;
     description: string | null;
     isActive: boolean;
     createdAt: string;
@@ -606,7 +616,7 @@ export type GetBrokerageHoldingsQuery = {
     marketValue: number;
     averageCost: number | null;
     currency: string;
-    accountId: string | null;
+    accountId: string;
     lastUpdated: string;
   }>;
 };
@@ -621,6 +631,7 @@ export type CreateBrokerageAccountMutation = {
     __typename?: 'BrokerageAccount';
     id: string;
     name: string;
+    syncMode: BrokerageAccountSyncMode;
     description: string | null;
     isActive: boolean;
     createdAt: string;
@@ -639,6 +650,7 @@ export type UpdateBrokerageAccountMutation = {
     __typename?: 'BrokerageAccount';
     id: string;
     name: string;
+    syncMode: BrokerageAccountSyncMode;
     description: string | null;
     isActive: boolean;
     createdAt: string;
@@ -719,7 +731,7 @@ export type RefreshBrokerageHoldingsMutation = {
     marketValue: number;
     averageCost: number | null;
     currency: string;
-    accountId: string | null;
+    accountId: string;
     lastUpdated: string;
   }>;
 };
@@ -807,7 +819,7 @@ export type GetHoldingsQuery = {
     __typename?: 'Holding';
     id: string;
     source: HoldingSource;
-    accountId: string | null;
+    accountId: string;
     market: string | null;
     symbol: string;
     name: string;
@@ -832,7 +844,7 @@ export type CreateManualHoldingMutation = {
     __typename?: 'Holding';
     id: string;
     source: HoldingSource;
-    accountId: string | null;
+    accountId: string;
     market: string | null;
     symbol: string;
     name: string;
@@ -856,7 +868,7 @@ export type IncreaseManualHoldingMutation = {
     __typename?: 'Holding';
     id: string;
     source: HoldingSource;
-    accountId: string | null;
+    accountId: string;
     market: string | null;
     symbol: string;
     name: string;
@@ -880,7 +892,7 @@ export type SetManualHoldingQuantityMutation = {
     __typename?: 'Holding';
     id: string;
     source: HoldingSource;
-    accountId: string | null;
+    accountId: string;
     market: string | null;
     symbol: string;
     name: string;
@@ -913,7 +925,7 @@ export type SyncManualHoldingPriceMutation = {
     __typename?: 'Holding';
     id: string;
     source: HoldingSource;
-    accountId: string | null;
+    accountId: string;
     market: string | null;
     symbol: string;
     name: string;
@@ -1327,6 +1339,7 @@ export const GetBrokerageAccountsDocument = gql`
       id
       name
       brokerId
+      syncMode
       broker {
         id
         name
@@ -1582,6 +1595,7 @@ export const CreateBrokerageAccountDocument = gql`
     createBrokerageAccount(input: $input) {
       id
       name
+      syncMode
       broker {
         id
         name
@@ -1642,6 +1656,7 @@ export const UpdateBrokerageAccountDocument = gql`
     updateBrokerageAccount(input: $input) {
       id
       name
+      syncMode
       broker {
         id
         name

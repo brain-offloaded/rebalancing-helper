@@ -630,7 +630,7 @@ describe('RebalancingService', () => {
       {
         id: 'manual-1',
         source: HoldingSource.MANUAL,
-        accountId: null,
+        accountId: 'manual-acc-1',
         market: 'US',
         symbol: 'VOO',
         name: 'VOO',

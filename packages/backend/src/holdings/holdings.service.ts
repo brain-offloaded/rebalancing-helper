@@ -3,6 +3,8 @@ import {
   HoldingSource as PrismaHoldingSource,
   Prisma,
   Holding as PrismaHolding,
+  HoldingAccount as PrismaHoldingAccount,
+  HoldingAccountSyncMode as PrismaHoldingAccountSyncMode,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { HoldingTag, Holding, HoldingSource } from './holdings.entities';
@@ -33,6 +35,34 @@ export class HoldingsService {
 
   private mapHoldings(holdings: PrismaHolding[]): Holding[] {
     return holdings.map((holding) => this.mapHolding(holding));
+  }
+
+  private async getAccountOrThrow(
+    userId: string,
+    accountId: string,
+  ): Promise<PrismaHoldingAccount> {
+    const account = await this.prisma.holdingAccount.findFirst({
+      where: { id: accountId, userId },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Account not found');
+    }
+
+    return account;
+  }
+
+  private async getManualAccountOrThrow(
+    userId: string,
+    accountId: string,
+  ): Promise<PrismaHoldingAccount> {
+    const account = await this.getAccountOrThrow(userId, accountId);
+
+    if (account.syncMode !== PrismaHoldingAccountSyncMode.MANUAL) {
+      throw new NotFoundException('Manual account not found');
+    }
+
+    return account;
   }
 
   private async assertTagBelongsToUser(
@@ -174,14 +204,15 @@ export class HoldingsService {
     userId: string,
     identifier: ManualHoldingIdentifierInput,
   ) {
-    const holding = await this.prisma.holding.findUnique({
+    await this.getManualAccountOrThrow(userId, identifier.accountId);
+
+    const holding = await this.prisma.holding.findFirst({
       where: {
-        user_market_symbol_source: {
-          userId,
-          market: identifier.market,
-          symbol: identifier.symbol,
-          source: PrismaHoldingSource.MANUAL,
-        },
+        userId,
+        accountId: identifier.accountId,
+        market: identifier.market,
+        symbol: identifier.symbol,
+        source: PrismaHoldingSource.MANUAL,
       },
     });
 
@@ -199,6 +230,10 @@ export class HoldingsService {
       accountId?: string;
     } = {},
   ): Promise<Holding[]> {
+    if (options.accountId) {
+      await this.getAccountOrThrow(userId, options.accountId);
+    }
+
     const where: Prisma.HoldingWhereInput = {
       userId,
       ...(options.source ? { source: options.source } : {}),
@@ -226,6 +261,8 @@ export class HoldingsService {
     userId: string,
     input: CreateManualHoldingInput,
   ): Promise<Holding> {
+    await this.getManualAccountOrThrow(userId, input.accountId);
+
     const quote = await this.marketDataService.getQuote(
       input.market,
       input.symbol,
@@ -235,7 +272,7 @@ export class HoldingsService {
       data: {
         userId,
         source: PrismaHoldingSource.MANUAL,
-        accountId: null,
+        accountId: input.accountId,
         market: quote.market,
         symbol: quote.symbol,
         name: quote.name,
@@ -291,15 +328,10 @@ export class HoldingsService {
     input: ManualHoldingIdentifierInput,
   ): Promise<boolean> {
     try {
+      const holding = await this.getManualHoldingOrThrow(userId, input);
+
       await this.prisma.holding.delete({
-        where: {
-          user_market_symbol_source: {
-            userId,
-            market: input.market,
-            symbol: input.symbol,
-            source: PrismaHoldingSource.MANUAL,
-          },
-        },
+        where: { id: holding.id },
       });
 
       return true;
