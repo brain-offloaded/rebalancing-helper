@@ -268,10 +268,8 @@ export const Holdings: React.FC = () => {
     variables: { holdingSymbol: selectedHolding as string },
     skip: !selectedHolding,
   });
-  const {
-    data: brokerageAccountsData,
-    loading: brokerageAccountsLoading,
-  } = useGetBrokerageAccountsQuery();
+  const { data: brokerageAccountsData, loading: brokerageAccountsLoading } =
+    useGetBrokerageAccountsQuery();
 
   const [setHoldingTags] = useSetHoldingTagsMutation();
   const [createManualHoldingMutation, { loading: creatingManualHolding }] =
@@ -406,7 +404,10 @@ export const Holdings: React.FC = () => {
     return `${year}-${month}-${day} ${hours}:${minutes}`;
   };
 
-  const formatMarketWithSymbol = (market: string | null | undefined, symbol: string) => {
+  const formatMarketWithSymbol = (
+    market: string | null | undefined,
+    symbol: string,
+  ) => {
     if (market && market.trim().length > 0) {
       return `${market} · ${symbol}`;
     }
@@ -747,9 +748,7 @@ export const Holdings: React.FC = () => {
             <ManualSelect
               value={manualAccountId}
               onChange={(event) => setManualAccountId(event.target.value)}
-              disabled={
-                brokerageAccountsLoading || manualAccounts.length === 0
-              }
+              disabled={brokerageAccountsLoading || manualAccounts.length === 0}
             >
               <option value="" disabled>
                 {brokerageAccountsLoading

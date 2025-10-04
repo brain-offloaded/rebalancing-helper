@@ -19,7 +19,8 @@
       "persistent": true
     },
     "lint": {
-      "outputs": []
+      "outputs": [],
+      "cache": false
     },
     "test": {
       "dependsOn": [
