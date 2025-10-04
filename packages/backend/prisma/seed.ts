@@ -127,13 +127,13 @@ async function main() {
       code: 'KOSPI',
       displayName: '코스피',
       yahooSuffix: '.KS',
-      yahooMarketIdentifiers: 'krx_market',
+      yahooMarketIdentifiers: 'kr_market',
     },
     {
       code: 'KOSDAQ',
       displayName: '코스닥',
       yahooSuffix: '.KQ',
-      yahooMarketIdentifiers: 'krx_market',
+      yahooMarketIdentifiers: 'kr_market',
     },
   ];
 
