@@ -9,6 +9,7 @@ import {
   CreateManualHoldingDocument,
   DeleteManualHoldingDocument,
   GetHoldingsDocument,
+  GetBrokerageAccountsDocument,
   GetMarketsDocument,
   GetTagsDocument,
   GetTagsForHoldingDocument,
@@ -48,6 +49,8 @@ let holdingsRefetchFn: ReturnType<typeof vi.fn>;
 let tagsDataState: Array<Record<string, unknown>>;
 let tagsLoadingState: boolean;
 let marketsDataState: typeof defaultMarkets;
+let brokerageAccountsDataState: Array<Record<string, unknown>>;
+let brokerageAccountsLoadingState: boolean;
 let tagsForHoldingResolver:
   | ((options?: Parameters<typeof mockUseQuery>[1]) => {
       data?: unknown;
@@ -80,6 +83,20 @@ describe('Holdings', () => {
     tagsLoadingState = false;
     marketsDataState = defaultMarkets;
     tagsForHoldingResolver = null;
+    brokerageAccountsDataState = [
+      {
+        id: 'manual-account-1',
+        name: '수동 계좌',
+        brokerId: 'broker-manual',
+        syncMode: 'MANUAL',
+        broker: null,
+        description: null,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+    brokerageAccountsLoadingState = false;
 
     mockUseQuery.mockImplementation((query, options) => {
       if (query === GetMarketsDocument) {
@@ -96,6 +113,14 @@ describe('Holdings', () => {
         return {
           data: { tags: tagsDataState },
           loading: tagsLoadingState,
+        };
+      }
+      if (query === GetBrokerageAccountsDocument) {
+        return {
+          data: brokerageAccountsLoadingState
+            ? undefined
+            : { brokerageAccounts: brokerageAccountsDataState },
+          loading: brokerageAccountsLoadingState,
         };
       }
       if (query === GetTagsForHoldingDocument) {
@@ -141,7 +166,7 @@ describe('Holdings', () => {
       createHolding({
         id: 'holding-manual',
         source: 'MANUAL',
-        accountId: null,
+        accountId: 'manual-account-1',
         market: 'US',
         symbol: 'VOO',
         name: 'Vanguard S&P 500 ETF',
@@ -238,6 +263,9 @@ describe('Holdings', () => {
 
     renderWithProviders(<Holdings />, { withApollo: false });
 
+    await waitFor(() => {
+      expect(screen.getByLabelText('계좌')).toHaveValue('manual-account-1');
+    });
     await user.selectOptions(
       screen.getByLabelText('시장'),
       screen.getByRole('option', { name: /미국/ }),
@@ -249,7 +277,12 @@ describe('Holdings', () => {
     await waitFor(() => {
       expect(createManualHolding).toHaveBeenCalledWith({
         variables: {
-          input: { market: 'US', symbol: 'VOO', quantity: 2 },
+          input: {
+            accountId: 'manual-account-1',
+            market: 'US',
+            symbol: 'VOO',
+            quantity: 2,
+          },
         },
       });
     });
@@ -272,6 +305,9 @@ describe('Holdings', () => {
 
     renderWithProviders(<Holdings />, { withApollo: false });
 
+    await waitFor(() => {
+      expect(screen.getByLabelText('계좌')).toHaveValue('manual-account-1');
+    });
     await user.selectOptions(
       screen.getByLabelText('시장'),
       screen.getByRole('option', { name: /미국/ }),
@@ -284,7 +320,12 @@ describe('Holdings', () => {
     await waitFor(() => {
       expect(createManualHolding).toHaveBeenCalledWith({
         variables: {
-          input: { market: 'US', symbol: 'BRK', quantity: 0 },
+          input: {
+            accountId: 'manual-account-1',
+            market: 'US',
+            symbol: 'BRK',
+            quantity: 0,
+          },
         },
       });
     });
@@ -298,6 +339,7 @@ describe('Holdings', () => {
       createHolding({
         id: 'manual-1',
         source: 'MANUAL',
+        accountId: 'manual-account-1',
         market: 'US',
         symbol: 'VOO',
         name: 'Vanguard S&P 500 ETF',
@@ -319,7 +361,16 @@ describe('Holdings', () => {
     await user.click(screen.getAllByRole('button', { name: '수량 증가' })[0]);
 
     await waitFor(() => {
-      expect(increaseManualHolding).toHaveBeenCalled();
+      expect(increaseManualHolding).toHaveBeenCalledWith({
+        variables: {
+          input: {
+            accountId: 'manual-account-1',
+            market: 'US',
+            symbol: 'VOO',
+            quantityDelta: 1,
+          },
+        },
+      });
     });
     expect(holdingsRefetchFn).toHaveBeenCalled();
     promptSpy.mockRestore();
@@ -332,6 +383,7 @@ describe('Holdings', () => {
       createHolding({
         id: 'manual-1',
         source: 'MANUAL',
+        accountId: 'manual-account-1',
         market: 'US',
         symbol: 'VOO',
         name: 'Vanguard S&P 500 ETF',
@@ -353,7 +405,16 @@ describe('Holdings', () => {
     await user.click(screen.getAllByRole('button', { name: '수량 설정' })[0]);
 
     await waitFor(() => {
-      expect(setManualHoldingQuantity).toHaveBeenCalled();
+      expect(setManualHoldingQuantity).toHaveBeenCalledWith({
+        variables: {
+          input: {
+            accountId: 'manual-account-1',
+            market: 'US',
+            symbol: 'VOO',
+            quantity: 10,
+          },
+        },
+      });
     });
     expect(holdingsRefetchFn).toHaveBeenCalled();
     promptSpy.mockRestore();
@@ -366,6 +427,7 @@ describe('Holdings', () => {
       createHolding({
         id: 'manual-1',
         source: 'MANUAL',
+        accountId: 'manual-account-1',
         market: 'US',
         symbol: 'VOO',
         name: 'Vanguard S&P 500 ETF',
@@ -385,7 +447,15 @@ describe('Holdings', () => {
     await user.click(screen.getAllByRole('button', { name: '삭제' })[0]);
 
     await waitFor(() => {
-      expect(deleteManualHolding).toHaveBeenCalled();
+      expect(deleteManualHolding).toHaveBeenCalledWith({
+        variables: {
+          input: {
+            accountId: 'manual-account-1',
+            market: 'US',
+            symbol: 'VOO',
+          },
+        },
+      });
     });
     expect(holdingsRefetchFn).toHaveBeenCalled();
   });
@@ -397,6 +467,7 @@ describe('Holdings', () => {
       createHolding({
         id: 'manual-1',
         source: 'MANUAL',
+        accountId: 'manual-account-1',
         market: 'US',
         symbol: 'VOO',
         name: 'Vanguard S&P 500 ETF',
@@ -418,7 +489,15 @@ describe('Holdings', () => {
     );
 
     await waitFor(() => {
-      expect(syncManualHoldingPrice).toHaveBeenCalled();
+      expect(syncManualHoldingPrice).toHaveBeenCalledWith({
+        variables: {
+          input: {
+            accountId: 'manual-account-1',
+            market: 'US',
+            symbol: 'VOO',
+          },
+        },
+      });
     });
     expect(holdingsRefetchFn).toHaveBeenCalled();
   });

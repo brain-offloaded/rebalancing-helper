@@ -11,6 +11,7 @@ import {
   useSetManualHoldingQuantityMutation,
   useDeleteManualHoldingMutation,
   useSyncManualHoldingPriceMutation,
+  useGetBrokerageAccountsQuery,
 } from '../graphql/__generated__';
 import styled from 'styled-components';
 // remove manual document imports
@@ -177,7 +178,7 @@ const PrimaryButton = styled(Button)`
 interface Holding {
   id: string;
   source: 'BROKERAGE' | 'MANUAL';
-  accountId: string | null;
+  accountId: string;
   market: string | null;
   symbol: string;
   name: string;
@@ -206,6 +207,7 @@ export const Holdings: React.FC = () => {
   const [manualMarket, setManualMarket] = useState('');
   const [manualSymbol, setManualSymbol] = useState('');
   const [manualQuantity, setManualQuantity] = useState('');
+  const [manualAccountId, setManualAccountId] = useState('');
 
   const {
     data: holdingsData,
@@ -222,6 +224,10 @@ export const Holdings: React.FC = () => {
     variables: { holdingSymbol: selectedHolding as string },
     skip: !selectedHolding,
   });
+  const {
+    data: brokerageAccountsData,
+    loading: brokerageAccountsLoading,
+  } = useGetBrokerageAccountsQuery();
 
   const [setHoldingTags] = useSetHoldingTagsMutation();
   const [createManualHoldingMutation, { loading: creatingManualHolding }] =
@@ -276,6 +282,13 @@ export const Holdings: React.FC = () => {
   };
 
   const holdings = holdingsData?.holdings ?? [];
+  const manualAccounts = useMemo(
+    () =>
+      (brokerageAccountsData?.brokerageAccounts ?? []).filter(
+        (account) => account.syncMode === 'MANUAL',
+      ),
+    [brokerageAccountsData?.brokerageAccounts],
+  );
   const manualHoldings = holdings.filter(
     (holding) => holding.source === 'MANUAL',
   );
@@ -289,6 +302,22 @@ export const Holdings: React.FC = () => {
       setManualMarket(markets[0].code);
     }
   }, [markets, manualMarket]);
+
+  useEffect(() => {
+    if (manualAccounts.length === 0) {
+      setManualAccountId('');
+      return;
+    }
+
+    if (!manualAccountId) {
+      setManualAccountId(manualAccounts[0].id);
+      return;
+    }
+
+    if (!manualAccounts.some((account) => account.id === manualAccountId)) {
+      setManualAccountId(manualAccounts[0].id);
+    }
+  }, [manualAccounts, manualAccountId]);
 
   const formatCurrencyValue = (value: number, currency: string) => {
     if (!Number.isFinite(value)) {
@@ -314,6 +343,11 @@ export const Holdings: React.FC = () => {
       return;
     }
 
+    if (!manualAccountId) {
+      alert('수동 입력 계좌를 선택해주세요.');
+      return;
+    }
+
     const quantityValue = Number(manualQuantity);
 
     if (!Number.isFinite(quantityValue) || quantityValue < 0) {
@@ -324,6 +358,7 @@ export const Holdings: React.FC = () => {
       await createManualHoldingMutation({
         variables: {
           input: {
+            accountId: manualAccountId,
             market,
             symbol,
             quantity: quantityValue,
@@ -340,7 +375,7 @@ export const Holdings: React.FC = () => {
   };
 
   const handleManualIncrease = async (holding: Holding) => {
-    if (holding.source !== 'MANUAL' || !holding.market) {
+    if (holding.source !== 'MANUAL' || !holding.market || !holding.accountId) {
       console.error('잘못된 수동 보유 종목 데이터입니다.');
       return;
     }
@@ -360,6 +395,7 @@ export const Holdings: React.FC = () => {
       await increaseManualHoldingMutation({
         variables: {
           input: {
+            accountId: holding.accountId,
             market: holding.market,
             symbol: holding.symbol,
             quantityDelta,
@@ -373,7 +409,7 @@ export const Holdings: React.FC = () => {
   };
 
   const handleManualQuantitySet = async (holding: Holding) => {
-    if (holding.source !== 'MANUAL' || !holding.market) {
+    if (holding.source !== 'MANUAL' || !holding.market || !holding.accountId) {
       console.error('잘못된 수동 보유 종목 데이터입니다.');
       return;
     }
@@ -393,6 +429,7 @@ export const Holdings: React.FC = () => {
       await setManualHoldingQuantityMutation({
         variables: {
           input: {
+            accountId: holding.accountId,
             market: holding.market,
             symbol: holding.symbol,
             quantity,
@@ -406,7 +443,7 @@ export const Holdings: React.FC = () => {
   };
 
   const handleManualDelete = async (holding: Holding) => {
-    if (holding.source !== 'MANUAL' || !holding.market) {
+    if (holding.source !== 'MANUAL' || !holding.market || !holding.accountId) {
       console.error('잘못된 수동 보유 종목 데이터입니다.');
       return;
     }
@@ -414,6 +451,7 @@ export const Holdings: React.FC = () => {
       await deleteManualHoldingMutation({
         variables: {
           input: {
+            accountId: holding.accountId,
             market: holding.market,
             symbol: holding.symbol,
           },
@@ -426,7 +464,7 @@ export const Holdings: React.FC = () => {
   };
 
   const handleManualSync = async (holding: Holding) => {
-    if (holding.source !== 'MANUAL' || !holding.market) {
+    if (holding.source !== 'MANUAL' || !holding.market || !holding.accountId) {
       console.error('잘못된 수동 보유 종목 데이터입니다.');
       return;
     }
@@ -434,6 +472,7 @@ export const Holdings: React.FC = () => {
       await syncManualHoldingPriceMutation({
         variables: {
           input: {
+            accountId: holding.accountId,
             market: holding.market,
             symbol: holding.symbol,
           },
@@ -573,6 +612,28 @@ export const Holdings: React.FC = () => {
 
         <ManualForm onSubmit={handleManualSubmit}>
           <ManualFormGroup>
+            계좌
+            <ManualSelect
+              value={manualAccountId}
+              onChange={(event) => setManualAccountId(event.target.value)}
+              disabled={
+                brokerageAccountsLoading || manualAccounts.length === 0
+              }
+            >
+              <option value="" disabled>
+                {brokerageAccountsLoading
+                  ? '계좌 불러오는 중...'
+                  : '수동 입력 계정을 먼저 생성하세요'}
+              </option>
+              {manualAccounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                  {account.broker?.name ? ` / ${account.broker.name}` : ''}
+                </option>
+              ))}
+            </ManualSelect>
+          </ManualFormGroup>
+          <ManualFormGroup>
             시장
             <ManualSelect
               value={manualMarket}
@@ -611,13 +672,23 @@ export const Holdings: React.FC = () => {
           <PrimaryButton
             type="submit"
             variant="primary"
-            disabled={creatingManualHolding || !manualMarket}
+            disabled={
+              creatingManualHolding ||
+              !manualMarket ||
+              !manualAccountId ||
+              brokerageAccountsLoading
+            }
           >
             수동 추가
           </PrimaryButton>
         </ManualForm>
 
-        {manualHoldings.length === 0 ? (
+        {manualAccounts.length === 0 ? (
+          <p>
+            수동 입력을 사용하려면 먼저 증권사 계정 관리에서 수동 입력 계정을
+            생성하세요.
+          </p>
+        ) : manualHoldings.length === 0 ? (
           <p>등록된 수동 보유 종목이 없습니다.</p>
         ) : (
           <p>추가된 수동 보유 종목은 위 보유 목록에서 함께 관리됩니다.</p>
