@@ -137,3 +137,6 @@ packages/backend/prisma/*.db
 packages/backend/prisma/*.sqlite
 packages/backend/prisma/**/dev.db
 packages/backend/prisma/backups/*.db
+
+# Temporary folders
+temp
