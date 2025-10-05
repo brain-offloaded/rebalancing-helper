@@ -12,7 +12,7 @@ Always respond in Korean. 모든 응답은 한국어로 해야 합니다. pr 내
 - 모든 작업(기능 개발, 버그 수정, 리팩터링 등)을 완료한 후에는 반드시 프로젝트 루트에서 다음 명령어들을 순차적으로 실행하고 모두 통과해야 한다:
   1. `pnpm prisma:generate` - Prisma 클라이언트 코드 생성
   2. `pnpm gql:all` - GraphQL 스키마 및 타입 정의 생성
-  3. `pnpm lint` - 코드 스타일 및 품질 검증
+  3. `pnpm lint:fix` - 코드 스타일 및 품질 검증
   4. `pnpm build` - 전체 프로젝트 빌드
   5. `pnpm test:cov` - 테스트 실행 및 커버리지 확인
 - 위 명령어 중 하나라도 실패하면 해당 문제를 해결한 후 다시 전체 과정을 수행한다.
