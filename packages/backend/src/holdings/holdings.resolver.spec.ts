@@ -59,11 +59,11 @@ describe('HoldingsResolver', () => {
       getHoldings: jest.fn(),
       createManualHolding: jest.fn(),
       increaseManualHolding: jest.fn(),
-    setManualHoldingQuantity: jest.fn(),
-    deleteManualHolding: jest.fn(),
-    syncManualHoldingPrice: jest.fn(),
-    setHoldingAlias: jest.fn(),
-  } as unknown as jest.Mocked<HoldingsService>;
+      setManualHoldingQuantity: jest.fn(),
+      deleteManualHolding: jest.fn(),
+      syncManualHoldingPrice: jest.fn(),
+      setHoldingAlias: jest.fn(),
+    } as unknown as jest.Mocked<HoldingsService>;
 
     resolver = new HoldingsResolver(service);
   });
@@ -274,7 +274,10 @@ describe('HoldingsResolver', () => {
       holdingId: 'holding-1',
       alias: '나의 ETF',
     };
-    const manualHolding = createHolding({ id: input.holdingId, alias: '나의 ETF' });
+    const manualHolding = createHolding({
+      id: input.holdingId,
+      alias: '나의 ETF',
+    });
     service.setHoldingAlias.mockResolvedValue(manualHolding);
 
     await expect(resolver.setHoldingAlias(mockUser, input)).resolves.toBe(
