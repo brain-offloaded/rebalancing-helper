@@ -8,6 +8,7 @@ import {
   IncreaseManualHoldingInput,
   SetManualHoldingQuantityInput,
   ManualHoldingIdentifierInput,
+  SetHoldingAliasInput,
 } from './holdings.dto';
 import { HoldingTag, Holding, HoldingSource } from './holdings.entities';
 import { ActiveUserData } from '../auth/auth.types';
@@ -31,6 +32,7 @@ const createHolding = (overrides: Partial<Holding> = {}): Holding => ({
   market: overrides.market ?? 'US',
   symbol: overrides.symbol ?? 'VOO',
   name: overrides.name ?? 'Vanguard S&P 500 ETF',
+  alias: overrides.alias ?? null,
   quantity: overrides.quantity ?? 3,
   currentPrice: overrides.currentPrice ?? 410.2,
   marketValue:
@@ -60,6 +62,7 @@ describe('HoldingsResolver', () => {
       setManualHoldingQuantity: jest.fn(),
       deleteManualHolding: jest.fn(),
       syncManualHoldingPrice: jest.fn(),
+      setHoldingAlias: jest.fn(),
     } as unknown as jest.Mocked<HoldingsService>;
 
     resolver = new HoldingsResolver(service);
@@ -261,6 +264,26 @@ describe('HoldingsResolver', () => {
       resolver.syncManualHoldingPrice(mockUser, input),
     ).resolves.toBe(manualHolding);
     expect(service.syncManualHoldingPrice).toHaveBeenCalledWith(
+      mockUser.userId,
+      input,
+    );
+  });
+
+  it('setHoldingAlias는 사용자 ID와 입력을 전달한다', async () => {
+    const input: SetHoldingAliasInput = {
+      holdingId: 'holding-1',
+      alias: '나의 ETF',
+    };
+    const manualHolding = createHolding({
+      id: input.holdingId,
+      alias: '나의 ETF',
+    });
+    service.setHoldingAlias.mockResolvedValue(manualHolding);
+
+    await expect(resolver.setHoldingAlias(mockUser, input)).resolves.toBe(
+      manualHolding,
+    );
+    expect(service.setHoldingAlias).toHaveBeenCalledWith(
       mockUser.userId,
       input,
     );

@@ -12,8 +12,7 @@ import {
   GetBrokerageAccountsDocument,
   GetMarketsDocument,
   GetTagsDocument,
-  GetTagsForHoldingDocument,
-  IncreaseManualHoldingDocument,
+  GetHoldingTagsDocument,
   SetHoldingTagsDocument,
   SetManualHoldingQuantityDocument,
   SyncManualHoldingPriceDocument,
@@ -32,6 +31,7 @@ const createHolding = (overrides: Partial<Record<string, unknown>> = {}) => ({
   market: null,
   symbol: 'AAPL',
   name: '애플',
+  alias: null,
   quantity: 1,
   currentPrice: 100,
   marketValue: 100,
@@ -50,13 +50,8 @@ let tagsLoadingState: boolean;
 let marketsDataState: typeof defaultMarkets;
 let brokerageAccountsDataState: Array<Record<string, unknown>>;
 let brokerageAccountsLoadingState: boolean;
-let tagsForHoldingResolver:
-  | ((options?: Parameters<typeof mockUseQuery>[1]) => {
-      data?: unknown;
-      loading: boolean;
-      refetch: ReturnType<typeof vi.fn>;
-    })
-  | null;
+let holdingTagsListState: Array<Record<string, unknown>>;
+let holdingTagsRefetchFn: ReturnType<typeof vi.fn>;
 
 vi.mock('@apollo/client', async () => {
   const actual =
@@ -81,7 +76,8 @@ describe('Holdings', () => {
     tagsDataState = [];
     tagsLoadingState = false;
     marketsDataState = defaultMarkets;
-    tagsForHoldingResolver = null;
+    holdingTagsListState = [];
+    holdingTagsRefetchFn = vi.fn();
     brokerageAccountsDataState = [
       {
         id: 'acc-1',
@@ -108,7 +104,7 @@ describe('Holdings', () => {
     ];
     brokerageAccountsLoadingState = false;
 
-    mockUseQuery.mockImplementation((query, options) => {
+    mockUseQuery.mockImplementation((query) => {
       if (query === GetMarketsDocument) {
         return { data: { markets: marketsDataState }, loading: false };
       }
@@ -125,6 +121,13 @@ describe('Holdings', () => {
           loading: tagsLoadingState,
         };
       }
+      if (query === GetHoldingTagsDocument) {
+        return {
+          data: { holdingTags: holdingTagsListState },
+          loading: false,
+          refetch: holdingTagsRefetchFn,
+        };
+      }
       if (query === GetBrokerageAccountsDocument) {
         return {
           data: brokerageAccountsLoadingState
@@ -133,13 +136,6 @@ describe('Holdings', () => {
           loading: brokerageAccountsLoadingState,
         };
       }
-      if (query === GetTagsForHoldingDocument) {
-        if (tagsForHoldingResolver) {
-          return tagsForHoldingResolver(options);
-        }
-        return { data: undefined, loading: false, refetch: vi.fn() };
-      }
-
       throw new Error('예상치 못한 쿼리 호출');
     });
 
@@ -199,31 +195,30 @@ describe('Holdings', () => {
 
   it('태그 관리 모달에서 태그를 갱신한다', async () => {
     const user = userEvent.setup();
-    const holdings = [
+    holdingsData = [
       createHolding({
         id: 'holding-1',
+        source: 'MANUAL',
+        accountId: 'manual-account-1',
+        market: 'US',
         symbol: 'QQQ',
         name: 'Invesco QQQ Trust',
       }),
     ];
-    holdingsData = holdings;
     tagsDataState = [
       { id: 'tag-1', name: '성장주', description: '성장', color: '#ff0000' },
       { id: 'tag-2', name: '배당주', description: '배당', color: '#00ff00' },
     ];
-    const refetchHoldingTags = vi.fn();
-    const setHoldingTags = vi.fn().mockResolvedValue({});
+    holdingTagsListState = [
+      {
+        id: 'link-1',
+        holdingSymbol: 'QQQ',
+        tagId: 'tag-1',
+        createdAt: new Date().toISOString(),
+      },
+    ];
 
-    tagsForHoldingResolver = (options) => {
-      if (options?.skip || !options?.variables?.holdingSymbol) {
-        return { data: undefined, loading: false, refetch: refetchHoldingTags };
-      }
-      return {
-        data: { tagsForHolding: ['tag-1'] },
-        loading: false,
-        refetch: refetchHoldingTags,
-      };
-    };
+    const setHoldingTags = vi.fn().mockResolvedValue({});
 
     mockUseMutation.mockImplementation((document) => {
       if (document === SetHoldingTagsDocument) {
@@ -232,16 +227,19 @@ describe('Holdings', () => {
       return [vi.fn(), { loading: false }];
     });
 
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
     renderWithProviders(<Holdings />, { withApollo: false });
 
-    await user.click(screen.getAllByRole('button', { name: '태그 관리' })[0]);
+    await user.click(screen.getByText('Invesco QQQ Trust'));
+    await screen.findByRole('button', { name: '저장' });
 
-    const checkboxes = screen.getAllByRole('checkbox');
-    expect(checkboxes[0]).toBeChecked();
-    expect(checkboxes[1]).not.toBeChecked();
+    await user.click(screen.getByRole('button', { name: '태그 선택' }));
+    const tagPlaceholder = screen.getByRole('option', { name: '태그 선택' });
+    const tagSelect = tagPlaceholder.parentElement as HTMLSelectElement;
+    await user.selectOptions(tagSelect, 'tag-2');
 
-    await user.click(checkboxes[1]);
-    await user.click(screen.getByRole('button', { name: '적용' }));
+    await user.click(screen.getByRole('button', { name: '저장' }));
 
     await waitFor(() => {
       expect(setHoldingTags).toHaveBeenCalledWith({
@@ -253,7 +251,10 @@ describe('Holdings', () => {
         },
       });
     });
-    expect(refetchHoldingTags).toHaveBeenCalled();
+    expect(holdingsRefetchFn).toHaveBeenCalled();
+    expect(holdingTagsRefetchFn).toHaveBeenCalled();
+
+    confirmSpy.mockRestore();
   });
 
   it('수동 보유 종목을 추가하면 refetch를 호출한다', async () => {
@@ -343,7 +344,6 @@ describe('Holdings', () => {
 
   it('수동 보유 종목 수량을 증가시킨다', async () => {
     const user = userEvent.setup();
-    holdingsRefetchFn = vi.fn();
     holdingsData = [
       createHolding({
         id: 'manual-1',
@@ -356,38 +356,42 @@ describe('Holdings', () => {
       }),
     ];
 
-    const increaseManualHolding = vi.fn().mockResolvedValue({});
-    const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('1');
+    const setManualHoldingQuantity = vi.fn().mockResolvedValue({});
     mockUseMutation.mockImplementation((document) => {
-      if (document === IncreaseManualHoldingDocument) {
-        return [increaseManualHolding, { loading: false }];
+      if (document === SetManualHoldingQuantityDocument) {
+        return [setManualHoldingQuantity, { loading: false }];
       }
       return [vi.fn(), { loading: false }];
     });
 
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
     renderWithProviders(<Holdings />, { withApollo: false });
 
-    await user.click(screen.getAllByRole('button', { name: '수량 증가' })[0]);
+    await user.click(screen.getByText('Vanguard S&P 500 ETF'));
+    const deltaInput = await screen.findByPlaceholderText('+100');
+    await user.type(deltaInput, '1');
+    await user.click(screen.getByRole('button', { name: '저장' }));
 
     await waitFor(() => {
-      expect(increaseManualHolding).toHaveBeenCalledWith({
+      expect(setManualHoldingQuantity).toHaveBeenCalledWith({
         variables: {
           input: {
             accountId: 'manual-account-1',
             market: 'US',
             symbol: 'VOO',
-            quantityDelta: 1,
+            quantity: 3,
           },
         },
       });
     });
     expect(holdingsRefetchFn).toHaveBeenCalled();
-    promptSpy.mockRestore();
+    expect(holdingTagsRefetchFn).toHaveBeenCalled();
+    confirmSpy.mockRestore();
   });
 
   it('수동 보유 종목 수량을 설정한다', async () => {
     const user = userEvent.setup();
-    holdingsRefetchFn = vi.fn();
     holdingsData = [
       createHolding({
         id: 'manual-1',
@@ -401,7 +405,6 @@ describe('Holdings', () => {
     ];
 
     const setManualHoldingQuantity = vi.fn().mockResolvedValue({});
-    const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('10');
     mockUseMutation.mockImplementation((document) => {
       if (document === SetManualHoldingQuantityDocument) {
         return [setManualHoldingQuantity, { loading: false }];
@@ -409,9 +412,15 @@ describe('Holdings', () => {
       return [vi.fn(), { loading: false }];
     });
 
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
     renderWithProviders(<Holdings />, { withApollo: false });
 
-    await user.click(screen.getAllByRole('button', { name: '수량 설정' })[0]);
+    await user.click(screen.getByText('Vanguard S&P 500 ETF'));
+    const targetInput = await screen.findByPlaceholderText('5');
+    await user.clear(targetInput);
+    await user.type(targetInput, '10');
+    await user.click(screen.getByRole('button', { name: '저장' }));
 
     await waitFor(() => {
       expect(setManualHoldingQuantity).toHaveBeenCalledWith({
@@ -426,12 +435,12 @@ describe('Holdings', () => {
       });
     });
     expect(holdingsRefetchFn).toHaveBeenCalled();
-    promptSpy.mockRestore();
+    expect(holdingTagsRefetchFn).toHaveBeenCalled();
+    confirmSpy.mockRestore();
   });
 
   it('수동 보유 종목을 삭제한다', async () => {
     const user = userEvent.setup();
-    holdingsRefetchFn = vi.fn();
     holdingsData = [
       createHolding({
         id: 'manual-1',
@@ -451,9 +460,13 @@ describe('Holdings', () => {
       return [vi.fn(), { loading: false }];
     });
 
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
     renderWithProviders(<Holdings />, { withApollo: false });
 
-    await user.click(screen.getAllByRole('button', { name: '삭제' })[0]);
+    await user.click(screen.getByText('Vanguard S&P 500 ETF'));
+    await screen.findByRole('button', { name: '저장' });
+    await user.click(screen.getByRole('button', { name: '삭제' }));
 
     await waitFor(() => {
       expect(deleteManualHolding).toHaveBeenCalledWith({
@@ -467,6 +480,8 @@ describe('Holdings', () => {
       });
     });
     expect(holdingsRefetchFn).toHaveBeenCalled();
+    expect(holdingTagsRefetchFn).toHaveBeenCalled();
+    confirmSpy.mockRestore();
   });
 
   it('수동 보유 종목 가격을 동기화한다', async () => {

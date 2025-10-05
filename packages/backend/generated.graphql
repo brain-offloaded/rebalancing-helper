@@ -91,6 +91,7 @@ scalar DateTime
 
 type Holding {
   accountId: String!
+  alias: String
   createdAt: DateTime!
   currency: String!
   currentPrice: Float!
@@ -174,6 +175,7 @@ type Mutation {
   removeHoldingTag(input: RemoveHoldingTagInput!): Boolean!
   removeTagsFromRebalancingGroup(input: RemoveTagsFromRebalancingGroupInput!): RebalancingGroup!
   renameRebalancingGroup(input: RenameRebalancingGroupInput!): RebalancingGroup!
+  setHoldingAlias(input: SetHoldingAliasInput!): Holding!
   setHoldingTags(input: SetHoldingTagsInput!): [HoldingTag!]!
   setManualHoldingQuantity(input: SetManualHoldingQuantityInput!): Holding!
   setTargetAllocations(input: SetTargetAllocationsInput!): Boolean!
@@ -239,6 +241,11 @@ input RemoveTagsFromRebalancingGroupInput {
 input RenameRebalancingGroupInput {
   groupId: String!
   name: String!
+}
+
+input SetHoldingAliasInput {
+  alias: String
+  holdingId: String!
 }
 
 input SetHoldingTagsInput {

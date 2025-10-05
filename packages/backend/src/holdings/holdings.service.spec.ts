@@ -16,6 +16,7 @@ import {
   IncreaseManualHoldingInput,
   SetManualHoldingQuantityInput,
   ManualHoldingIdentifierInput,
+  SetHoldingAliasInput,
 } from './holdings.dto';
 
 const USER_ID = 'user-1';
@@ -297,6 +298,7 @@ describe('HoldingsService', () => {
       market: 'US',
       symbol: 'VOO',
       name: 'Vanguard S&P 500 ETF',
+      alias: null,
       quantity: 2,
       currentPrice: 412.35,
       marketValue: 824.7,
@@ -431,6 +433,7 @@ describe('HoldingsService', () => {
         accountId: ACCOUNT_ID,
         market: manualHolding.market,
         symbol: manualHolding.symbol,
+        alias: manualHolding.alias,
         quantity: 2,
         currentPrice: manualHolding.currentPrice,
         marketValue: manualHolding.currentPrice * 2,
@@ -502,6 +505,7 @@ describe('HoldingsService', () => {
         accountId: ACCOUNT_ID,
         market: manualHolding.market,
         symbol: manualHolding.symbol,
+        alias: manualHolding.alias,
         quantity: 2,
         currentPrice: manualHolding.currentPrice,
         marketValue: manualHolding.currentPrice * 2,
@@ -558,6 +562,7 @@ describe('HoldingsService', () => {
         accountId: ACCOUNT_ID,
         market: manualHolding.market,
         symbol: manualHolding.symbol,
+        alias: manualHolding.alias,
         quantity: manualHolding.quantity,
         currentPrice: manualHolding.currentPrice,
         marketValue: manualHolding.marketValue,
@@ -606,6 +611,7 @@ describe('HoldingsService', () => {
         accountId: ACCOUNT_ID,
         market: manualHolding.market,
         symbol: manualHolding.symbol,
+        alias: manualHolding.alias,
         quantity: manualHolding.quantity,
         currentPrice: manualHolding.currentPrice,
         marketValue: manualHolding.marketValue,
@@ -633,6 +639,7 @@ describe('HoldingsService', () => {
         accountId: ACCOUNT_ID,
         market: manualHolding.market,
         symbol: manualHolding.symbol,
+        alias: manualHolding.alias,
         quantity: manualHolding.quantity,
         currentPrice: 300,
         marketValue: 300 * manualHolding.quantity,
@@ -705,6 +712,7 @@ describe('HoldingsService', () => {
         accountId: ACCOUNT_ID,
         market: manualHolding.market,
         symbol: manualHolding.symbol,
+        alias: manualHolding.alias,
         quantity: manualHolding.quantity,
         currentPrice: manualHolding.currentPrice,
         marketValue: manualHolding.marketValue,
@@ -723,6 +731,57 @@ describe('HoldingsService', () => {
         where: { id: ACCOUNT_ID, userId: USER_ID },
       });
       expect(prismaMock.holding.update).not.toHaveBeenCalled();
+    });
+
+    it('setHoldingAlias는 별칭을 저장하고 공백을 제거한다', async () => {
+      const input: SetHoldingAliasInput = {
+        holdingId: manualHolding.id,
+        alias: '  나의 ETF  ',
+      };
+      prismaMock.holding.findFirst.mockResolvedValue({
+        ...manualHolding,
+        userId: USER_ID,
+        source: PrismaHoldingSource.MANUAL,
+      });
+      prismaMock.holding.update.mockResolvedValue({
+        ...manualHolding,
+        alias: '나의 ETF',
+      });
+
+      const result = await service.setHoldingAlias(USER_ID, input);
+
+      expect(prismaMock.holding.findFirst).toHaveBeenCalledWith({
+        where: { id: manualHolding.id, userId: USER_ID },
+      });
+      expect(prismaMock.holding.update).toHaveBeenCalledWith({
+        where: { id: manualHolding.id },
+        data: { alias: '나의 ETF' },
+      });
+      expect(result.alias).toBe('나의 ETF');
+    });
+
+    it('setHoldingAlias는 빈 문자열이면 별칭을 제거한다', async () => {
+      const input: SetHoldingAliasInput = {
+        holdingId: manualHolding.id,
+        alias: '',
+      };
+      prismaMock.holding.findFirst.mockResolvedValue({
+        ...manualHolding,
+        userId: USER_ID,
+        source: PrismaHoldingSource.MANUAL,
+      });
+      prismaMock.holding.update.mockResolvedValue({
+        ...manualHolding,
+        alias: null,
+      });
+
+      const result = await service.setHoldingAlias(USER_ID, input);
+
+      expect(prismaMock.holding.update).toHaveBeenCalledWith({
+        where: { id: manualHolding.id },
+        data: { alias: null },
+      });
+      expect(result.alias).toBeNull();
     });
 
     it('getManualHoldings는 사용자 기준으로 정렬된 내역을 반환한다', async () => {

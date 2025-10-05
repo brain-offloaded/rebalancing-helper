@@ -62,6 +62,7 @@ const createHolding = (overrides: Partial<Holding> = {}): Holding => ({
   market: overrides.market ?? null,
   symbol: overrides.symbol ?? 'SPY',
   name: overrides.name ?? 'S&P 500 ETF',
+  alias: overrides.alias ?? null,
   quantity: overrides.quantity ?? 1,
   currentPrice: overrides.currentPrice ?? 100,
   marketValue: overrides.marketValue ?? 100,

@@ -6,6 +6,8 @@ import {
   IsNumber,
   IsPositive,
   Min,
+  IsOptional,
+  MaxLength,
 } from 'class-validator';
 
 @InputType()
@@ -87,4 +89,18 @@ export class SetManualHoldingQuantityInput extends ManualHoldingIdentifierInput 
   @IsNumber()
   @Min(0)
   quantity: number;
+}
+
+@InputType()
+export class SetHoldingAliasInput {
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  holdingId: string;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  alias: string | null;
 }

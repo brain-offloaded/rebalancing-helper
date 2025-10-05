@@ -44,6 +44,9 @@ export class Holding {
   @Field(() => String)
   name: string;
 
+  @Field(() => String, { nullable: true })
+  alias: string | null;
+
   @Field(() => Number)
   quantity: number;
 
