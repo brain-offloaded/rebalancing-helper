@@ -254,7 +254,7 @@ const AliasInput = styled(TextInput)`
   max-width: 240px;
 `;
 
-const QuantityDeltaInput = styled.input<{ invalid?: boolean }>`
+const QuantityInput = styled.input<{ invalid?: boolean }>`
   width: 120px;
   padding: ${(props) => props.theme.spacing.xs}
     ${(props) => props.theme.spacing.sm};
@@ -449,7 +449,8 @@ export const Holdings: React.FC = () => {
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [aliasInput, setAliasInput] = useState('');
-  const [quantityInput, setQuantityInput] = useState('');
+  const [quantityDeltaInput, setQuantityDeltaInput] = useState('');
+  const [quantityTargetInput, setQuantityTargetInput] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -551,46 +552,79 @@ export const Holdings: React.FC = () => {
         isValid: true,
         delta: 0,
         preview: null as number | null,
+        mode: null as 'delta' | 'target' | null,
       };
     }
 
-    const trimmed = quantityInput.trim();
+    const deltaTrimmed = quantityDeltaInput.trim();
+    const targetTrimmed = quantityTargetInput.trim();
+    const baseQuantity = selectedHolding.quantity;
 
-    if (trimmed.length === 0) {
+    if (targetTrimmed.length > 0) {
+      const normalizedTarget = targetTrimmed.replace(/,/g, '');
+      const parsedTarget = Number(normalizedTarget);
+
+      if (!Number.isFinite(parsedTarget) || parsedTarget < 0) {
+        return {
+          isProvided: true,
+          isValid: false,
+          delta: null,
+          preview: null,
+          mode: 'target' as const,
+        };
+      }
+
+      const deltaValue = parsedTarget - baseQuantity;
+
+      return {
+        isProvided: true,
+        isValid: true,
+        delta: deltaValue,
+        preview: parsedTarget,
+        mode: 'target' as const,
+      };
+    }
+
+    if (deltaTrimmed.length === 0) {
       return {
         isProvided: false,
         isValid: true,
         delta: 0,
-        preview: selectedHolding.quantity,
+        preview: baseQuantity,
+        mode: null as const,
       };
     }
 
-    if (trimmed === '+' || trimmed === '-') {
+    if (deltaTrimmed === '+' || deltaTrimmed === '-') {
       return {
         isProvided: true,
         isValid: false,
         delta: null,
         preview: null,
+        mode: 'delta' as const,
       };
     }
 
-    const parsed = Number(trimmed);
+    const normalizedDelta = deltaTrimmed.replace(/,/g, '');
+    const parsed = Number(normalizedDelta);
     if (!Number.isFinite(parsed)) {
       return {
         isProvided: true,
         isValid: false,
         delta: null,
         preview: null,
+        mode: 'delta' as const,
       };
     }
 
-    const nextQuantity = selectedHolding.quantity + parsed;
+    const nextQuantity = baseQuantity + parsed;
     if (nextQuantity < 0) {
       return {
         isProvided: true,
         isValid: false,
         delta: parsed,
         preview: null,
+        mode: 'delta' as const,
       };
     }
 
@@ -599,8 +633,9 @@ export const Holdings: React.FC = () => {
       isValid: true,
       delta: parsed,
       preview: nextQuantity,
+      mode: 'delta' as const,
     };
-  }, [quantityInput, selectedHolding]);
+  }, [quantityDeltaInput, quantityTargetInput, selectedHolding]);
 
   const manualQuantitySummary = useMemo(() => {
     if (!selectedHolding || selectedHolding.source !== 'MANUAL') {
@@ -608,34 +643,45 @@ export const Holdings: React.FC = () => {
     }
 
     if (!manualQuantityState.isProvided) {
-      return '증감 수량을 입력하면 변경 후 수량이 계산됩니다.';
+      return '증감 수량 또는 목표 수량을 입력하면 변경 후 수량이 계산됩니다.';
     }
 
     if (!manualQuantityState.isValid || manualQuantityState.preview === null) {
+      if (manualQuantityState.mode === 'target') {
+        return '유효한 목표 수량을 입력해주세요.';
+      }
       return '유효한 증감 수량을 입력해주세요.';
     }
 
     const deltaValue = manualQuantityState.delta ?? 0;
 
     if (Math.abs(deltaValue) < 1e-6) {
+      if (manualQuantityState.mode === 'target') {
+        return `목표 수량이 현재 수량과 동일합니다.`;
+      }
       return `현재 수량 ${selectedHolding.quantity.toLocaleString()} (변경 없음)`;
     }
 
     const sign = deltaValue > 0 ? '+' : '';
+    if (manualQuantityState.mode === 'target') {
+      return `목표 ${manualQuantityState.preview.toLocaleString()}로 변경됩니다 (현재 대비 ${sign}${deltaValue.toLocaleString()}).`;
+    }
     return `현재 ${selectedHolding.quantity.toLocaleString()} → ${manualQuantityState.preview.toLocaleString()} (${sign}${deltaValue.toLocaleString()})`;
   }, [manualQuantityState, selectedHolding]);
 
   useEffect(() => {
     if (!selectedHolding) {
       setAliasInput('');
-      setQuantityInput('');
+      setQuantityDeltaInput('');
+      setQuantityTargetInput('');
       setSelectedTagIds([]);
       setIsAddingTag(false);
       return;
     }
 
     setAliasInput(selectedHolding.alias ?? '');
-    setQuantityInput('');
+    setQuantityDeltaInput('');
+    setQuantityTargetInput('');
     setSelectedTagIds(selectedHoldingTags);
     setIsAddingTag(false);
   }, [selectedHolding, selectedHoldingTags]);
@@ -857,7 +903,7 @@ export const Holdings: React.FC = () => {
     const trimmed = normalized.trim();
 
     if (trimmed === '') {
-      setQuantityInput('');
+      setQuantityDeltaInput('');
       return;
     }
 
@@ -866,7 +912,26 @@ export const Holdings: React.FC = () => {
       return;
     }
 
-    setQuantityInput(trimmed);
+    setQuantityDeltaInput(trimmed);
+    setQuantityTargetInput('');
+  };
+
+  const handleQuantityTargetChange = (rawValue: string) => {
+    const normalized = rawValue.replace(/,/g, '');
+    const trimmed = normalized.trim();
+
+    if (trimmed === '') {
+      setQuantityTargetInput('');
+      return;
+    }
+
+    const quantityPattern = /^(\d+(\.\d*)?|\.\d*)?$/;
+    if (!quantityPattern.test(trimmed)) {
+      return;
+    }
+
+    setQuantityTargetInput(trimmed);
+    setQuantityDeltaInput('');
   };
 
   const handleSave = async () => {
@@ -890,7 +955,11 @@ export const Holdings: React.FC = () => {
         !manualQuantityState.isValid ||
         manualQuantityState.preview === null
       ) {
-        alert('유효한 증감 수량을 입력해주세요.');
+        if (manualQuantityState.mode === 'target') {
+          alert('유효한 목표 수량을 입력해주세요.');
+        } else {
+          alert('유효한 증감 수량을 입력해주세요.');
+        }
         return;
       } else {
         const nextQuantity = manualQuantityState.preview;
@@ -1294,21 +1363,41 @@ export const Holdings: React.FC = () => {
                       {selectedHolding.quantity.toLocaleString()}
                     </ValueBadge>
                     <InlineLabel>증감</InlineLabel>
-                    <QuantityDeltaInput
+                    <QuantityInput
                       inputMode="decimal"
                       pattern="[-+]?\\d*(\\.\\d*)?"
                       placeholder="+100"
-                      value={quantityInput}
+                      value={quantityDeltaInput}
                       onChange={(event) =>
                         handleQuantityDeltaChange(event.target.value)
                       }
                       disabled={isSaving}
                       invalid={
+                        manualQuantityState.mode === 'delta' &&
                         manualQuantityState.isProvided &&
                         (!manualQuantityState.isValid ||
                           manualQuantityState.preview === null)
                       }
                     />
+                    <InlineLabel>목표</InlineLabel>
+                    <QuantityInput
+                      inputMode="decimal"
+                      pattern="\\d*(\\.\\d*)?"
+                      placeholder={selectedHolding.quantity.toLocaleString()}
+                      value={quantityTargetInput}
+                      onChange={(event) =>
+                        handleQuantityTargetChange(event.target.value)
+                      }
+                      disabled={isSaving}
+                      invalid={
+                        manualQuantityState.mode === 'target' &&
+                        manualQuantityState.isProvided &&
+                        (!manualQuantityState.isValid ||
+                          manualQuantityState.preview === null)
+                      }
+                    />
+                  </SectionRow>
+                  <SectionRow>
                     <InlineLabel>변경 후</InlineLabel>
                     <ValueBadge>
                       {manualQuantityState.preview !== null
