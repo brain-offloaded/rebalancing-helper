@@ -91,6 +91,7 @@ scalar DateTime
 
 type Holding {
   accountId: String!
+  alias: String
   createdAt: DateTime!
   currency: String!
   currentPrice: Float!
@@ -99,7 +100,6 @@ type Holding {
   market: String
   marketValue: Float!
   name: String!
-  alias: String
   quantity: Float!
   source: HoldingSource!
   symbol: String!
@@ -243,14 +243,14 @@ input RenameRebalancingGroupInput {
   name: String!
 }
 
+input SetHoldingAliasInput {
+  alias: String
+  holdingId: String!
+}
+
 input SetHoldingTagsInput {
   holdingSymbol: String!
   tagIds: [String!]!
-}
-
-input SetHoldingAliasInput {
-  holdingId: String!
-  alias: String
 }
 
 input SetManualHoldingQuantityInput {
