@@ -350,6 +350,21 @@ describe('RebalancingGroups', () => {
     expect(inputs[1]).toHaveValue(50);
   });
 
+  it('분석 보기 버튼을 다시 누르면 분석 패널을 닫는다', async () => {
+    setupMocks();
+    const user = userEvent.setup();
+
+    renderWithProviders(<RebalancingGroups />, { withApollo: false });
+
+    const analysisButton = screen.getByRole('button', { name: '분석 보기' });
+
+    await user.click(analysisButton);
+    expect(screen.getByText('성장 그룹 분석')).toBeInTheDocument();
+
+    await user.click(analysisButton);
+    expect(screen.queryByText('성장 그룹 분석')).not.toBeInTheDocument();
+  });
+
   it('차트 토글로 비율/금액을 전환할 수 있다', async () => {
     setupMocks();
     const user = userEvent.setup();
