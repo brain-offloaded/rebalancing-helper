@@ -4,12 +4,15 @@ export const Tabs = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing.md};
+  width: 100%;
 `;
 
 export const TabList = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.sm};
   border-bottom: 2px solid ${({ theme }) => theme.colors.border};
+  width: 100%;
+  flex-wrap: wrap;
 `;
 
 export const TabButton = styled.button<{ $active: boolean }>`
@@ -35,4 +38,6 @@ export const TabButton = styled.button<{ $active: boolean }>`
 
 export const TabPanel = styled.div`
   min-height: 320px;
+  width: 100%;
+  overflow-x: auto;
 `;

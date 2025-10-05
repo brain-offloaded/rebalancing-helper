@@ -1,6 +1,9 @@
 import styled from 'styled-components';
 
 export const PageContainer = styled.div`
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
   padding: ${({ theme }) => theme?.spacing?.lg ?? '24px'};
 `;
 
@@ -33,6 +36,7 @@ export const Section = styled.section`
   flex-direction: column;
   gap: ${({ theme }) => theme?.spacing?.md ?? '16px'};
   margin-bottom: ${({ theme }) => theme?.spacing?.xl ?? '32px'};
+  width: 100%;
 `;
 
 export const SectionHeader = styled.div`
