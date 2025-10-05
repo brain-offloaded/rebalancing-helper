@@ -169,7 +169,9 @@ const IconButton = styled.button`
   background-color: ${(props) => props.theme.colors.light};
   color: ${(props) => props.theme.colors.text};
   cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 
   &:hover {
     background-color: ${(props) => props.theme.colors.primary};
@@ -441,9 +443,7 @@ export const Holdings: React.FC = () => {
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [syncingHoldingId, setSyncingHoldingId] = useState<string | null>(
-    null,
-  );
+  const [syncingHoldingId, setSyncingHoldingId] = useState<string | null>(null);
 
   const [manualMarket, setManualMarket] = useState('');
   const [manualSymbol, setManualSymbol] = useState('');
@@ -528,7 +528,7 @@ export const Holdings: React.FC = () => {
   const selectedHoldingTags = useMemo(
     () =>
       selectedHolding
-        ? holdingTagsBySymbol.get(selectedHolding.symbol) ?? []
+        ? (holdingTagsBySymbol.get(selectedHolding.symbol) ?? [])
         : [],
     [selectedHolding, holdingTagsBySymbol],
   );
@@ -754,7 +754,9 @@ export const Holdings: React.FC = () => {
     if (!tagId) {
       return;
     }
-    setSelectedTagIds((prev) => (prev.includes(tagId) ? prev : [...prev, tagId]));
+    setSelectedTagIds((prev) =>
+      prev.includes(tagId) ? prev : [...prev, tagId],
+    );
     setIsAddingTag(false);
   };
 
@@ -762,12 +764,35 @@ export const Holdings: React.FC = () => {
     if (!selectedHolding || selectedHolding.source !== 'MANUAL') {
       return;
     }
-    const current = Number(quantityInput || '0');
-    if (!Number.isFinite(current)) {
+
+    const baseValue =
+      quantityInput.trim() === ''
+        ? selectedHolding.quantity
+        : Number(quantityInput);
+
+    if (!Number.isFinite(baseValue)) {
       return;
     }
-    const next = Math.max(0, Math.round((current + delta) * 100) / 100);
+
+    const next = Math.max(0, Math.round((baseValue + delta) * 100) / 100);
     setQuantityInput(next.toString());
+  };
+
+  const handleQuantityInputChange = (rawValue: string) => {
+    const normalized = rawValue.replace(/,/g, '.');
+    const trimmed = normalized.trim();
+
+    if (trimmed === '') {
+      setQuantityInput('');
+      return;
+    }
+
+    const quantityPattern = /^\d*(\.\d*)?$/;
+    if (!quantityPattern.test(trimmed)) {
+      return;
+    }
+
+    setQuantityInput(trimmed);
   };
 
   const handleSave = async () => {
@@ -859,6 +884,7 @@ export const Holdings: React.FC = () => {
       }
 
       await Promise.all([refetchHoldings(), refetchHoldingTagsList()]);
+      handleModalClose();
     } catch (error) {
       console.error('보유 종목 저장 실패:', error);
       alert('변경 사항을 저장하지 못했습니다. 다시 시도해주세요.');
@@ -898,8 +924,7 @@ export const Holdings: React.FC = () => {
         },
       });
       await Promise.all([refetchHoldings(), refetchHoldingTagsList()]);
-      setIsModalOpen(false);
-      setSelectedHoldingId(null);
+      handleModalClose();
     } catch (error) {
       console.error('보유 종목 삭제 실패:', error);
       alert('종목을 삭제하지 못했습니다. 다시 시도해주세요.');
@@ -1026,7 +1051,10 @@ export const Holdings: React.FC = () => {
                         <SecondaryText>태그 없음</SecondaryText>
                       ) : (
                         tagsForRow.map((tag) => (
-                          <Tag key={`${holding.id}-${tag.id}`} color={tag.color}>
+                          <Tag
+                            key={`${holding.id}-${tag.id}`}
+                            color={tag.color}
+                          >
                             {tag.name}
                           </Tag>
                         ))
@@ -1135,7 +1163,8 @@ export const Holdings: React.FC = () => {
           <ModalContent onClick={(event) => event.stopPropagation()}>
             <ModalHeader>
               <ModalTitle>
-                {selectedHolding.alias && selectedHolding.alias.trim().length > 0
+                {selectedHolding.alias &&
+                selectedHolding.alias.trim().length > 0
                   ? selectedHolding.alias
                   : selectedHolding.name}
               </ModalTitle>
@@ -1253,11 +1282,13 @@ export const Holdings: React.FC = () => {
                       −
                     </QuantityButton>
                     <QuantityInput
-                      type="number"
-                      min="0"
-                      step="0.01"
+                      inputMode="decimal"
+                      pattern="\d*(\.\d*)?"
                       value={quantityInput}
-                      onChange={(event) => setQuantityInput(event.target.value)}
+                      onChange={(event) =>
+                        handleQuantityInputChange(event.target.value)
+                      }
+                      placeholder="직접 입력"
                       disabled={isSaving}
                     />
                     <QuantityButton
@@ -1296,9 +1327,7 @@ export const Holdings: React.FC = () => {
                         }
                         disabled={syncingHoldingId === selectedHolding.id}
                       >
-                        {syncingHoldingId === selectedHolding.id
-                          ? '···'
-                          : '↻'}
+                        {syncingHoldingId === selectedHolding.id ? '···' : '↻'}
                       </IconButton>
                     )}
                 </QuantityControls>
@@ -1333,4 +1362,3 @@ export const Holdings: React.FC = () => {
     </Container>
   );
 };
-
