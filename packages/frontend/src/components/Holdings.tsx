@@ -136,10 +136,14 @@ const ModalContent = styled.div`
   background: white;
   padding: ${(props) => props.theme.spacing.xl};
   border-radius: ${(props) => props.theme.borderRadius.md};
-  max-width: 540px;
-  width: 90%;
-  max-height: 70vh;
+  width: 100%;
+  max-width: 720px;
+  max-height: 80vh;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: ${(props) => props.theme.spacing.lg};
+  box-shadow: ${(props) => props.theme.shadows.md};
 `;
 
 const TableRow = styled.tr`
@@ -201,25 +205,31 @@ const ModalSubtitle = styled.span`
   opacity: 0.7;
 `;
 
-const ModalSection = styled.section`
-  margin-top: ${(props) => props.theme.spacing.lg};
+const ModalBody = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${(props) => props.theme.spacing.sm};
+  gap: ${(props) => props.theme.spacing.lg};
 `;
 
-const FieldGroup = styled.div`
+const SectionGroup = styled.section`
   display: flex;
   flex-direction: column;
   gap: ${(props) => props.theme.spacing.xs};
 `;
 
-const FieldLabel = styled.label`
-  font-weight: ${(props) => props.theme.typography.fontWeight.semibold};
-  color: ${(props) => props.theme.colors.text};
+const SectionRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: ${(props) => props.theme.spacing.sm};
 `;
 
-const ReadonlyField = styled.span`
+const InlineLabel = styled.span`
+  font-size: ${(props) => props.theme.typography.fontSize.xs};
+  color: ${(props) => props.theme.colors.textLight};
+`;
+
+const ValueBadge = styled.span`
   display: inline-flex;
   align-items: center;
   padding: ${(props) => props.theme.spacing.xs}
@@ -228,12 +238,7 @@ const ReadonlyField = styled.span`
   color: ${(props) => props.theme.colors.text};
   border-radius: ${(props) => props.theme.borderRadius.sm};
   font-size: ${(props) => props.theme.typography.fontSize.sm};
-`;
-
-const PillRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: ${(props) => props.theme.spacing.xs};
+  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
 `;
 
 const TextInput = styled.input`
@@ -245,34 +250,40 @@ const TextInput = styled.input`
   width: 100%;
 `;
 
-const QuantityControls = styled.div`
+const AliasInput = styled(TextInput)`
+  max-width: 240px;
+`;
+
+const QuantityDeltaInput = styled.input<{ invalid?: boolean }>`
+  width: 120px;
+  padding: ${(props) => props.theme.spacing.xs}
+    ${(props) => props.theme.spacing.sm};
+  border: 1px solid
+    ${({ invalid, theme }) =>
+      invalid ? theme.colors.danger : theme.colors.border};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
+  font-size: ${(props) => props.theme.typography.fontSize.sm};
+  outline: none;
+
+  &:focus {
+    border-color: ${({ invalid, theme }) =>
+      invalid ? theme.colors.danger : theme.colors.primary};
+    box-shadow: 0 0 0 1px
+      ${({ invalid, theme }) =>
+        (invalid ? theme.colors.danger : theme.colors.primary) + '33'};
+  }
+`;
+
+const HelperText = styled.span`
+  font-size: ${(props) => props.theme.typography.fontSize.xs};
+  color: ${(props) => props.theme.colors.textLight};
+`;
+
+const TagActions = styled.div`
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: ${(props) => props.theme.spacing.xs};
-`;
-
-const QuantityInput = styled(TextInput)`
-  width: 120px;
-`;
-
-const QuantityButton = styled.button`
-  width: 32px;
-  height: 32px;
-  border-radius: ${(props) => props.theme.borderRadius.sm};
-  border: 1px solid ${(props) => props.theme.colors.border};
-  background-color: ${(props) => props.theme.colors.light};
-  cursor: pointer;
-  font-size: ${(props) => props.theme.typography.fontSize.md};
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  flex-wrap: wrap;
 `;
 
 const TagList = styled.div`
@@ -533,6 +544,87 @@ export const Holdings: React.FC = () => {
     [selectedHolding, holdingTagsBySymbol],
   );
 
+  const manualQuantityState = useMemo(() => {
+    if (!selectedHolding || selectedHolding.source !== 'MANUAL') {
+      return {
+        isProvided: false,
+        isValid: true,
+        delta: 0,
+        preview: null as number | null,
+      };
+    }
+
+    const trimmed = quantityInput.trim();
+
+    if (trimmed.length === 0) {
+      return {
+        isProvided: false,
+        isValid: true,
+        delta: 0,
+        preview: selectedHolding.quantity,
+      };
+    }
+
+    if (trimmed === '+' || trimmed === '-') {
+      return {
+        isProvided: true,
+        isValid: false,
+        delta: null,
+        preview: null,
+      };
+    }
+
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed)) {
+      return {
+        isProvided: true,
+        isValid: false,
+        delta: null,
+        preview: null,
+      };
+    }
+
+    const nextQuantity = selectedHolding.quantity + parsed;
+    if (nextQuantity < 0) {
+      return {
+        isProvided: true,
+        isValid: false,
+        delta: parsed,
+        preview: null,
+      };
+    }
+
+    return {
+      isProvided: true,
+      isValid: true,
+      delta: parsed,
+      preview: nextQuantity,
+    };
+  }, [quantityInput, selectedHolding]);
+
+  const manualQuantitySummary = useMemo(() => {
+    if (!selectedHolding || selectedHolding.source !== 'MANUAL') {
+      return '';
+    }
+
+    if (!manualQuantityState.isProvided) {
+      return '증감 수량을 입력하면 변경 후 수량이 계산됩니다.';
+    }
+
+    if (!manualQuantityState.isValid || manualQuantityState.preview === null) {
+      return '유효한 증감 수량을 입력해주세요.';
+    }
+
+    const deltaValue = manualQuantityState.delta ?? 0;
+
+    if (Math.abs(deltaValue) < 1e-6) {
+      return `현재 수량 ${selectedHolding.quantity.toLocaleString()} (변경 없음)`;
+    }
+
+    const sign = deltaValue > 0 ? '+' : '';
+    return `현재 ${selectedHolding.quantity.toLocaleString()} → ${manualQuantityState.preview.toLocaleString()} (${sign}${deltaValue.toLocaleString()})`;
+  }, [manualQuantityState, selectedHolding]);
+
   useEffect(() => {
     if (!selectedHolding) {
       setAliasInput('');
@@ -543,7 +635,7 @@ export const Holdings: React.FC = () => {
     }
 
     setAliasInput(selectedHolding.alias ?? '');
-    setQuantityInput(selectedHolding.quantity.toString());
+    setQuantityInput('');
     setSelectedTagIds(selectedHoldingTags);
     setIsAddingTag(false);
   }, [selectedHolding, selectedHoldingTags]);
@@ -760,26 +852,8 @@ export const Holdings: React.FC = () => {
     setIsAddingTag(false);
   };
 
-  const adjustQuantity = (delta: number) => {
-    if (!selectedHolding || selectedHolding.source !== 'MANUAL') {
-      return;
-    }
-
-    const baseValue =
-      quantityInput.trim() === ''
-        ? selectedHolding.quantity
-        : Number(quantityInput);
-
-    if (!Number.isFinite(baseValue)) {
-      return;
-    }
-
-    const next = Math.max(0, Math.round((baseValue + delta) * 100) / 100);
-    setQuantityInput(next.toString());
-  };
-
-  const handleQuantityInputChange = (rawValue: string) => {
-    const normalized = rawValue.replace(/,/g, '.');
+  const handleQuantityDeltaChange = (rawValue: string) => {
+    const normalized = rawValue.replace(/,/g, '');
     const trimmed = normalized.trim();
 
     if (trimmed === '') {
@@ -787,7 +861,7 @@ export const Holdings: React.FC = () => {
       return;
     }
 
-    const quantityPattern = /^\d*(\.\d*)?$/;
+    const quantityPattern = /^[-+]?(\d+(\.\d*)?|\.\d*)?$/;
     if (!quantityPattern.test(trimmed)) {
       return;
     }
@@ -809,17 +883,21 @@ export const Holdings: React.FC = () => {
     let parsedQuantity: number | null = null;
 
     if (selectedHolding.source === 'MANUAL') {
-      if (quantityInput.trim() === '') {
-        alert('수량을 입력해주세요.');
+      if (!manualQuantityState.isProvided) {
+        parsedQuantity = selectedHolding.quantity;
+        quantityChanged = false;
+      } else if (
+        !manualQuantityState.isValid ||
+        manualQuantityState.preview === null
+      ) {
+        alert('유효한 증감 수량을 입력해주세요.');
         return;
+      } else {
+        const nextQuantity = manualQuantityState.preview;
+        parsedQuantity = nextQuantity;
+        quantityChanged =
+          Math.abs(nextQuantity - selectedHolding.quantity) > 1e-6;
       }
-      const parsed = Number(quantityInput);
-      if (!Number.isFinite(parsed) || parsed < 0) {
-        alert('유효한 수량을 입력해주세요.');
-        return;
-      }
-      parsedQuantity = parsed;
-      quantityChanged = Math.abs(parsed - selectedHolding.quantity) > 1e-6;
     }
 
     const originalTags = [...selectedHoldingTags].sort();
@@ -1176,167 +1254,184 @@ export const Holdings: React.FC = () => {
               </ModalSubtitle>
             </ModalHeader>
 
-            <ModalSection>
-              <FieldGroup>
-                <FieldLabel>기본 정보</FieldLabel>
-                <PillRow>
-                  <ReadonlyField>
+            <ModalBody>
+              <SectionGroup>
+                <SectionRow>
+                  <InlineLabel>계좌</InlineLabel>
+                  <ValueBadge>
                     {accountNameById.get(selectedHolding.accountId) ??
                       '미지정 계좌'}
-                  </ReadonlyField>
-                  <ReadonlyField>
+                  </ValueBadge>
+                  <InlineLabel>입력 방식</InlineLabel>
+                  <ValueBadge>
                     {selectedHolding.source === 'MANUAL'
                       ? '수동 입력'
                       : '자동 연동'}
-                  </ReadonlyField>
-                </PillRow>
-              </FieldGroup>
-              <FieldGroup>
-                <FieldLabel>원래 이름</FieldLabel>
-                <ReadonlyField>{selectedHolding.name}</ReadonlyField>
-              </FieldGroup>
-              <FieldGroup>
-                <FieldLabel htmlFor="holding-alias">
-                  표시 이름 (Alias)
-                </FieldLabel>
-                <TextInput
-                  id="holding-alias"
-                  value={aliasInput}
-                  onChange={(event) => setAliasInput(event.target.value)}
-                  placeholder="표시 이름을 입력하세요"
-                />
-              </FieldGroup>
-            </ModalSection>
+                  </ValueBadge>
+                </SectionRow>
+                <SectionRow>
+                  <InlineLabel>원래 이름</InlineLabel>
+                  <ValueBadge>{selectedHolding.name}</ValueBadge>
+                </SectionRow>
+                <SectionRow>
+                  <InlineLabel as="label" htmlFor="holding-alias">
+                    표시 이름
+                  </InlineLabel>
+                  <AliasInput
+                    id="holding-alias"
+                    value={aliasInput}
+                    onChange={(event) => setAliasInput(event.target.value)}
+                    placeholder="표시 이름을 입력하세요"
+                  />
+                </SectionRow>
+              </SectionGroup>
 
-            <ModalSection>
-              <FieldGroup>
-                <FieldLabel>태그</FieldLabel>
-                {holdingTagsLoading ? (
-                  <SecondaryText>태그를 불러오는 중...</SecondaryText>
-                ) : selectedTagIds.length === 0 ? (
-                  <SecondaryText>선택된 태그가 없습니다.</SecondaryText>
-                ) : (
-                  <TagList>
-                    {selectedTagIds
-                      .map((tagId) => tagById.get(tagId))
-                      .filter((tag): tag is Tag => Boolean(tag))
-                      .map((tag) => (
-                        <TagChip key={tag.id} color={tag.color}>
-                          {tag.name}
-                          <TagRemoveButton
-                            type="button"
-                            onClick={() => handleTagRemove(tag.id)}
-                          >
-                            ×
-                          </TagRemoveButton>
-                        </TagChip>
-                      ))}
-                  </TagList>
-                )}
-                <PillRow>
-                  {isAddingTag && availableTagsForSelection.length > 0 && (
-                    <TagSelect
-                      defaultValue=""
-                      onChange={(event) => {
-                        handleTagAdd(event.target.value);
-                        event.currentTarget.value = '';
-                      }}
-                    >
-                      <option value="" disabled>
-                        태그 선택
-                      </option>
-                      {availableTagsForSelection.map((tag) => (
-                        <option key={tag.id} value={tag.id}>
-                          {tag.name}
-                        </option>
-                      ))}
-                    </TagSelect>
-                  )}
-                  <AddTagButton
-                    type="button"
-                    onClick={() => setIsAddingTag((prev) => !prev)}
-                    disabled={
-                      availableTagsForSelection.length === 0 ||
-                      holdingTagsLoading
-                    }
-                  >
-                    + 태그 추가
-                  </AddTagButton>
-                </PillRow>
-                {availableTagsForSelection.length === 0 && tags.length > 0 && (
-                  <SecondaryText>추가 가능한 태그가 없습니다.</SecondaryText>
-                )}
-              </FieldGroup>
-            </ModalSection>
-
-            <ModalSection>
-              <FieldGroup>
-                <FieldLabel>수량</FieldLabel>
-                {selectedHolding.source === 'MANUAL' ? (
-                  <QuantityControls>
-                    <QuantityButton
-                      type="button"
-                      onClick={() => adjustQuantity(-1)}
-                      disabled={isSaving}
-                    >
-                      −
-                    </QuantityButton>
-                    <QuantityInput
+              {selectedHolding.source === 'MANUAL' ? (
+                <SectionGroup>
+                  <SectionRow>
+                    <InlineLabel>현재</InlineLabel>
+                    <ValueBadge>
+                      {selectedHolding.quantity.toLocaleString()}
+                    </ValueBadge>
+                    <InlineLabel>증감</InlineLabel>
+                    <QuantityDeltaInput
                       inputMode="decimal"
-                      pattern="\d*(\.\d*)?"
+                      pattern="[-+]?\\d*(\\.\\d*)?"
+                      placeholder="+100"
                       value={quantityInput}
                       onChange={(event) =>
-                        handleQuantityInputChange(event.target.value)
+                        handleQuantityDeltaChange(event.target.value)
                       }
-                      placeholder="직접 입력"
                       disabled={isSaving}
+                      invalid={
+                        manualQuantityState.isProvided &&
+                        (!manualQuantityState.isValid ||
+                          manualQuantityState.preview === null)
+                      }
                     />
-                    <QuantityButton
-                      type="button"
-                      onClick={() => adjustQuantity(1)}
-                      disabled={isSaving}
-                    >
-                      +
-                    </QuantityButton>
-                  </QuantityControls>
-                ) : (
-                  <ReadonlyField>
-                    {selectedHolding.quantity.toLocaleString()}
-                  </ReadonlyField>
-                )}
-              </FieldGroup>
-            </ModalSection>
+                    <InlineLabel>변경 후</InlineLabel>
+                    <ValueBadge>
+                      {manualQuantityState.preview !== null
+                        ? manualQuantityState.preview.toLocaleString()
+                        : '—'}
+                    </ValueBadge>
+                  </SectionRow>
+                  <HelperText>{manualQuantitySummary}</HelperText>
+                </SectionGroup>
+              ) : (
+                <SectionGroup>
+                  <SectionRow>
+                    <InlineLabel>수량</InlineLabel>
+                    <ValueBadge>
+                      {selectedHolding.quantity.toLocaleString()}
+                    </ValueBadge>
+                  </SectionRow>
+                </SectionGroup>
+              )}
 
-            <ModalSection>
-              <FieldGroup>
-                <FieldLabel>현재가</FieldLabel>
-                <QuantityControls>
-                  <ReadonlyField>
+              <SectionGroup>
+                <SectionRow>
+                  <InlineLabel>태그</InlineLabel>
+                  <TagActions>
+                    {holdingTagsLoading ? (
+                      <HelperText>태그를 불러오는 중...</HelperText>
+                    ) : selectedTagIds.length === 0 ? (
+                      <HelperText>선택된 태그가 없습니다.</HelperText>
+                    ) : (
+                      <TagList>
+                        {selectedTagIds
+                          .map((tagId) => tagById.get(tagId))
+                          .filter((tag): tag is Tag => Boolean(tag))
+                          .map((tag) => (
+                            <TagChip key={tag.id} color={tag.color}>
+                              {tag.name}
+                              <TagRemoveButton
+                                type="button"
+                                onClick={() => handleTagRemove(tag.id)}
+                              >
+                                ×
+                              </TagRemoveButton>
+                            </TagChip>
+                          ))}
+                      </TagList>
+                    )}
+                    {isAddingTag && availableTagsForSelection.length > 0 && (
+                      <TagSelect
+                        defaultValue=""
+                        onChange={(event) => {
+                          handleTagAdd(event.target.value);
+                          event.currentTarget.value = '';
+                        }}
+                      >
+                        <option value="" disabled>
+                          태그 선택
+                        </option>
+                        {availableTagsForSelection.map((tag) => (
+                          <option key={tag.id} value={tag.id}>
+                            {tag.name}
+                          </option>
+                        ))}
+                      </TagSelect>
+                    )}
+                    <AddTagButton
+                      type="button"
+                      onClick={() => {
+                        if (isAddingTag) {
+                          setIsAddingTag(false);
+                          return;
+                        }
+                        if (availableTagsForSelection.length === 0) {
+                          return;
+                        }
+                        setIsAddingTag(true);
+                      }}
+                      disabled={
+                        holdingTagsLoading ||
+                        (!isAddingTag && availableTagsForSelection.length === 0)
+                      }
+                    >
+                      {isAddingTag ? '닫기' : '태그 선택'}
+                    </AddTagButton>
+                  </TagActions>
+                </SectionRow>
+                {!holdingTagsLoading &&
+                  availableTagsForSelection.length === 0 &&
+                  tags.length > 0 && (
+                    <HelperText>추가 가능한 태그가 없습니다.</HelperText>
+                  )}
+              </SectionGroup>
+
+              <SectionGroup>
+                <SectionRow>
+                  <InlineLabel>현재가</InlineLabel>
+                  <ValueBadge>
                     {formatCurrencyValue(
                       selectedHolding.currentPrice,
                       selectedHolding.currency,
                     )}
-                  </ReadonlyField>
+                  </ValueBadge>
                   {selectedHolding.source === 'MANUAL' &&
                     selectedHolding.market && (
-                      <IconButton
+                      <Button
+                        variant="secondary"
                         type="button"
-                        aria-label="현재가 동기화"
                         onClick={(event) =>
                           handleManualSync(selectedHolding, event)
                         }
                         disabled={syncingHoldingId === selectedHolding.id}
                       >
-                        {syncingHoldingId === selectedHolding.id ? '···' : '↻'}
-                      </IconButton>
+                        {syncingHoldingId === selectedHolding.id
+                          ? '동기화 중...'
+                          : '현재가 동기화'}
+                      </Button>
                     )}
-                </QuantityControls>
-                <SecondaryText>
-                  마지막 업데이트:{' '}
-                  {formatLastUpdated(selectedHolding.lastUpdated)}
-                </SecondaryText>
-              </FieldGroup>
-            </ModalSection>
+                  <InlineLabel>마지막 업데이트</InlineLabel>
+                  <ValueBadge>
+                    {formatLastUpdated(selectedHolding.lastUpdated)}
+                  </ValueBadge>
+                </SectionRow>
+              </SectionGroup>
+            </ModalBody>
 
             <ModalActions>
               <ModalButton
