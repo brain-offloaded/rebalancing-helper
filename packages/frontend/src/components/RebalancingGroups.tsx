@@ -311,6 +311,12 @@ export const RebalancingGroups: React.FC = () => {
     }));
   };
 
+  const handleToggleAnalysis = (group: RebalancingGroup) => {
+    setSelectedGroup((prev) => (prev === group.id ? null : group.id));
+    setShowTargetForm(false);
+    setTargetAllocations({});
+  };
+
   const handleStartTagManagement = (group: RebalancingGroup) => {
     if (tagManagement.groupId === group.id) {
       setTagManagement({ groupId: null, selectedTagIds: [] });
@@ -690,7 +696,7 @@ export const RebalancingGroups: React.FC = () => {
             </div>
 
             <div>
-              <Button onClick={() => setSelectedGroup(group.id)}>
+              <Button onClick={() => handleToggleAnalysis(group)}>
                 분석 보기
               </Button>
               <Button onClick={() => handleStartTagManagement(group)}>
