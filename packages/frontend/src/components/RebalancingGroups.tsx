@@ -25,92 +25,20 @@ import {
   useDeleteRebalancingGroupMutation,
   useGetTagsQuery,
 } from '../graphql/__generated__';
+import { Button, ButtonGroup } from './ui/Button';
+import { Card, CardHeader, CardTitle } from './ui/Card';
+import { Form, Field, FieldLabel, TextInput } from './ui/FormControls';
+import {
+  Grid as LayoutGrid,
+  Section,
+  SectionDescription,
+  SectionHeader,
+  SectionTitle,
+} from './ui/Layout';
 
-const Container = styled.div`
-  padding: ${(props) => props.theme.spacing.lg};
-`;
-
-const Card = styled.div`
-  background: white;
-  border: 1px solid ${(props) => props.theme.colors.border};
-  border-radius: ${(props) => props.theme.borderRadius.md};
-  padding: ${(props) => props.theme.spacing.lg};
-  margin-bottom: ${(props) => props.theme.spacing.md};
-  box-shadow: ${(props) => props.theme.shadows.sm};
-`;
-
-const Button = styled.button<{ variant?: 'primary' | 'danger' | 'secondary' }>`
-  padding: ${(props) => props.theme.spacing.sm}
-    ${(props) => props.theme.spacing.md};
-  font-size: ${(props) => props.theme.typography.fontSize.sm};
-  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
-  border: none;
-  border-radius: ${(props) => props.theme.borderRadius.sm};
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-right: ${(props) => props.theme.spacing.sm};
-
-  ${(props) => {
-    switch (props.variant) {
-      case 'primary':
-        return `
-          background-color: ${props.theme.colors.primary};
-          color: white;
-          &:hover { background-color: #0056b3; }
-        `;
-      case 'danger':
-        return `
-          background-color: ${props.theme.colors.danger};
-          color: white;
-          &:hover { background-color: #c82333; }
-        `;
-      case 'secondary':
-      default:
-        return `
-          background-color: ${props.theme.colors.light};
-          color: ${props.theme.colors.text};
-          border: 1px solid ${props.theme.colors.border};
-          &:hover { background-color: #e2e6ea; }
-        `;
-    }
-  }}
-`;
-
-const Form = styled.form`
-  display: grid;
-  gap: ${(props) => props.theme.spacing.md};
-  margin-bottom: ${(props) => props.theme.spacing.lg};
-`;
-
-const FormGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-
-const Label = styled.label`
-  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
-  margin-bottom: ${(props) => props.theme.spacing.xs};
-`;
-
-const Input = styled.input`
-  padding: ${(props) => props.theme.spacing.sm}
-    ${(props) => props.theme.spacing.md};
-  border: 1px solid ${(props) => props.theme.colors.border};
-  border-radius: ${(props) => props.theme.borderRadius.sm};
-  font-size: ${(props) => props.theme.typography.fontSize.md};
-
-  &:focus {
-    outline: none;
-    border-color: ${(props) => props.theme.colors.primary};
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-  }
-`;
-
-const GroupGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: ${(props) => props.theme.spacing.md};
-`;
+const FormGroup = Field;
+const Label = FieldLabel;
+const Input = TextInput;
 
 const GroupCard = styled(Card)`
   position: relative;
@@ -652,50 +580,57 @@ export const RebalancingGroups: React.FC = () => {
   if (groupsLoading) return <div>로딩 중...</div>;
 
   return (
-    <Container>
-      <h2>리밸런싱 그룹</h2>
-      <p>태그별로 자산을 그룹화하여 리밸런싱 전략을 관리합니다.</p>
+    <Section>
+      <SectionHeader>
+        <SectionTitle>리밸런싱 그룹</SectionTitle>
+        <SectionDescription>
+          태그별로 자산을 그룹화하여 리밸런싱 전략을 관리합니다.
+        </SectionDescription>
+      </SectionHeader>
 
       <Button variant="primary" onClick={() => setShowForm(!showForm)}>
         {showForm ? '취소' : '그룹 추가'}
       </Button>
 
       {showForm && (
-        <Card>
-          <h3>새 리밸런싱 그룹 추가</h3>
+        <Card as="section">
+          <CardHeader>
+            <CardTitle>새 리밸런싱 그룹 추가</CardTitle>
+          </CardHeader>
           <Form onSubmit={handleCreateGroup}>
-            <FormGroup>
-              <Label>그룹 이름</Label>
-              <Input
-                type="text"
+            <Field>
+              <FieldLabel htmlFor="group-name">그룹 이름</FieldLabel>
+              <TextInput
+                id="group-name"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
+                onChange={(event) =>
+                  setFormData({ ...formData, name: event.target.value })
                 }
                 required
               />
-            </FormGroup>
+            </Field>
 
-            <FormGroup>
-              <Label>설명</Label>
-              <Input
-                type="text"
+            <Field>
+              <FieldLabel htmlFor="group-description">설명</FieldLabel>
+              <TextInput
+                id="group-description"
                 value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
+                onChange={(event) =>
+                  setFormData({ ...formData, description: event.target.value })
                 }
               />
-            </FormGroup>
+            </Field>
 
-            <FormGroup>
-              <Label>포함할 태그</Label>
+            <Field>
+              <FieldLabel>포함할 태그</FieldLabel>
               <div>
                 {tagsData?.tags?.map((tag: Tag) => (
-                  <div
+                  <label
                     key={tag.id}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
+                      gap: '8px',
                       marginBottom: '8px',
                     }}
                   >
@@ -703,28 +638,27 @@ export const RebalancingGroups: React.FC = () => {
                       type="checkbox"
                       checked={formData.tagIds.includes(tag.id)}
                       onChange={() => handleTagToggle(tag.id)}
-                      style={{ marginRight: '8px' }}
                     />
                     <TagColor color={tag.color} />
                     <span>{tag.name}</span>
-                  </div>
+                  </label>
                 ))}
               </div>
-            </FormGroup>
+            </Field>
 
-            <div>
+            <ButtonGroup>
               <Button type="submit" variant="primary">
                 그룹 추가
               </Button>
               <Button type="button" onClick={() => setShowForm(false)}>
                 취소
               </Button>
-            </div>
+            </ButtonGroup>
           </Form>
         </Card>
       )}
 
-      <GroupGrid>
+      <LayoutGrid minWidth="400px">
         {groupsData?.rebalancingGroups?.map((group: RebalancingGroup) => (
           <GroupCard key={group.id}>
             <h3>{group.name}</h3>
@@ -861,7 +795,7 @@ export const RebalancingGroups: React.FC = () => {
             )}
           </GroupCard>
         ))}
-      </GroupGrid>
+      </LayoutGrid>
 
       {selectedGroup && selectedGroupData && (
         <Card>
@@ -1092,6 +1026,6 @@ export const RebalancingGroups: React.FC = () => {
           </div>
         </Card>
       )}
-    </Container>
+    </Section>
   );
 };

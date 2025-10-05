@@ -1,198 +1,151 @@
-import React, { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import {
-  useGetBrokersQuery,
   useCreateBrokerMutation,
-  useUpdateBrokerMutation,
   useDeleteBrokerMutation,
+  useGetBrokersQuery,
+  useUpdateBrokerMutation,
   type GetBrokersQuery,
 } from '../graphql/__generated__';
+import { Button, ButtonGroup } from './ui/Button';
+import { Card, CardActions, CardHeader, CardTitle } from './ui/Card';
+import { Form, Field, FieldLabel, TextInput } from './ui/FormControls';
+import {
+  Grid,
+  Section,
+  SectionDescription,
+  SectionHeader,
+  SectionTitle,
+} from './ui/Layout';
 
-const Container = styled.div`
-  padding: ${(props) => props.theme.spacing.lg};
-`;
-
-const Section = styled.section`
-  margin-bottom: ${(props) => props.theme.spacing.xl};
-`;
-
-const Card = styled.div`
-  background: white;
-  border: 1px solid ${(props) => props.theme.colors.border};
-  border-radius: ${(props) => props.theme.borderRadius.md};
-  padding: ${(props) => props.theme.spacing.lg};
-  margin-bottom: ${(props) => props.theme.spacing.md};
-  box-shadow: ${(props) => props.theme.shadows.sm};
-`;
-
-const Button = styled.button.attrs<{
-  variant?: 'primary' | 'danger' | 'secondary';
-  type?: 'button' | 'submit';
-}>((props) => ({
-  type: props.type ?? 'button',
-}))<{ variant?: 'primary' | 'danger' | 'secondary' }>`
-  padding: ${(props) => props.theme.spacing.sm}
-    ${(props) => props.theme.spacing.md};
-  font-size: ${(props) => props.theme.typography.fontSize.sm};
-  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
-  border: none;
-  border-radius: ${(props) => props.theme.borderRadius.sm};
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-right: ${(props) => props.theme.spacing.sm};
-
-  ${(props) => {
-    switch (props.variant) {
-      case 'primary':
-        return `
-          background-color: ${props.theme.colors.primary};
-          color: white;
-          &:hover { background-color: #0056b3; }
-        `;
-      case 'danger':
-        return `
-          background-color: ${props.theme.colors.danger};
-          color: white;
-          &:hover { background-color: #c82333; }
-        `;
-      case 'secondary':
-      default:
-        return `
-          background-color: ${props.theme.colors.light};
-          color: ${props.theme.colors.text};
-          border: 1px solid ${props.theme.colors.border};
-          &:hover { background-color: #e2e6ea; }
-        `;
-    }
-  }}
-`;
-
-const Form = styled.form`
+const BrokerInfo = styled.dl`
   display: grid;
-  gap: ${(props) => props.theme.spacing.md};
-  margin-bottom: ${(props) => props.theme.spacing.lg};
-`;
-
-const FormGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-
-const Label = styled.label`
-  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
-  margin-bottom: ${(props) => props.theme.spacing.xs};
-`;
-
-const Input = styled.input`
-  padding: ${(props) => props.theme.spacing.sm}
-    ${(props) => props.theme.spacing.md};
-  border: 1px solid ${(props) => props.theme.colors.border};
-  border-radius: ${(props) => props.theme.borderRadius.sm};
-  font-size: ${(props) => props.theme.typography.fontSize.md};
-
-  &:focus {
-    outline: none;
-    border-color: ${(props) => props.theme.colors.primary};
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-  }
-`;
-
-const BrokerGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: ${(props) => props.theme.spacing.md};
-`;
-
-const BrokerTitle = styled.h3`
+  gap: ${({ theme }) => theme.spacing.xs};
   margin: 0;
-  color: ${(props) => props.theme.colors.primary};
 `;
 
-const BrokerInfo = styled.div`
-  margin-bottom: ${(props) => props.theme.spacing.md};
-`;
-
-const InfoRow = styled.div`
+const BrokerInfoItem = styled.div`
   display: flex;
   justify-content: space-between;
-  margin-bottom: ${(props) => props.theme.spacing.xs};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
 `;
 
-const InfoLabel = styled.span`
-  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
-  color: ${(props) => props.theme.colors.textLight};
+const BrokerInfoLabel = styled.dt`
+  font-weight: ${({ theme }) => theme.typography.fontWeight.medium};
+  color: ${({ theme }) => theme.colors.textLight};
 `;
 
-// Broker type derived from codegen output
+const BrokerInfoValue = styled.dd`
+  margin: 0;
+`;
+
+const FormActions = styled(ButtonGroup)`
+  justify-content: flex-end;
+`;
+
 type Broker = GetBrokersQuery['brokers'][number];
+
+type BrokerFormState = {
+  code: string;
+  name: string;
+  description: string;
+  apiBaseUrl: string;
+};
+
+const INITIAL_FORM_STATE: BrokerFormState = {
+  code: '',
+  name: '',
+  description: '',
+  apiBaseUrl: '',
+};
 
 export const Brokers: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    code: '',
-    name: '',
-    description: '',
-    apiBaseUrl: '',
-  });
+  const [formState, setFormState] =
+    useState<BrokerFormState>(INITIAL_FORM_STATE);
 
   const { data, loading, error, refetch } = useGetBrokersQuery();
   const [createBroker] = useCreateBrokerMutation();
   const [updateBroker] = useUpdateBrokerMutation();
   const [deleteBroker] = useDeleteBrokerMutation();
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await createBroker({
-        variables: {
-          input: {
-            code: formData.code,
-            name: formData.name,
-            description: formData.description || null,
-            apiBaseUrl: formData.apiBaseUrl || null,
-          },
-        },
-      });
-      setFormData({ code: '', name: '', description: '', apiBaseUrl: '' });
-      setIsFormOpen(false);
-      refetch();
-    } catch (mutationError) {
-      console.error('증권사 생성 실패:', mutationError);
-    }
-  };
+  const brokers = useMemo(() => data?.brokers ?? [], [data]);
 
-  const handleToggleActive = async (broker: Broker) => {
-    try {
-      await updateBroker({
-        variables: {
-          input: {
-            id: broker.id,
-            isActive: !broker.isActive,
-            // Explicit nulls for untouched optional fields to align with avoidOptionals config
-            code: null,
-            name: null,
-            description: null,
-            apiBaseUrl: null,
-          },
-        },
-      });
-      refetch();
-    } catch (mutationError) {
-      console.error('증권사 활성 상태 변경 실패:', mutationError);
-    }
-  };
+  const handleChange = useCallback(
+    <Key extends keyof BrokerFormState>(
+      key: Key,
+      value: BrokerFormState[Key],
+    ) => {
+      setFormState((previous) => ({ ...previous, [key]: value }));
+    },
+    [],
+  );
 
-  const handleDelete = async (broker: Broker) => {
-    if (!window.confirm('이 증권사를 삭제하시겠습니까?')) {
-      return;
-    }
-    try {
-      await deleteBroker({ variables: { id: broker.id } });
-      refetch();
-    } catch (mutationError) {
-      console.error('증권사 삭제 실패:', mutationError);
-    }
-  };
+  const resetForm = useCallback(() => {
+    setFormState(INITIAL_FORM_STATE);
+    setIsFormOpen(false);
+  }, []);
+
+  const handleSubmit = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      try {
+        await createBroker({
+          variables: {
+            input: {
+              code: formState.code,
+              name: formState.name,
+              description: formState.description || null,
+              apiBaseUrl: formState.apiBaseUrl || null,
+            },
+          },
+        });
+        resetForm();
+        refetch();
+      } catch (mutationError) {
+        console.error('증권사 생성 실패:', mutationError);
+      }
+    },
+    [createBroker, formState, refetch, resetForm],
+  );
+
+  const handleToggleActive = useCallback(
+    async (broker: Broker) => {
+      try {
+        await updateBroker({
+          variables: {
+            input: {
+              id: broker.id,
+              isActive: !broker.isActive,
+              code: null,
+              name: null,
+              description: null,
+              apiBaseUrl: null,
+            },
+          },
+        });
+        refetch();
+      } catch (mutationError) {
+        console.error('증권사 활성 상태 변경 실패:', mutationError);
+      }
+    },
+    [refetch, updateBroker],
+  );
+
+  const handleDelete = useCallback(
+    async (broker: Broker) => {
+      if (!window.confirm('이 증권사를 삭제하시겠습니까?')) {
+        return;
+      }
+      try {
+        await deleteBroker({ variables: { id: broker.id } });
+        refetch();
+      } catch (mutationError) {
+        console.error('증권사 삭제 실패:', mutationError);
+      }
+    },
+    [deleteBroker, refetch],
+  );
 
   if (loading) {
     return <div>로딩 중...</div>;
@@ -202,125 +155,132 @@ export const Brokers: React.FC = () => {
     return <div>오류 발생: {error.message}</div>;
   }
 
-  const brokers: Broker[] = data?.brokers ?? [];
-
   return (
-    <Container>
-      <Section>
-        <h2>증권사 관리</h2>
-        <p>증권사 API 정보와 활성 상태를 관리합니다.</p>
+    <Section>
+      <SectionHeader>
+        <SectionTitle>증권사 관리</SectionTitle>
+        <SectionDescription>
+          증권사 API 정보와 활성 상태를 관리합니다.
+        </SectionDescription>
+      </SectionHeader>
 
-        <Button
-          variant="primary"
-          type="button"
-          onClick={() => setIsFormOpen((prev) => !prev)}
-        >
-          {isFormOpen ? '취소' : '증권사 추가'}
-        </Button>
+      <Button
+        variant="primary"
+        onClick={() => setIsFormOpen((previous) => !previous)}
+      >
+        {isFormOpen ? '취소' : '증권사 추가'}
+      </Button>
 
-        {isFormOpen && (
-          <Card>
-            <h3>새 증권사 등록</h3>
-            <Form onSubmit={handleCreate}>
-              <FormGroup>
-                <Label>증권사 코드</Label>
-                <Input
-                  value={formData.code}
-                  onChange={(e) =>
-                    setFormData({ ...formData, code: e.target.value })
-                  }
-                  required
-                />
-              </FormGroup>
+      {isFormOpen ? (
+        <Card as="section">
+          <CardHeader>
+            <CardTitle>새 증권사 등록</CardTitle>
+          </CardHeader>
+          <Form onSubmit={handleSubmit}>
+            <Field>
+              <FieldLabel htmlFor="broker-code">증권사 코드</FieldLabel>
+              <TextInput
+                id="broker-code"
+                value={formState.code}
+                onChange={(event) => handleChange('code', event.target.value)}
+                required
+              />
+            </Field>
 
-              <FormGroup>
-                <Label>증권사 이름</Label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  required
-                />
-              </FormGroup>
+            <Field>
+              <FieldLabel htmlFor="broker-name">증권사 이름</FieldLabel>
+              <TextInput
+                id="broker-name"
+                value={formState.name}
+                onChange={(event) => handleChange('name', event.target.value)}
+                required
+              />
+            </Field>
 
-              <FormGroup>
-                <Label>설명</Label>
-                <Input
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  placeholder="증권사 설명"
-                />
-              </FormGroup>
+            <Field>
+              <FieldLabel htmlFor="broker-description">설명</FieldLabel>
+              <TextInput
+                id="broker-description"
+                value={formState.description}
+                onChange={(event) =>
+                  handleChange('description', event.target.value)
+                }
+                placeholder="증권사 설명"
+              />
+            </Field>
 
-              <FormGroup>
-                <Label>API 베이스 URL</Label>
-                <Input
-                  value={formData.apiBaseUrl}
-                  onChange={(e) =>
-                    setFormData({ ...formData, apiBaseUrl: e.target.value })
-                  }
-                  placeholder="https://api.broker.com"
-                  type="url"
-                />
-              </FormGroup>
+            <Field>
+              <FieldLabel htmlFor="broker-api-base-url">
+                API 베이스 URL
+              </FieldLabel>
+              <TextInput
+                id="broker-api-base-url"
+                type="url"
+                value={formState.apiBaseUrl}
+                onChange={(event) =>
+                  handleChange('apiBaseUrl', event.target.value)
+                }
+                placeholder="https://api.broker.com"
+              />
+            </Field>
 
-              <div>
-                <Button type="submit" variant="primary">
-                  등록
-                </Button>
-                <Button type="button" onClick={() => setIsFormOpen(false)}>
-                  취소
-                </Button>
-              </div>
-            </Form>
+            <FormActions>
+              <Button type="submit" variant="primary">
+                등록
+              </Button>
+              <Button type="button" onClick={resetForm}>
+                취소
+              </Button>
+            </FormActions>
+          </Form>
+        </Card>
+      ) : null}
+
+      <Grid minWidth="280px">
+        {brokers.map((broker) => (
+          <Card key={broker.id} as="article">
+            <CardHeader>
+              <CardTitle>{broker.name}</CardTitle>
+            </CardHeader>
+
+            <BrokerInfo>
+              <BrokerInfoItem>
+                <BrokerInfoLabel>코드:</BrokerInfoLabel>
+                <BrokerInfoValue>{broker.code}</BrokerInfoValue>
+              </BrokerInfoItem>
+              <BrokerInfoItem>
+                <BrokerInfoLabel>상태:</BrokerInfoLabel>
+                <BrokerInfoValue>
+                  {broker.isActive ? '활성' : '비활성'}
+                </BrokerInfoValue>
+              </BrokerInfoItem>
+              {broker.description ? (
+                <BrokerInfoItem>
+                  <BrokerInfoLabel>설명:</BrokerInfoLabel>
+                  <BrokerInfoValue>{broker.description}</BrokerInfoValue>
+                </BrokerInfoItem>
+              ) : null}
+              {broker.apiBaseUrl ? (
+                <BrokerInfoItem>
+                  <BrokerInfoLabel>API URL:</BrokerInfoLabel>
+                  <BrokerInfoValue>{broker.apiBaseUrl}</BrokerInfoValue>
+                </BrokerInfoItem>
+              ) : null}
+            </BrokerInfo>
+
+            <CardActions>
+              <Button onClick={() => handleToggleActive(broker)}>
+                {broker.isActive ? '비활성화' : '활성화'}
+              </Button>
+              <Button variant="danger" onClick={() => handleDelete(broker)}>
+                삭제
+              </Button>
+            </CardActions>
           </Card>
-        )}
+        ))}
 
-        <BrokerGrid>
-          {brokers.map((broker) => (
-            <Card key={broker.id}>
-              <BrokerTitle>{broker.name}</BrokerTitle>
-
-              <BrokerInfo>
-                <InfoRow>
-                  <InfoLabel>코드:</InfoLabel>
-                  <span>{broker.code}</span>
-                </InfoRow>
-                <InfoRow>
-                  <InfoLabel>상태:</InfoLabel>
-                  <span>{broker.isActive ? '활성' : '비활성'}</span>
-                </InfoRow>
-                {broker.description && (
-                  <InfoRow>
-                    <InfoLabel>설명:</InfoLabel>
-                    <span>{broker.description}</span>
-                  </InfoRow>
-                )}
-                {broker.apiBaseUrl && (
-                  <InfoRow>
-                    <InfoLabel>API URL:</InfoLabel>
-                    <span>{broker.apiBaseUrl}</span>
-                  </InfoRow>
-                )}
-              </BrokerInfo>
-
-              <div>
-                <Button onClick={() => handleToggleActive(broker)}>
-                  {broker.isActive ? '비활성화' : '활성화'}
-                </Button>
-                <Button variant="danger" onClick={() => handleDelete(broker)}>
-                  삭제
-                </Button>
-              </div>
-            </Card>
-          ))}
-
-          {brokers.length === 0 && <p>등록된 증권사가 없습니다.</p>}
-        </BrokerGrid>
-      </Section>
-    </Container>
+        {brokers.length === 0 ? <p>등록된 증권사가 없습니다.</p> : null}
+      </Grid>
+    </Section>
   );
 };

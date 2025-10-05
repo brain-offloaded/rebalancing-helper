@@ -1,174 +1,88 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
 import {
-  useGetBrokerageAccountsQuery,
-  useGetBrokersQuery,
   useCreateBrokerageAccountMutation,
   useDeleteBrokerageAccountMutation,
+  useGetBrokerageAccountsQuery,
+  useGetBrokersQuery,
   useRefreshBrokerageHoldingsMutation,
+  type GetBrokersQuery,
 } from '../graphql/__generated__';
+import { Button, ButtonGroup } from './ui/Button';
+import { Card, CardHeader, CardTitle } from './ui/Card';
+import {
+  Form,
+  Field,
+  FieldLabel,
+  HelperText,
+  Select,
+  TextInput,
+} from './ui/FormControls';
+import {
+  Grid,
+  Section,
+  SectionDescription,
+  SectionHeader,
+  SectionTitle,
+} from './ui/Layout';
 
-const Container = styled.div`
-  padding: ${(props) => props.theme.spacing.lg};
-`;
-
-const Section = styled.div`
-  margin-bottom: ${(props) => props.theme.spacing.xl};
-`;
-
-const Card = styled.div`
-  background: white;
-  border: 1px solid ${(props) => props.theme.colors.border};
-  border-radius: ${(props) => props.theme.borderRadius.md};
-  padding: ${(props) => props.theme.spacing.lg};
-  margin-bottom: ${(props) => props.theme.spacing.md};
-  box-shadow: ${(props) => props.theme.shadows.sm};
-`;
-
-const Button = styled.button.attrs<{
-  variant?: 'primary' | 'danger' | 'secondary';
-  type?: 'button' | 'submit';
-}>((props) => ({
-  type: props.type ?? 'button',
-}))<{ variant?: 'primary' | 'danger' | 'secondary' }>`
-  padding: ${(props) => props.theme.spacing.sm}
-    ${(props) => props.theme.spacing.md};
-  font-size: ${(props) => props.theme.typography.fontSize.sm};
-  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
-  border: none;
-  border-radius: ${(props) => props.theme.borderRadius.sm};
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-right: ${(props) => props.theme.spacing.sm};
-
-  ${(props) => {
-    switch (props.variant) {
-      case 'primary':
-        return `
-          background-color: ${props.theme.colors.primary};
-          color: white;
-          &:hover { background-color: #0056b3; }
-        `;
-      case 'danger':
-        return `
-          background-color: ${props.theme.colors.danger};
-          color: white;
-          &:hover { background-color: #c82333; }
-        `;
-      case 'secondary':
-      default:
-        return `
-          background-color: ${props.theme.colors.light};
-          color: ${props.theme.colors.text};
-          border: 1px solid ${props.theme.colors.border};
-          &:hover { background-color: #e2e6ea; }
-        `;
-    }
-  }}
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-`;
-
-const Form = styled.form`
+const AccountInfo = styled.dl`
   display: grid;
-  gap: ${(props) => props.theme.spacing.md};
-  margin-bottom: ${(props) => props.theme.spacing.lg};
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: ${({ theme }) => theme.spacing.sm};
+  margin: 0;
 `;
 
-const FormGroup = styled.div`
+const AccountInfoItem = styled.div`
   display: flex;
   flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.xs};
 `;
 
-const Label = styled.label`
-  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
-  margin-bottom: ${(props) => props.theme.spacing.xs};
+const AccountInfoLabel = styled.dt`
+  font-size: ${({ theme }) => theme.typography.fontSize.xs};
+  font-weight: ${({ theme }) => theme.typography.fontWeight.medium};
+  color: ${({ theme }) => theme.colors.textLight};
 `;
 
-const Input = styled.input`
-  padding: ${(props) => props.theme.spacing.sm}
-    ${(props) => props.theme.spacing.md};
-  border: 1px solid ${(props) => props.theme.colors.border};
-  border-radius: ${(props) => props.theme.borderRadius.sm};
-  font-size: ${(props) => props.theme.typography.fontSize.md};
-
-  &:focus {
-    outline: none;
-    border-color: ${(props) => props.theme.colors.primary};
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-  }
-
-  &:disabled {
-    background-color: ${(props) => props.theme.colors.light};
-    cursor: not-allowed;
-  }
-`;
-
-const Select = styled.select`
-  padding: ${(props) => props.theme.spacing.sm}
-    ${(props) => props.theme.spacing.md};
-  border: 1px solid ${(props) => props.theme.colors.border};
-  border-radius: ${(props) => props.theme.borderRadius.sm};
-  font-size: ${(props) => props.theme.typography.fontSize.md};
-  background: white;
-
-  &:focus {
-    outline: none;
-    border-color: ${(props) => props.theme.colors.primary};
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-  }
-`;
-
-const AccountGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: ${(props) => props.theme.spacing.md};
-`;
-
-const AccountCard = styled(Card)`
-  position: relative;
-`;
-
-const AccountHeader = styled.div`
-  display: flex;
-  justify-content: between;
-  align-items: center;
-  margin-bottom: ${(props) => props.theme.spacing.md};
-`;
-
-const AccountTitle = styled.h3`
+const AccountInfoValue = styled.dd`
   margin: 0;
-  color: ${(props) => props.theme.colors.primary};
+  font-size: ${({ theme }) => theme.typography.fontSize.sm};
 `;
 
-const AccountInfo = styled.div`
-  margin-bottom: ${(props) => props.theme.spacing.md};
+const FormActions = styled(ButtonGroup)`
+  justify-content: flex-end;
 `;
 
-const InfoRow = styled.div`
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: ${(props) => props.theme.spacing.xs};
+const AccountActions = styled(ButtonGroup)`
+  justify-content: flex-start;
 `;
 
-const Label2 = styled.span`
-  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
-  color: ${(props) => props.theme.colors.textLight};
-`;
+type Broker = GetBrokersQuery['brokers'][number];
+
+type FormState = {
+  name: string;
+  brokerId: string;
+  syncMode: 'API' | 'MANUAL';
+  apiKey: string;
+  apiSecret: string;
+  description: string;
+};
+
+const createInitialFormState = (brokers: Broker[]): FormState => ({
+  name: '',
+  brokerId: brokers[0]?.id ?? '',
+  syncMode: 'API',
+  apiKey: '',
+  apiSecret: '',
+  description: '',
+});
 
 export const BrokerageAccounts: React.FC = () => {
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    brokerId: '',
-    syncMode: 'API' as 'API' | 'MANUAL',
-    apiKey: '',
-    apiSecret: '',
-    description: '',
-  });
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formState, setFormState] = useState<FormState>(
+    createInitialFormState([]),
+  );
 
   const { data, loading, error, refetch } = useGetBrokerageAccountsQuery();
   const {
@@ -181,272 +95,316 @@ export const BrokerageAccounts: React.FC = () => {
   const [refreshHoldings] = useRefreshBrokerageHoldingsMutation();
 
   const brokers = useMemo(() => brokersData?.brokers ?? [], [brokersData]);
+  const accounts = useMemo(() => data?.brokerageAccounts ?? [], [data]);
+
+  const brokerCount = brokers.length;
+  const defaultBrokerId = brokers[0]?.id ?? '';
 
   useEffect(() => {
-    if (!formData.brokerId && brokers.length > 0) {
-      setFormData((prev) => ({ ...prev, brokerId: brokers[0].id }));
-    }
-  }, [brokers, formData.brokerId]);
+    if (brokerCount === 0) {
+      setFormState((previous) => {
+        if (!previous.brokerId) {
+          return previous;
+        }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.brokerId) {
-      alert('증권사를 선택해주세요.');
+        return { ...previous, brokerId: '' };
+      });
       return;
     }
-    if (formData.syncMode === 'API' && !formData.apiKey) {
-      alert('API 키를 입력해주세요.');
-      return;
-    }
-    const isApiMode = formData.syncMode === 'API';
-    try {
-      await createAccount({
-        variables: {
-          input: {
-            name: formData.name,
-            brokerId: formData.brokerId,
-            syncMode: formData.syncMode,
-            apiKey: isApiMode ? formData.apiKey : null,
-            apiSecret: isApiMode
-              ? formData.apiSecret
-                ? formData.apiSecret
-                : null
-              : null,
-            description: formData.description ? formData.description : null,
-            isActive: true,
+
+    setFormState((previous) => {
+      if (previous.brokerId) {
+        return previous;
+      }
+
+      if (!defaultBrokerId || previous.brokerId === defaultBrokerId) {
+        return previous;
+      }
+
+      return { ...previous, brokerId: defaultBrokerId };
+    });
+  }, [brokerCount, defaultBrokerId]);
+
+  const handleChange = useCallback(
+    <Key extends keyof FormState>(key: Key, value: FormState[Key]) => {
+      setFormState((previous) => ({ ...previous, [key]: value }));
+    },
+    [],
+  );
+
+  const resetForm = useCallback(() => {
+    setFormState(createInitialFormState(brokers));
+    setIsFormOpen(false);
+  }, [brokers]);
+
+  const handleSubmit = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!formState.brokerId) {
+        alert('증권사를 선택해주세요.');
+        return;
+      }
+      if (formState.syncMode === 'API' && !formState.apiKey.trim()) {
+        alert('API 키를 입력해주세요.');
+        return;
+      }
+
+      const isApiMode = formState.syncMode === 'API';
+
+      try {
+        await createAccount({
+          variables: {
+            input: {
+              name: formState.name,
+              brokerId: formState.brokerId,
+              syncMode: formState.syncMode,
+              apiKey: isApiMode ? formState.apiKey : null,
+              apiSecret:
+                isApiMode && formState.apiSecret ? formState.apiSecret : null,
+              description: formState.description ? formState.description : null,
+              isActive: true,
+            },
           },
-        },
-      });
-      setFormData({
-        name: '',
-        brokerId: brokers[0]?.id ?? '',
-        syncMode: formData.syncMode,
-        apiKey: '',
-        apiSecret: '',
-        description: '',
-      });
-      setShowForm(false);
-      refetch();
-    } catch (error) {
-      console.error('계정 생성 실패:', error);
-    }
-  };
+        });
+        resetForm();
+        refetch();
+      } catch (mutationError) {
+        console.error('계정 생성 실패:', mutationError);
+      }
+    },
+    [createAccount, formState, refetch, resetForm],
+  );
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('이 계정을 삭제하시겠습니까?')) {
+  const handleDelete = useCallback(
+    async (id: string) => {
+      if (!window.confirm('이 계정을 삭제하시겠습니까?')) {
+        return;
+      }
       try {
         await deleteAccount({ variables: { id } });
         refetch();
-      } catch (error) {
-        console.error('계정 삭제 실패:', error);
+      } catch (mutationError) {
+        console.error('계정 삭제 실패:', mutationError);
       }
-    }
-  };
+    },
+    [deleteAccount, refetch],
+  );
 
-  const handleRefresh = async (
-    accountId: string,
-    syncMode: 'API' | 'MANUAL',
-  ) => {
-    if (syncMode !== 'API') {
-      alert('수동 입력 계좌는 자동 새로고침을 지원하지 않습니다.');
-      return;
-    }
-    try {
-      await refreshHoldings({ variables: { accountId } });
-      alert('보유 종목이 업데이트되었습니다.');
-    } catch (error) {
-      console.error('보유 종목 새로고침 실패:', error);
-    }
-  };
+  const handleRefresh = useCallback(
+    async (accountId: string, syncMode: 'API' | 'MANUAL') => {
+      if (syncMode !== 'API') {
+        alert('수동 입력 계좌는 자동 새로고침을 지원하지 않습니다.');
+        return;
+      }
+      try {
+        await refreshHoldings({ variables: { accountId } });
+        alert('보유 종목이 업데이트되었습니다.');
+      } catch (mutationError) {
+        console.error('보유 종목 새로고침 실패:', mutationError);
+      }
+    },
+    [refreshHoldings],
+  );
 
-  if (loading || brokersLoading) return <div>로딩 중...</div>;
-  if (error) return <div>오류 발생: {error.message}</div>;
-  if (brokersError) return <div>오류 발생: {brokersError.message}</div>;
+  if (loading || brokersLoading) {
+    return <div>로딩 중...</div>;
+  }
+
+  if (error) {
+    return <div>오류 발생: {error.message}</div>;
+  }
+
+  if (brokersError) {
+    return <div>오류 발생: {brokersError.message}</div>;
+  }
 
   return (
-    <Container>
-      <Section>
-        <h2>증권사 계정 관리</h2>
-        <p>증권사 API를 통해 보유 종목을 연동합니다.</p>
+    <Section>
+      <SectionHeader>
+        <SectionTitle>증권사 계정 관리</SectionTitle>
+        <SectionDescription>
+          증권사 API를 통해 보유 종목을 연동합니다.
+        </SectionDescription>
+      </SectionHeader>
 
-        <Button
-          variant="primary"
-          type="button"
-          onClick={() => setShowForm((prev) => !prev)}
-        >
-          {showForm ? '취소' : '계정 추가'}
-        </Button>
+      <Button
+        variant="primary"
+        onClick={() => {
+          setIsFormOpen((previous) => !previous);
+        }}
+      >
+        {isFormOpen ? '취소' : '계정 추가'}
+      </Button>
 
-        {showForm && (
-          <Card>
-            <h3>새 계정 추가</h3>
-            <Form onSubmit={handleSubmit}>
-              <FormGroup>
-                <Label>계정 이름</Label>
-                <Input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  required
-                />
-              </FormGroup>
+      {isFormOpen ? (
+        <Card as="section">
+          <CardHeader>
+            <CardTitle>새 계정 추가</CardTitle>
+          </CardHeader>
+          <Form onSubmit={handleSubmit}>
+            <Field>
+              <FieldLabel htmlFor="account-name">계정 이름</FieldLabel>
+              <TextInput
+                id="account-name"
+                value={formState.name}
+                onChange={(event) => handleChange('name', event.target.value)}
+                required
+              />
+            </Field>
 
-              <FormGroup>
-                <Label>증권사</Label>
-                <Select
-                  value={formData.brokerId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, brokerId: e.target.value })
-                  }
-                  disabled={brokers.length === 0}
-                  required
-                >
-                  {brokers.map((broker) => (
+            <Field>
+              <FieldLabel htmlFor="account-broker">증권사</FieldLabel>
+              <Select
+                id="account-broker"
+                value={formState.brokerId}
+                onChange={(event) =>
+                  handleChange('brokerId', event.target.value)
+                }
+                disabled={brokers.length === 0}
+                required
+              >
+                {brokers.length === 0 ? (
+                  <option value="">등록된 증권사가 없습니다</option>
+                ) : (
+                  brokers.map((broker) => (
                     <option key={broker.id} value={broker.id}>
                       {broker.name} ({broker.code})
                     </option>
-                  ))}
-                  {brokers.length === 0 && (
-                    <option value="">등록된 증권사가 없습니다</option>
-                  )}
-                </Select>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>동기화 방식</Label>
-                <Select
-                  value={formData.syncMode}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      syncMode: e.target.value as 'API' | 'MANUAL',
-                    })
-                  }
-                >
-                  <option value="API">자동 동기화 (API)</option>
-                  <option value="MANUAL">수동 입력</option>
-                </Select>
-              </FormGroup>
-
-              {formData.syncMode === 'API' && (
-                <FormGroup>
-                  <Label>API 키</Label>
-                  <Input
-                    type="text"
-                    value={formData.apiKey}
-                    onChange={(e) =>
-                      setFormData({ ...formData, apiKey: e.target.value })
-                    }
-                    required={formData.syncMode === 'API'}
-                    disabled={formData.syncMode !== 'API'}
-                  />
-                </FormGroup>
-              )}
-
-              {formData.syncMode === 'API' && (
-                <FormGroup>
-                  <Label>API 시크릿</Label>
-                  <Input
-                    type="password"
-                    value={formData.apiSecret}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        apiSecret: e.target.value,
-                      })
-                    }
-                    disabled={formData.syncMode !== 'API'}
-                  />
-                </FormGroup>
-              )}
-
-              <FormGroup>
-                <Label>설명</Label>
-                <Input
-                  type="text"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                />
-              </FormGroup>
-
-              <div>
-                <Button type="submit" variant="primary">
-                  계정 추가
-                </Button>
-                <Button type="button" onClick={() => setShowForm(false)}>
-                  취소
-                </Button>
-              </div>
-            </Form>
-          </Card>
-        )}
-
-        <AccountGrid>
-          {data?.brokerageAccounts?.map((account) => (
-            <AccountCard key={account.id}>
-              <AccountHeader>
-                <AccountTitle>{account.name}</AccountTitle>
-              </AccountHeader>
-
-              <AccountInfo>
-                <InfoRow>
-                  <Label2>증권사:</Label2>
-                  <span>
-                    {account.broker?.name ?? '알 수 없음'}
-                    {account.broker?.code ? ` (${account.broker.code})` : ''}
-                  </span>
-                </InfoRow>
-                <InfoRow>
-                  <Label2>동기화 방식:</Label2>
-                  <span>
-                    {account.syncMode === 'API' ? '자동 동기화' : '수동 입력'}
-                  </span>
-                </InfoRow>
-                <InfoRow>
-                  <Label2>상태:</Label2>
-                  <span>{account.isActive ? '활성' : '비활성'}</span>
-                </InfoRow>
-                {account.description && (
-                  <InfoRow>
-                    <Label2>설명:</Label2>
-                    <span>{account.description}</span>
-                  </InfoRow>
+                  ))
                 )}
-                <InfoRow>
-                  <Label2>생성일:</Label2>
-                  <span>
-                    {new Date(account.createdAt).toLocaleDateString()}
-                  </span>
-                </InfoRow>
-              </AccountInfo>
+              </Select>
+            </Field>
 
-              <div>
-                <Button
-                  onClick={() => handleRefresh(account.id, account.syncMode)}
-                  disabled={account.syncMode !== 'API'}
-                  title={
-                    account.syncMode === 'API'
-                      ? undefined
-                      : '수동 입력 계좌는 자동 새로고침을 지원하지 않습니다.'
-                  }
-                >
-                  보유종목 새로고침
-                </Button>
-                <Button
-                  variant="danger"
-                  onClick={() => handleDelete(account.id)}
-                >
-                  삭제
-                </Button>
-              </div>
-            </AccountCard>
-          ))}
-        </AccountGrid>
-      </Section>
-    </Container>
+            <Field>
+              <FieldLabel htmlFor="account-sync-mode">동기화 방식</FieldLabel>
+              <Select
+                id="account-sync-mode"
+                value={formState.syncMode}
+                onChange={(event) =>
+                  handleChange(
+                    'syncMode',
+                    event.target.value as FormState['syncMode'],
+                  )
+                }
+              >
+                <option value="API">자동 동기화 (API)</option>
+                <option value="MANUAL">수동 입력</option>
+              </Select>
+            </Field>
+
+            {formState.syncMode === 'API' ? (
+              <>
+                <Field>
+                  <FieldLabel htmlFor="account-api-key">API 키</FieldLabel>
+                  <TextInput
+                    id="account-api-key"
+                    value={formState.apiKey}
+                    onChange={(event) =>
+                      handleChange('apiKey', event.target.value)
+                    }
+                    required
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="account-api-secret">
+                    API 시크릿
+                  </FieldLabel>
+                  <TextInput
+                    id="account-api-secret"
+                    type="password"
+                    value={formState.apiSecret}
+                    onChange={(event) =>
+                      handleChange('apiSecret', event.target.value)
+                    }
+                  />
+                  <HelperText>
+                    일부 증권사는 API 시크릿이 필요하지 않을 수 있습니다.
+                  </HelperText>
+                </Field>
+              </>
+            ) : null}
+
+            <Field>
+              <FieldLabel htmlFor="account-description">설명</FieldLabel>
+              <TextInput
+                id="account-description"
+                value={formState.description}
+                onChange={(event) =>
+                  handleChange('description', event.target.value)
+                }
+              />
+            </Field>
+
+            <FormActions>
+              <Button type="submit" variant="primary">
+                계정 추가
+              </Button>
+              <Button type="button" onClick={resetForm}>
+                취소
+              </Button>
+            </FormActions>
+          </Form>
+        </Card>
+      ) : null}
+
+      <Grid minWidth="320px">
+        {accounts.map((account) => (
+          <Card key={account.id} as="article">
+            <CardHeader>
+              <CardTitle>{account.name}</CardTitle>
+            </CardHeader>
+            <AccountInfo>
+              <AccountInfoItem>
+                <AccountInfoLabel>증권사</AccountInfoLabel>
+                <AccountInfoValue>
+                  {account.broker?.name ?? '알 수 없음'}
+                  {account.broker?.code ? ` (${account.broker.code})` : ''}
+                </AccountInfoValue>
+              </AccountInfoItem>
+              <AccountInfoItem>
+                <AccountInfoLabel>동기화 방식</AccountInfoLabel>
+                <AccountInfoValue>
+                  {account.syncMode === 'API' ? '자동 동기화' : '수동 입력'}
+                </AccountInfoValue>
+              </AccountInfoItem>
+              <AccountInfoItem>
+                <AccountInfoLabel>상태</AccountInfoLabel>
+                <AccountInfoValue>
+                  {account.isActive ? '활성' : '비활성'}
+                </AccountInfoValue>
+              </AccountInfoItem>
+              <AccountInfoItem>
+                <AccountInfoLabel>생성일</AccountInfoLabel>
+                <AccountInfoValue>
+                  {new Date(account.createdAt).toLocaleDateString()}
+                </AccountInfoValue>
+              </AccountInfoItem>
+              {account.description ? (
+                <AccountInfoItem style={{ gridColumn: '1 / -1' }}>
+                  <AccountInfoLabel>설명</AccountInfoLabel>
+                  <AccountInfoValue>{account.description}</AccountInfoValue>
+                </AccountInfoItem>
+              ) : null}
+            </AccountInfo>
+            <AccountActions>
+              <Button
+                onClick={() => handleRefresh(account.id, account.syncMode)}
+                disabled={account.syncMode !== 'API'}
+                title={
+                  account.syncMode === 'API'
+                    ? undefined
+                    : '수동 입력 계좌는 자동 새로고침을 지원하지 않습니다.'
+                }
+              >
+                보유종목 새로고침
+              </Button>
+              <Button variant="danger" onClick={() => handleDelete(account.id)}>
+                삭제
+              </Button>
+            </AccountActions>
+          </Card>
+        ))}
+      </Grid>
+    </Section>
   );
 };
