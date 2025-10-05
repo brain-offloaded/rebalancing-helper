@@ -18,10 +18,14 @@
     "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "jest": "jest",
     "test": "jest --runInBand",
+    "pretest": "pnpm prisma:generate",
     "test:watch": "jest --watch --runInBand",
+    "pretest:watch": "pnpm prisma:generate",
     "test:cov": "jest --coverage --runInBand",
+    "pretest:cov": "pnpm prisma:generate",
     "test:debug": "NODE_OPTIONS=\"--inspect-brk -r tsconfig-paths/register -r ts-node/register\" pnpm exec jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
+    "pretest:e2e": "pnpm prisma:generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "node scripts/prisma-migrate.cjs",
     "prisma:deploy": "prisma migrate deploy",
@@ -90,14 +94,17 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": [
-        "ts-jest",
-        {
-          "tsconfig": "<rootDir>/../tsconfig.spec.json"
-        }
-      ]
-    },
-    "collectCoverageFrom": [
+    "^.+\\.(t|j)s$": [
+      "ts-jest",
+      {
+        "tsconfig": "<rootDir>/../tsconfig.spec.json"
+      }
+    ]
+  },
+  "setupFiles": [
+    "<rootDir>/../test/setup-env.ts"
+  ],
+  "collectCoverageFrom": [
       "**/*.(t|j)s",
       "!**/*.(entities|dto|input|entity|module|types|type).ts",
       "!test-utils/**/*"
