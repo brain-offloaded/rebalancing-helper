@@ -90,14 +90,17 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": [
-        "ts-jest",
-        {
-          "tsconfig": "<rootDir>/../tsconfig.spec.json"
-        }
-      ]
-    },
-    "collectCoverageFrom": [
+    "^.+\\.(t|j)s$": [
+      "ts-jest",
+      {
+        "tsconfig": "<rootDir>/../tsconfig.spec.json"
+      }
+    ]
+  },
+  "setupFiles": [
+    "<rootDir>/../test/setup-env.ts"
+  ],
+  "collectCoverageFrom": [
       "**/*.(t|j)s",
       "!**/*.(entities|dto|input|entity|module|types|type).ts",
       "!test-utils/**/*"
