@@ -1501,18 +1501,16 @@ export const Holdings: React.FC = () => {
                   </ValueBadge>
                   {selectedHolding.source === 'MANUAL' &&
                     selectedHolding.market && (
-                      <Button
-                        variant="secondary"
+                      <IconButton
                         type="button"
+                        aria-label="현재가 동기화"
                         onClick={(event) =>
                           handleManualSync(selectedHolding, event)
                         }
                         disabled={syncingHoldingId === selectedHolding.id}
                       >
-                        {syncingHoldingId === selectedHolding.id
-                          ? '동기화 중...'
-                          : '현재가 동기화'}
-                      </Button>
+                        {syncingHoldingId === selectedHolding.id ? '···' : '↻'}
+                      </IconButton>
                     )}
                   <InlineLabel>마지막 업데이트</InlineLabel>
                   <ValueBadge>
