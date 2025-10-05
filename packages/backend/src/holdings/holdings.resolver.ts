@@ -10,6 +10,7 @@ import {
   IncreaseManualHoldingInput,
   SetManualHoldingQuantityInput,
   ManualHoldingIdentifierInput,
+  SetHoldingAliasInput,
 } from './holdings.dto';
 import { GqlAuthGuard } from '../auth/gql-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -127,5 +128,13 @@ export class HoldingsResolver {
     @Args('input') input: ManualHoldingIdentifierInput,
   ): Promise<Holding> {
     return this.holdingsService.syncManualHoldingPrice(user.userId, input);
+  }
+
+  @Mutation(() => Holding)
+  setHoldingAlias(
+    @CurrentUser() user: ActiveUserData,
+    @Args('input') input: SetHoldingAliasInput,
+  ): Promise<Holding> {
+    return this.holdingsService.setHoldingAlias(user.userId, input);
   }
 }

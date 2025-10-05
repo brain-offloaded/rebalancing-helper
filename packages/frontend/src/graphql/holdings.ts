@@ -60,6 +60,7 @@ export const GET_HOLDINGS = gql`
       market
       symbol
       name
+      alias
       quantity
       currentPrice
       marketValue
@@ -80,6 +81,7 @@ export const CREATE_MANUAL_HOLDING = gql`
       market
       symbol
       name
+      alias
       quantity
       currentPrice
       marketValue
@@ -100,6 +102,7 @@ export const INCREASE_MANUAL_HOLDING = gql`
       market
       symbol
       name
+      alias
       quantity
       currentPrice
       marketValue
@@ -120,6 +123,7 @@ export const SET_MANUAL_HOLDING_QUANTITY = gql`
       market
       symbol
       name
+      alias
       quantity
       currentPrice
       marketValue
@@ -146,11 +150,33 @@ export const SYNC_MANUAL_HOLDING_PRICE = gql`
       market
       symbol
       name
+      alias
       currentPrice
       marketValue
       lastUpdated
       quantity
       currency
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const SET_HOLDING_ALIAS = gql`
+  mutation SetHoldingAlias($input: SetHoldingAliasInput!) {
+    setHoldingAlias(input: $input) {
+      id
+      source
+      accountId
+      market
+      symbol
+      name
+      alias
+      quantity
+      currentPrice
+      marketValue
+      currency
+      lastUpdated
       createdAt
       updatedAt
     }

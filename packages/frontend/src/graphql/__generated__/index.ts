@@ -119,6 +119,7 @@ export type CreateTagInput = {
 export type Holding = {
   __typename?: 'Holding';
   accountId: Scalars['String']['output'];
+  alias: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['DateTime']['output'];
   currency: Scalars['String']['output'];
   currentPrice: Scalars['Float']['output'];
@@ -203,6 +204,7 @@ export type Mutation = {
   removeHoldingTag: Scalars['Boolean']['output'];
   removeTagsFromRebalancingGroup: RebalancingGroup;
   renameRebalancingGroup: RebalancingGroup;
+  setHoldingAlias: Holding;
   setHoldingTags: Array<HoldingTag>;
   setManualHoldingQuantity: Holding;
   setTargetAllocations: Scalars['Boolean']['output'];
@@ -287,6 +289,10 @@ export type MutationRemoveTagsFromRebalancingGroupArgs = {
 
 export type MutationRenameRebalancingGroupArgs = {
   input: RenameRebalancingGroupInput;
+};
+
+export type MutationSetHoldingAliasArgs = {
+  input: SetHoldingAliasInput;
 };
 
 export type MutationSetHoldingTagsArgs = {
@@ -420,6 +426,11 @@ export type RemoveTagsFromRebalancingGroupInput = {
 export type RenameRebalancingGroupInput = {
   groupId: Scalars['String']['input'];
   name: Scalars['String']['input'];
+};
+
+export type SetHoldingAliasInput = {
+  alias: InputMaybe<Scalars['String']['input']>;
+  holdingId: Scalars['String']['input'];
 };
 
 export type SetHoldingTagsInput = {
@@ -820,6 +831,7 @@ export type GetHoldingsQuery = {
     market: string | null;
     symbol: string;
     name: string;
+    alias: string | null;
     quantity: number;
     currentPrice: number;
     marketValue: number;
@@ -844,6 +856,7 @@ export type CreateManualHoldingMutation = {
     market: string | null;
     symbol: string;
     name: string;
+    alias: string | null;
     quantity: number;
     currentPrice: number;
     marketValue: number;
@@ -868,6 +881,7 @@ export type IncreaseManualHoldingMutation = {
     market: string | null;
     symbol: string;
     name: string;
+    alias: string | null;
     quantity: number;
     currentPrice: number;
     marketValue: number;
@@ -892,6 +906,7 @@ export type SetManualHoldingQuantityMutation = {
     market: string | null;
     symbol: string;
     name: string;
+    alias: string | null;
     quantity: number;
     currentPrice: number;
     marketValue: number;
@@ -925,11 +940,37 @@ export type SyncManualHoldingPriceMutation = {
     market: string | null;
     symbol: string;
     name: string;
+    alias: string | null;
     currentPrice: number;
     marketValue: number;
     lastUpdated: string;
     quantity: number;
     currency: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+};
+
+export type SetHoldingAliasMutationVariables = Exact<{
+  input: SetHoldingAliasInput;
+}>;
+
+export type SetHoldingAliasMutation = {
+  __typename?: 'Mutation';
+  setHoldingAlias: {
+    __typename?: 'Holding';
+    id: string;
+    source: HoldingSource;
+    accountId: string;
+    market: string | null;
+    symbol: string;
+    name: string;
+    alias: string | null;
+    quantity: number;
+    currentPrice: number;
+    marketValue: number;
+    currency: string;
+    lastUpdated: string;
     createdAt: string;
     updatedAt: string;
   };
@@ -2379,6 +2420,7 @@ export const GetHoldingsDocument = gql`
       market
       symbol
       name
+      alias
       quantity
       currentPrice
       marketValue
@@ -2468,6 +2510,7 @@ export const CreateManualHoldingDocument = gql`
       market
       symbol
       name
+      alias
       quantity
       currentPrice
       marketValue
@@ -2530,6 +2573,7 @@ export const IncreaseManualHoldingDocument = gql`
       market
       symbol
       name
+      alias
       quantity
       currentPrice
       marketValue
@@ -2592,6 +2636,7 @@ export const SetManualHoldingQuantityDocument = gql`
       market
       symbol
       name
+      alias
       quantity
       currentPrice
       marketValue
@@ -2703,6 +2748,7 @@ export const SyncManualHoldingPriceDocument = gql`
       market
       symbol
       name
+      alias
       currentPrice
       marketValue
       lastUpdated
@@ -2755,6 +2801,69 @@ export type SyncManualHoldingPriceMutationResult =
 export type SyncManualHoldingPriceMutationOptions = Apollo.BaseMutationOptions<
   SyncManualHoldingPriceMutation,
   SyncManualHoldingPriceMutationVariables
+>;
+export const SetHoldingAliasDocument = gql`
+  mutation SetHoldingAlias($input: SetHoldingAliasInput!) {
+    setHoldingAlias(input: $input) {
+      id
+      source
+      accountId
+      market
+      symbol
+      name
+      alias
+      quantity
+      currentPrice
+      marketValue
+      currency
+      lastUpdated
+      createdAt
+      updatedAt
+    }
+  }
+`;
+export type SetHoldingAliasMutationFn = Apollo.MutationFunction<
+  SetHoldingAliasMutation,
+  SetHoldingAliasMutationVariables
+>;
+
+/**
+ * __useSetHoldingAliasMutation__
+ *
+ * To run a mutation, you first call `useSetHoldingAliasMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useSetHoldingAliasMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [setHoldingAliasMutation, { data, loading, error }] = useSetHoldingAliasMutation({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useSetHoldingAliasMutation(
+  baseOptions?: Apollo.MutationHookOptions<
+    SetHoldingAliasMutation,
+    SetHoldingAliasMutationVariables
+  >,
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return Apollo.useMutation<
+    SetHoldingAliasMutation,
+    SetHoldingAliasMutationVariables
+  >(SetHoldingAliasDocument, options);
+}
+export type SetHoldingAliasMutationHookResult = ReturnType<
+  typeof useSetHoldingAliasMutation
+>;
+export type SetHoldingAliasMutationResult =
+  Apollo.MutationResult<SetHoldingAliasMutation>;
+export type SetHoldingAliasMutationOptions = Apollo.BaseMutationOptions<
+  SetHoldingAliasMutation,
+  SetHoldingAliasMutationVariables
 >;
 export const GetMarketsDocument = gql`
   query GetMarkets {

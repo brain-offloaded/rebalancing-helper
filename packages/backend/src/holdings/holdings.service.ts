@@ -16,6 +16,7 @@ import {
   IncreaseManualHoldingInput,
   SetManualHoldingQuantityInput,
   ManualHoldingIdentifierInput,
+  SetHoldingAliasInput,
 } from './holdings.dto';
 import { MarketDataService } from './market-data.service';
 
@@ -223,6 +224,18 @@ export class HoldingsService {
     return holding;
   }
 
+  private async getHoldingByIdOrThrow(userId: string, holdingId: string) {
+    const holding = await this.prisma.holding.findFirst({
+      where: { id: holdingId, userId },
+    });
+
+    if (!holding) {
+      throw new NotFoundException('Holding not found');
+    }
+
+    return holding;
+  }
+
   async getHoldings(
     userId: string,
     options: {
@@ -364,6 +377,23 @@ export class HoldingsService {
         currency: quote.currency,
         lastUpdated: quote.lastUpdated,
       },
+    });
+
+    return this.mapHolding(updated);
+  }
+
+  async setHoldingAlias(
+    userId: string,
+    input: SetHoldingAliasInput,
+  ): Promise<Holding> {
+    const holding = await this.getHoldingByIdOrThrow(userId, input.holdingId);
+
+    const trimmedAlias = input.alias?.trim();
+    const normalizedAlias = trimmedAlias ? trimmedAlias : null;
+
+    const updated = await this.prisma.holding.update({
+      where: { id: holding.id },
+      data: { alias: normalizedAlias },
     });
 
     return this.mapHolding(updated);

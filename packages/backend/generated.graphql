@@ -99,6 +99,7 @@ type Holding {
   market: String
   marketValue: Float!
   name: String!
+  alias: String
   quantity: Float!
   source: HoldingSource!
   symbol: String!
@@ -174,6 +175,7 @@ type Mutation {
   removeHoldingTag(input: RemoveHoldingTagInput!): Boolean!
   removeTagsFromRebalancingGroup(input: RemoveTagsFromRebalancingGroupInput!): RebalancingGroup!
   renameRebalancingGroup(input: RenameRebalancingGroupInput!): RebalancingGroup!
+  setHoldingAlias(input: SetHoldingAliasInput!): Holding!
   setHoldingTags(input: SetHoldingTagsInput!): [HoldingTag!]!
   setManualHoldingQuantity(input: SetManualHoldingQuantityInput!): Holding!
   setTargetAllocations(input: SetTargetAllocationsInput!): Boolean!
@@ -244,6 +246,11 @@ input RenameRebalancingGroupInput {
 input SetHoldingTagsInput {
   holdingSymbol: String!
   tagIds: [String!]!
+}
+
+input SetHoldingAliasInput {
+  holdingId: String!
+  alias: String
 }
 
 input SetManualHoldingQuantityInput {

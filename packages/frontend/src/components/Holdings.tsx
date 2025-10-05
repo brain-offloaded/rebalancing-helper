@@ -4,14 +4,14 @@ import {
   useGetHoldingsQuery,
   useGetTagsQuery,
   useGetMarketsQuery,
-  useGetTagsForHoldingQuery,
+  useGetHoldingTagsQuery,
   useSetHoldingTagsMutation,
   useCreateManualHoldingMutation,
-  useIncreaseManualHoldingMutation,
   useSetManualHoldingQuantityMutation,
   useDeleteManualHoldingMutation,
   useSyncManualHoldingPriceMutation,
   useGetBrokerageAccountsQuery,
+  useSetHoldingAliasMutation,
 } from '../graphql/__generated__';
 import styled from 'styled-components';
 // remove manual document imports
@@ -136,20 +136,214 @@ const ModalContent = styled.div`
   background: white;
   padding: ${(props) => props.theme.spacing.xl};
   border-radius: ${(props) => props.theme.borderRadius.md};
-  max-width: 500px;
+  max-width: 540px;
   width: 90%;
   max-height: 70vh;
   overflow-y: auto;
 `;
 
-const CheckboxContainer = styled.div`
-  display: flex;
-  align-items: center;
-  margin-bottom: ${(props) => props.theme.spacing.sm};
+const TableRow = styled.tr`
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: ${(props) => props.theme.colors.light};
+  }
 `;
 
-const Checkbox = styled.input`
-  margin-right: ${(props) => props.theme.spacing.sm};
+const PriceWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: ${(props) => props.theme.spacing.xs};
+`;
+
+const IconButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background-color: ${(props) => props.theme.colors.light};
+  color: ${(props) => props.theme.colors.text};
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+
+  &:hover {
+    background-color: ${(props) => props.theme.colors.primary};
+    color: white;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${(props) => props.theme.spacing.xs};
+`;
+
+const ModalTitle = styled.h3`
+  margin: 0;
+  font-size: ${(props) => props.theme.typography.fontSize.lg};
+`;
+
+const ModalSubtitle = styled.span`
+  font-size: ${(props) => props.theme.typography.fontSize.sm};
+  color: ${(props) => props.theme.colors.text};
+  opacity: 0.7;
+`;
+
+const ModalSection = styled.section`
+  margin-top: ${(props) => props.theme.spacing.lg};
+  display: flex;
+  flex-direction: column;
+  gap: ${(props) => props.theme.spacing.sm};
+`;
+
+const FieldGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${(props) => props.theme.spacing.xs};
+`;
+
+const FieldLabel = styled.label`
+  font-weight: ${(props) => props.theme.typography.fontWeight.semibold};
+  color: ${(props) => props.theme.colors.text};
+`;
+
+const ReadonlyField = styled.span`
+  display: inline-flex;
+  align-items: center;
+  padding: ${(props) => props.theme.spacing.xs}
+    ${(props) => props.theme.spacing.sm};
+  background-color: ${(props) => props.theme.colors.light};
+  color: ${(props) => props.theme.colors.text};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
+  font-size: ${(props) => props.theme.typography.fontSize.sm};
+`;
+
+const PillRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${(props) => props.theme.spacing.xs};
+`;
+
+const TextInput = styled.input`
+  padding: ${(props) => props.theme.spacing.xs}
+    ${(props) => props.theme.spacing.sm};
+  border: 1px solid ${(props) => props.theme.colors.border};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
+  font-size: ${(props) => props.theme.typography.fontSize.sm};
+  width: 100%;
+`;
+
+const QuantityControls = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: ${(props) => props.theme.spacing.xs};
+`;
+
+const QuantityInput = styled(TextInput)`
+  width: 120px;
+`;
+
+const QuantityButton = styled.button`
+  width: 32px;
+  height: 32px;
+  border-radius: ${(props) => props.theme.borderRadius.sm};
+  border: 1px solid ${(props) => props.theme.colors.border};
+  background-color: ${(props) => props.theme.colors.light};
+  cursor: pointer;
+  font-size: ${(props) => props.theme.typography.fontSize.md};
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const TagList = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${(props) => props.theme.spacing.xs};
+`;
+
+const TagChip = styled.span<{ color: string }>`
+  display: inline-flex;
+  align-items: center;
+  gap: ${(props) => props.theme.spacing.xs};
+  padding: ${(props) => props.theme.spacing.xs}
+    ${(props) => props.theme.spacing.sm};
+  background-color: ${(props) => props.color};
+  color: white;
+  border-radius: ${(props) => props.theme.borderRadius.sm};
+  font-size: ${(props) => props.theme.typography.fontSize.xs};
+  font-weight: ${(props) => props.theme.typography.fontWeight.medium};
+`;
+
+const TagRemoveButton = styled.button`
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: ${(props) => props.theme.typography.fontSize.sm};
+  line-height: 1;
+  padding: 0;
+
+  &:hover {
+    opacity: 0.8;
+  }
+`;
+
+const AddTagButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: ${(props) => props.theme.spacing.xs};
+  padding: ${(props) => props.theme.spacing.xs}
+    ${(props) => props.theme.spacing.sm};
+  border: 1px dashed ${(props) => props.theme.colors.border};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
+  background: transparent;
+  cursor: pointer;
+  font-size: ${(props) => props.theme.typography.fontSize.xs};
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const TagSelect = styled.select`
+  padding: ${(props) => props.theme.spacing.xs}
+    ${(props) => props.theme.spacing.sm};
+  border: 1px solid ${(props) => props.theme.colors.border};
+  border-radius: ${(props) => props.theme.borderRadius.sm};
+  font-size: ${(props) => props.theme.typography.fontSize.xs};
+`;
+
+const ModalActions = styled.div`
+  margin-top: ${(props) => props.theme.spacing.xl};
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: ${(props) => props.theme.spacing.sm};
+`;
+
+const ModalButton = styled(Button)`
+  margin-left: 0;
+  min-width: 96px;
 `;
 
 const Section = styled.section`
@@ -198,18 +392,6 @@ const ManualSelect = styled.select`
   min-width: 160px;
 `;
 
-const ActionGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: ${(props) => props.theme.spacing.xs};
-
-  & > ${Button} {
-    margin-left: 0;
-    width: 100%;
-  }
-`;
-
 const PrimaryButton = styled(Button)`
   margin-left: 0;
 `;
@@ -229,6 +411,7 @@ interface Holding {
   market: string | null;
   symbol: string;
   name: string;
+  alias: string | null;
   quantity: number;
   currentPrice: number;
   marketValue: number;
@@ -248,8 +431,20 @@ interface Tag {
 // MarketOption interface removed (derived types available from generated schema if needed)
 
 export const Holdings: React.FC = () => {
-  const [selectedHolding, setSelectedHolding] = useState<string | null>(null);
-  const [showTagModal, setShowTagModal] = useState(false);
+  const [selectedHoldingId, setSelectedHoldingId] = useState<string | null>(
+    null,
+  );
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [aliasInput, setAliasInput] = useState('');
+  const [quantityInput, setQuantityInput] = useState('');
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [isAddingTag, setIsAddingTag] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [syncingHoldingId, setSyncingHoldingId] = useState<string | null>(
+    null,
+  );
+
   const [manualMarket, setManualMarket] = useState('');
   const [manualSymbol, setManualSymbol] = useState('');
   const [manualQuantity, setManualQuantity] = useState('');
@@ -264,69 +459,48 @@ export const Holdings: React.FC = () => {
   const { data: tagsData } = useGetTagsQuery();
   const { data: marketsData, loading: marketsLoading } = useGetMarketsQuery();
   const {
-    data: holdingTagsData,
+    data: holdingTagsListData,
     loading: holdingTagsLoading,
-    refetch: refetchHoldingTags,
-  } = useGetTagsForHoldingQuery({
-    variables: { holdingSymbol: selectedHolding as string },
-    skip: !selectedHolding,
-  });
+    refetch: refetchHoldingTagsList,
+  } = useGetHoldingTagsQuery();
   const { data: brokerageAccountsData, loading: brokerageAccountsLoading } =
     useGetBrokerageAccountsQuery();
 
   const [setHoldingTags] = useSetHoldingTagsMutation();
   const [createManualHoldingMutation, { loading: creatingManualHolding }] =
     useCreateManualHoldingMutation();
-  const [increaseManualHoldingMutation] = useIncreaseManualHoldingMutation();
   const [setManualHoldingQuantityMutation] =
     useSetManualHoldingQuantityMutation();
   const [deleteManualHoldingMutation] = useDeleteManualHoldingMutation();
   const [syncManualHoldingPriceMutation] = useSyncManualHoldingPriceMutation();
-
-  const handleTagManagement = (symbol: string) => {
-    setSelectedHolding(symbol);
-    setShowTagModal(true);
-  };
-
-  const handleTagUpdate = async (tagIds: string[]) => {
-    if (!selectedHolding) return;
-
-    try {
-      await setHoldingTags({
-        variables: {
-          input: {
-            holdingSymbol: selectedHolding,
-            tagIds,
-          },
-        },
-      });
-      refetchHoldingTags();
-      setShowTagModal(false);
-    } catch (error) {
-      console.error('태그 업데이트 실패:', error);
-    }
-  };
-
-  const getTagsForHolding = (symbol: string): Tag[] => {
-    if (symbol !== selectedHolding || holdingTagsLoading) {
-      return [];
-    }
-
-    const tagIds = holdingTagsData?.tagsForHolding ?? [];
-    if (tagIds.length === 0) {
-      return [];
-    }
-
-    const tagsById = new Map<string, Tag>(
-      (tagsData?.tags ?? []).map((tag) => [tag.id, tag]),
-    );
-
-    return tagIds
-      .map((tagId) => tagsById.get(tagId))
-      .filter((tag): tag is Tag => Boolean(tag));
-  };
+  const [setHoldingAliasMutation] = useSetHoldingAliasMutation();
 
   const holdings = holdingsData?.holdings ?? [];
+  const manualHoldings = useMemo(
+    () => holdings.filter((holding) => holding.source === 'MANUAL'),
+    [holdings],
+  );
+  const markets = useMemo(
+    () => marketsData?.markets ?? [],
+    [marketsData?.markets],
+  );
+  const tags = tagsData?.tags ?? [];
+
+  const holdingTagsBySymbol = useMemo(() => {
+    const map = new Map<string, string[]>();
+    (holdingTagsListData?.holdingTags ?? []).forEach((link) => {
+      const current = map.get(link.holdingSymbol) ?? [];
+      current.push(link.tagId);
+      map.set(link.holdingSymbol, current);
+    });
+    return map;
+  }, [holdingTagsListData?.holdingTags]);
+
+  const tagById = useMemo(
+    () => new Map(tags.map((tag) => [tag.id, tag])),
+    [tags],
+  );
+
   const manualAccounts = useMemo(
     () =>
       (brokerageAccountsData?.brokerageAccounts ?? []).filter(
@@ -334,6 +508,7 @@ export const Holdings: React.FC = () => {
       ),
     [brokerageAccountsData?.brokerageAccounts],
   );
+
   const accountNameById = useMemo(
     () =>
       new Map(
@@ -344,13 +519,41 @@ export const Holdings: React.FC = () => {
       ),
     [brokerageAccountsData?.brokerageAccounts],
   );
-  const manualHoldings = holdings.filter(
-    (holding) => holding.source === 'MANUAL',
+
+  const selectedHolding = useMemo(
+    () => holdings.find((holding) => holding.id === selectedHoldingId) ?? null,
+    [holdings, selectedHoldingId],
   );
-  const markets = useMemo(
-    () => marketsData?.markets ?? [],
-    [marketsData?.markets],
+
+  const selectedHoldingTags = useMemo(
+    () =>
+      selectedHolding
+        ? holdingTagsBySymbol.get(selectedHolding.symbol) ?? []
+        : [],
+    [selectedHolding, holdingTagsBySymbol],
   );
+
+  useEffect(() => {
+    if (!selectedHolding) {
+      setAliasInput('');
+      setQuantityInput('');
+      setSelectedTagIds([]);
+      setIsAddingTag(false);
+      return;
+    }
+
+    setAliasInput(selectedHolding.alias ?? '');
+    setQuantityInput(selectedHolding.quantity.toString());
+    setSelectedTagIds(selectedHoldingTags);
+    setIsAddingTag(false);
+  }, [selectedHolding, selectedHoldingTags]);
+
+  useEffect(() => {
+    if (!selectedHolding && isModalOpen) {
+      setIsModalOpen(false);
+      setSelectedHoldingId(null);
+    }
+  }, [selectedHolding, isModalOpen]);
 
   useEffect(() => {
     if (markets.length > 0 && !manualMarket) {
@@ -373,6 +576,19 @@ export const Holdings: React.FC = () => {
       setManualAccountId(manualAccounts[0].id);
     }
   }, [manualAccounts, manualAccountId]);
+
+  const availableTagsForSelection = useMemo(() => {
+    if (tags.length === 0) {
+      return [];
+    }
+    return tags.filter((tag) => !selectedTagIds.includes(tag.id));
+  }, [tags, selectedTagIds]);
+
+  useEffect(() => {
+    if (isAddingTag && availableTagsForSelection.length === 0) {
+      setIsAddingTag(false);
+    }
+  }, [isAddingTag, availableTagsForSelection.length]);
 
   const formatCurrencyValue = (value: number, currency: string) => {
     if (!Number.isFinite(value)) {
@@ -453,107 +669,22 @@ export const Holdings: React.FC = () => {
       setManualMarket('');
       setManualSymbol('');
       setManualQuantity('');
-      await refetchHoldings();
+      await Promise.all([refetchHoldings(), refetchHoldingTagsList()]);
     } catch (error) {
       console.error('수동 보유 종목 생성 실패:', error);
     }
   };
 
-  const handleManualIncrease = async (holding: Holding) => {
-    if (holding.source !== 'MANUAL' || !holding.market || !holding.accountId) {
-      console.error('잘못된 수동 보유 종목 데이터입니다.');
-      return;
-    }
-    const input = window.prompt(
-      `${holding.symbol} 추가 수량을 입력하세요`,
-      '1',
-    );
-    if (input === null) {
-      return;
-    }
-    const quantityDelta = Number(input);
-    if (!Number.isFinite(quantityDelta) || quantityDelta <= 0) {
-      return;
-    }
-
-    try {
-      await increaseManualHoldingMutation({
-        variables: {
-          input: {
-            accountId: holding.accountId,
-            market: holding.market,
-            symbol: holding.symbol,
-            quantityDelta,
-          },
-        },
-      });
-      await refetchHoldings();
-    } catch (error) {
-      console.error('수동 보유 종목 수량 증가 실패:', error);
-    }
-  };
-
-  const handleManualQuantitySet = async (holding: Holding) => {
-    if (holding.source !== 'MANUAL' || !holding.market || !holding.accountId) {
-      console.error('잘못된 수동 보유 종목 데이터입니다.');
-      return;
-    }
-    const input = window.prompt(
-      `${holding.symbol}의 목표 수량을 입력하세요`,
-      holding.quantity.toString(),
-    );
-    if (input === null) {
-      return;
-    }
-    const quantity = Number(input);
-    if (!Number.isFinite(quantity) || quantity < 0) {
-      return;
-    }
-
-    try {
-      await setManualHoldingQuantityMutation({
-        variables: {
-          input: {
-            accountId: holding.accountId,
-            market: holding.market,
-            symbol: holding.symbol,
-            quantity,
-          },
-        },
-      });
-      await refetchHoldings();
-    } catch (error) {
-      console.error('수동 보유 종목 수량 설정 실패:', error);
-    }
-  };
-
-  const handleManualDelete = async (holding: Holding) => {
-    if (holding.source !== 'MANUAL' || !holding.market || !holding.accountId) {
-      console.error('잘못된 수동 보유 종목 데이터입니다.');
+  const handleManualSync = async (
+    holding: Holding,
+    event?: React.MouseEvent<HTMLButtonElement>,
+  ) => {
+    event?.stopPropagation();
+    if (holding.source !== 'MANUAL' || !holding.market) {
       return;
     }
     try {
-      await deleteManualHoldingMutation({
-        variables: {
-          input: {
-            accountId: holding.accountId,
-            market: holding.market,
-            symbol: holding.symbol,
-          },
-        },
-      });
-      await refetchHoldings();
-    } catch (error) {
-      console.error('수동 보유 종목 삭제 실패:', error);
-    }
-  };
-
-  const handleManualSync = async (holding: Holding) => {
-    if (holding.source !== 'MANUAL' || !holding.market || !holding.accountId) {
-      console.error('잘못된 수동 보유 종목 데이터입니다.');
-      return;
-    }
-    try {
+      setSyncingHoldingId(holding.id);
       await syncManualHoldingPriceMutation({
         variables: {
           input: {
@@ -566,6 +697,9 @@ export const Holdings: React.FC = () => {
       await refetchHoldings();
     } catch (error) {
       console.error('수동 보유 종목 가격 동기화 실패:', error);
+      alert('현재가 동기화에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+      setSyncingHoldingId(null);
     }
   };
 
@@ -596,8 +730,181 @@ export const Holdings: React.FC = () => {
       await refetchHoldings();
     } catch (error) {
       console.error('수동 보유 종목 일괄 동기화 실패:', error);
+      alert('전체 동기화에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setSyncingAll(false);
+    }
+  };
+
+  const handleRowClick = (holdingId: string) => {
+    setSelectedHoldingId(holdingId);
+    setIsModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedHoldingId(null);
+  };
+
+  const handleTagRemove = (tagId: string) => {
+    setSelectedTagIds((prev) => prev.filter((id) => id !== tagId));
+  };
+
+  const handleTagAdd = (tagId: string) => {
+    if (!tagId) {
+      return;
+    }
+    setSelectedTagIds((prev) => (prev.includes(tagId) ? prev : [...prev, tagId]));
+    setIsAddingTag(false);
+  };
+
+  const adjustQuantity = (delta: number) => {
+    if (!selectedHolding || selectedHolding.source !== 'MANUAL') {
+      return;
+    }
+    const current = Number(quantityInput || '0');
+    if (!Number.isFinite(current)) {
+      return;
+    }
+    const next = Math.max(0, Math.round((current + delta) * 100) / 100);
+    setQuantityInput(next.toString());
+  };
+
+  const handleSave = async () => {
+    if (!selectedHolding) {
+      return;
+    }
+
+    const trimmedAlias = aliasInput.trim();
+    const originalAlias = selectedHolding.alias ?? '';
+    const aliasChanged = trimmedAlias !== originalAlias;
+    const aliasPayload = trimmedAlias.length === 0 ? null : trimmedAlias;
+
+    let quantityChanged = false;
+    let parsedQuantity: number | null = null;
+
+    if (selectedHolding.source === 'MANUAL') {
+      if (quantityInput.trim() === '') {
+        alert('수량을 입력해주세요.');
+        return;
+      }
+      const parsed = Number(quantityInput);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        alert('유효한 수량을 입력해주세요.');
+        return;
+      }
+      parsedQuantity = parsed;
+      quantityChanged = Math.abs(parsed - selectedHolding.quantity) > 1e-6;
+    }
+
+    const originalTags = [...selectedHoldingTags].sort();
+    const nextTags = [...selectedTagIds].sort();
+    const tagsChanged =
+      originalTags.length !== nextTags.length ||
+      originalTags.some((tagId, index) => tagId !== nextTags[index]);
+
+    if (!aliasChanged && !tagsChanged && !quantityChanged) {
+      alert('변경된 내용이 없습니다.');
+      return;
+    }
+
+    if (!window.confirm('변경 사항을 저장하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+
+      if (aliasChanged) {
+        await setHoldingAliasMutation({
+          variables: {
+            input: {
+              holdingId: selectedHolding.id,
+              alias: aliasPayload,
+            },
+          },
+        });
+      }
+
+      if (
+        selectedHolding.source === 'MANUAL' &&
+        quantityChanged &&
+        parsedQuantity !== null
+      ) {
+        if (!selectedHolding.market) {
+          alert('시장 정보가 없어 수량을 저장할 수 없습니다.');
+        } else {
+          await setManualHoldingQuantityMutation({
+            variables: {
+              input: {
+                accountId: selectedHolding.accountId,
+                market: selectedHolding.market,
+                symbol: selectedHolding.symbol,
+                quantity: parsedQuantity,
+              },
+            },
+          });
+        }
+      }
+
+      if (tagsChanged) {
+        await setHoldingTags({
+          variables: {
+            input: {
+              holdingSymbol: selectedHolding.symbol,
+              tagIds: selectedTagIds,
+            },
+          },
+        });
+      }
+
+      await Promise.all([refetchHoldings(), refetchHoldingTagsList()]);
+    } catch (error) {
+      console.error('보유 종목 저장 실패:', error);
+      alert('변경 사항을 저장하지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedHolding) {
+      return;
+    }
+
+    if (selectedHolding.source !== 'MANUAL') {
+      alert('자동 연동 종목은 삭제할 수 없습니다.');
+      return;
+    }
+
+    if (!selectedHolding.market) {
+      alert('시장 정보가 없어 삭제할 수 없습니다.');
+      return;
+    }
+
+    if (!window.confirm('정말로 이 종목을 삭제하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      await deleteManualHoldingMutation({
+        variables: {
+          input: {
+            accountId: selectedHolding.accountId,
+            market: selectedHolding.market,
+            symbol: selectedHolding.symbol,
+          },
+        },
+      });
+      await Promise.all([refetchHoldings(), refetchHoldingTagsList()]);
+      setIsModalOpen(false);
+      setSelectedHoldingId(null);
+    } catch (error) {
+      console.error('보유 종목 삭제 실패:', error);
+      alert('종목을 삭제하지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -632,23 +939,37 @@ export const Holdings: React.FC = () => {
             <Th>평가금액</Th>
             <Th>마지막 업데이트</Th>
             <Th>태그</Th>
-            <Th>관리</Th>
           </tr>
         </thead>
         <tbody>
           {holdings.length === 0 ? (
             <tr>
-              <Td colSpan={8}>등록된 보유 종목이 없습니다.</Td>
+              <Td colSpan={7}>등록된 보유 종목이 없습니다.</Td>
             </tr>
           ) : (
             holdings.map((holding) => {
-              const tags = getTagsForHolding(holding.symbol);
+              const tagIds = holdingTagsBySymbol.get(holding.symbol) ?? [];
               const accountName =
                 accountNameById.get(holding.accountId) ?? '미지정 계좌';
               const sourceDescription =
                 holding.source === 'MANUAL' ? '수동 입력' : '자동 연동';
+              const displayName =
+                holding.alias && holding.alias.trim().length > 0
+                  ? holding.alias
+                  : holding.name;
+              const subtitle = formatMarketWithSymbol(
+                holding.market,
+                holding.symbol,
+              );
+              const tagsForRow = tagIds
+                .map((tagId) => tagById.get(tagId))
+                .filter((tag): tag is Tag => Boolean(tag));
+
               return (
-                <tr key={holding.id}>
+                <TableRow
+                  key={holding.id}
+                  onClick={() => handleRowClick(holding.id)}
+                >
                   <Td>
                     <CellContent>
                       <PrimaryText>{accountName}</PrimaryText>
@@ -657,18 +978,37 @@ export const Holdings: React.FC = () => {
                   </Td>
                   <Td>
                     <CellContent>
-                      <PrimaryText>{holding.name}</PrimaryText>
-                      <SecondaryText>
-                        {formatMarketWithSymbol(holding.market, holding.symbol)}
-                      </SecondaryText>
+                      <PrimaryText>{displayName}</PrimaryText>
+                      {holding.alias && holding.alias.trim().length > 0 ? (
+                        <>
+                          <SecondaryText>{holding.name}</SecondaryText>
+                          <SecondaryText>{subtitle}</SecondaryText>
+                        </>
+                      ) : (
+                        <SecondaryText>{subtitle}</SecondaryText>
+                      )}
                     </CellContent>
                   </Td>
                   <Td>{holding.quantity.toLocaleString()}</Td>
                   <Td>
-                    {formatCurrencyValue(
-                      holding.currentPrice,
-                      holding.currency,
-                    )}
+                    <PriceWrapper>
+                      <PrimaryText>
+                        {formatCurrencyValue(
+                          holding.currentPrice,
+                          holding.currency,
+                        )}
+                      </PrimaryText>
+                      {holding.source === 'MANUAL' && holding.market && (
+                        <IconButton
+                          type="button"
+                          aria-label="현재가 동기화"
+                          onClick={(event) => handleManualSync(holding, event)}
+                          disabled={syncingHoldingId === holding.id}
+                        >
+                          {syncingHoldingId === holding.id ? '···' : '↻'}
+                        </IconButton>
+                      )}
+                    </PriceWrapper>
                   </Td>
                   <Td>
                     {formatCurrencyValue(holding.marketValue, holding.currency)}
@@ -682,56 +1022,18 @@ export const Holdings: React.FC = () => {
                   </Td>
                   <Td>
                     <TagContainer>
-                      {tags.map((tag) => (
-                        <Tag key={tag.id} color={tag.color}>
-                          {tag.name}
-                        </Tag>
-                      ))}
+                      {tagsForRow.length === 0 ? (
+                        <SecondaryText>태그 없음</SecondaryText>
+                      ) : (
+                        tagsForRow.map((tag) => (
+                          <Tag key={`${holding.id}-${tag.id}`} color={tag.color}>
+                            {tag.name}
+                          </Tag>
+                        ))
+                      )}
                     </TagContainer>
                   </Td>
-                  <Td>
-                    <ActionGroup>
-                      <Button
-                        variant="primary"
-                        onClick={() => handleTagManagement(holding.symbol)}
-                      >
-                        태그 관리
-                      </Button>
-                      {holding.source === 'MANUAL' && (
-                        <>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => handleManualIncrease(holding)}
-                          >
-                            수량 증가
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => handleManualQuantitySet(holding)}
-                          >
-                            수량 설정
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => handleManualSync(holding)}
-                          >
-                            현재가 동기화
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="danger"
-                            onClick={() => handleManualDelete(holding)}
-                          >
-                            삭제
-                          </Button>
-                        </>
-                      )}
-                    </ActionGroup>
-                  </Td>
-                </tr>
+                </TableRow>
               );
             })
           )}
@@ -828,100 +1130,207 @@ export const Holdings: React.FC = () => {
         )}
       </Section>
 
-      {showTagModal && selectedHolding && (
-        <TagModal
-          holding={selectedHolding}
-          tags={tagsData?.tags || []}
-          currentTags={
-            holdingTagsLoading ? null : holdingTagsData?.tagsForHolding || []
-          }
-          isLoading={holdingTagsLoading}
-          onUpdate={handleTagUpdate}
-          onClose={() => setShowTagModal(false)}
-        />
+      {isModalOpen && selectedHolding && (
+        <Modal onClick={handleModalClose}>
+          <ModalContent onClick={(event) => event.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>
+                {selectedHolding.alias && selectedHolding.alias.trim().length > 0
+                  ? selectedHolding.alias
+                  : selectedHolding.name}
+              </ModalTitle>
+              <ModalSubtitle>
+                {formatMarketWithSymbol(
+                  selectedHolding.market,
+                  selectedHolding.symbol,
+                )}
+              </ModalSubtitle>
+            </ModalHeader>
+
+            <ModalSection>
+              <FieldGroup>
+                <FieldLabel>기본 정보</FieldLabel>
+                <PillRow>
+                  <ReadonlyField>
+                    {accountNameById.get(selectedHolding.accountId) ??
+                      '미지정 계좌'}
+                  </ReadonlyField>
+                  <ReadonlyField>
+                    {selectedHolding.source === 'MANUAL'
+                      ? '수동 입력'
+                      : '자동 연동'}
+                  </ReadonlyField>
+                </PillRow>
+              </FieldGroup>
+              <FieldGroup>
+                <FieldLabel>원래 이름</FieldLabel>
+                <ReadonlyField>{selectedHolding.name}</ReadonlyField>
+              </FieldGroup>
+              <FieldGroup>
+                <FieldLabel htmlFor="holding-alias">
+                  표시 이름 (Alias)
+                </FieldLabel>
+                <TextInput
+                  id="holding-alias"
+                  value={aliasInput}
+                  onChange={(event) => setAliasInput(event.target.value)}
+                  placeholder="표시 이름을 입력하세요"
+                />
+              </FieldGroup>
+            </ModalSection>
+
+            <ModalSection>
+              <FieldGroup>
+                <FieldLabel>태그</FieldLabel>
+                {holdingTagsLoading ? (
+                  <SecondaryText>태그를 불러오는 중...</SecondaryText>
+                ) : selectedTagIds.length === 0 ? (
+                  <SecondaryText>선택된 태그가 없습니다.</SecondaryText>
+                ) : (
+                  <TagList>
+                    {selectedTagIds
+                      .map((tagId) => tagById.get(tagId))
+                      .filter((tag): tag is Tag => Boolean(tag))
+                      .map((tag) => (
+                        <TagChip key={tag.id} color={tag.color}>
+                          {tag.name}
+                          <TagRemoveButton
+                            type="button"
+                            onClick={() => handleTagRemove(tag.id)}
+                          >
+                            ×
+                          </TagRemoveButton>
+                        </TagChip>
+                      ))}
+                  </TagList>
+                )}
+                <PillRow>
+                  {isAddingTag && availableTagsForSelection.length > 0 && (
+                    <TagSelect
+                      defaultValue=""
+                      onChange={(event) => {
+                        handleTagAdd(event.target.value);
+                        event.currentTarget.value = '';
+                      }}
+                    >
+                      <option value="" disabled>
+                        태그 선택
+                      </option>
+                      {availableTagsForSelection.map((tag) => (
+                        <option key={tag.id} value={tag.id}>
+                          {tag.name}
+                        </option>
+                      ))}
+                    </TagSelect>
+                  )}
+                  <AddTagButton
+                    type="button"
+                    onClick={() => setIsAddingTag((prev) => !prev)}
+                    disabled={
+                      availableTagsForSelection.length === 0 ||
+                      holdingTagsLoading
+                    }
+                  >
+                    + 태그 추가
+                  </AddTagButton>
+                </PillRow>
+                {availableTagsForSelection.length === 0 && tags.length > 0 && (
+                  <SecondaryText>추가 가능한 태그가 없습니다.</SecondaryText>
+                )}
+              </FieldGroup>
+            </ModalSection>
+
+            <ModalSection>
+              <FieldGroup>
+                <FieldLabel>수량</FieldLabel>
+                {selectedHolding.source === 'MANUAL' ? (
+                  <QuantityControls>
+                    <QuantityButton
+                      type="button"
+                      onClick={() => adjustQuantity(-1)}
+                      disabled={isSaving}
+                    >
+                      −
+                    </QuantityButton>
+                    <QuantityInput
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={quantityInput}
+                      onChange={(event) => setQuantityInput(event.target.value)}
+                      disabled={isSaving}
+                    />
+                    <QuantityButton
+                      type="button"
+                      onClick={() => adjustQuantity(1)}
+                      disabled={isSaving}
+                    >
+                      +
+                    </QuantityButton>
+                  </QuantityControls>
+                ) : (
+                  <ReadonlyField>
+                    {selectedHolding.quantity.toLocaleString()}
+                  </ReadonlyField>
+                )}
+              </FieldGroup>
+            </ModalSection>
+
+            <ModalSection>
+              <FieldGroup>
+                <FieldLabel>현재가</FieldLabel>
+                <QuantityControls>
+                  <ReadonlyField>
+                    {formatCurrencyValue(
+                      selectedHolding.currentPrice,
+                      selectedHolding.currency,
+                    )}
+                  </ReadonlyField>
+                  {selectedHolding.source === 'MANUAL' &&
+                    selectedHolding.market && (
+                      <IconButton
+                        type="button"
+                        aria-label="현재가 동기화"
+                        onClick={(event) =>
+                          handleManualSync(selectedHolding, event)
+                        }
+                        disabled={syncingHoldingId === selectedHolding.id}
+                      >
+                        {syncingHoldingId === selectedHolding.id
+                          ? '···'
+                          : '↻'}
+                      </IconButton>
+                    )}
+                </QuantityControls>
+                <SecondaryText>
+                  마지막 업데이트:{' '}
+                  {formatLastUpdated(selectedHolding.lastUpdated)}
+                </SecondaryText>
+              </FieldGroup>
+            </ModalSection>
+
+            <ModalActions>
+              <ModalButton
+                type="button"
+                variant="primary"
+                onClick={handleSave}
+                disabled={isSaving}
+              >
+                {isSaving ? '저장 중...' : '저장'}
+              </ModalButton>
+              <ModalButton
+                type="button"
+                variant="danger"
+                onClick={handleDelete}
+                disabled={isDeleting || selectedHolding.source !== 'MANUAL'}
+              >
+                {isDeleting ? '삭제 중...' : '삭제'}
+              </ModalButton>
+            </ModalActions>
+          </ModalContent>
+        </Modal>
       )}
     </Container>
   );
 };
 
-interface TagModalProps {
-  holding: string;
-  tags: Tag[];
-  currentTags: string[] | null;
-  isLoading: boolean;
-  onUpdate: (tagIds: string[]) => void;
-  onClose: () => void;
-}
-
-const TagModal: React.FC<TagModalProps> = ({
-  holding,
-  tags,
-  currentTags,
-  isLoading,
-  onUpdate,
-  onClose,
-}) => {
-  const [selectedTags, setSelectedTags] = useState<string[]>(currentTags ?? []);
-
-  useEffect(() => {
-    setSelectedTags(currentTags ?? []);
-  }, [currentTags, holding]);
-
-  const handleTagToggle = (tagId: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tagId)
-        ? prev.filter((id) => id !== tagId)
-        : [...prev, tagId],
-    );
-  };
-
-  const handleSubmit = () => {
-    onUpdate(selectedTags);
-  };
-
-  return (
-    <Modal onClick={onClose}>
-      <ModalContent onClick={(e) => e.stopPropagation()}>
-        <h3>{holding} 태그 관리</h3>
-
-        <div style={{ marginBottom: '20px' }}>
-          {isLoading ? (
-            <span>태그를 불러오는 중...</span>
-          ) : (
-            tags.map((tag) => (
-              <CheckboxContainer key={tag.id}>
-                <Checkbox
-                  type="checkbox"
-                  checked={selectedTags.includes(tag.id)}
-                  onChange={() => handleTagToggle(tag.id)}
-                  disabled={isLoading}
-                />
-                <Tag color={tag.color}>{tag.name}</Tag>
-                {tag.description && (
-                  <span
-                    style={{
-                      marginLeft: '8px',
-                      fontSize: '12px',
-                      color: '#666',
-                    }}
-                  >
-                    {tag.description}
-                  </span>
-                )}
-              </CheckboxContainer>
-            ))
-          )}
-        </div>
-
-        <div>
-          <Button variant="primary" onClick={handleSubmit} disabled={isLoading}>
-            적용
-          </Button>
-          <Button onClick={onClose} disabled={isLoading}>
-            취소
-          </Button>
-        </div>
-      </ModalContent>
-    </Modal>
-  );
-};
