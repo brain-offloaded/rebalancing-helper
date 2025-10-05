@@ -487,7 +487,10 @@ export const Holdings: React.FC = () => {
   const [syncManualHoldingPriceMutation] = useSyncManualHoldingPriceMutation();
   const [setHoldingAliasMutation] = useSetHoldingAliasMutation();
 
-  const holdings = holdingsData?.holdings ?? [];
+  const holdings = useMemo(
+    () => holdingsData?.holdings ?? [],
+    [holdingsData?.holdings],
+  );
   const manualHoldings = useMemo(
     () => holdings.filter((holding) => holding.source === 'MANUAL'),
     [holdings],
@@ -496,7 +499,7 @@ export const Holdings: React.FC = () => {
     () => marketsData?.markets ?? [],
     [marketsData?.markets],
   );
-  const tags = tagsData?.tags ?? [];
+  const tags = useMemo(() => tagsData?.tags ?? [], [tagsData?.tags]);
 
   const holdingTagsBySymbol = useMemo(() => {
     const map = new Map<string, string[]>();

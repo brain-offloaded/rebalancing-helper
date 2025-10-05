@@ -104,7 +104,7 @@ describe('Holdings', () => {
     ];
     brokerageAccountsLoadingState = false;
 
-    mockUseQuery.mockImplementation((query, options) => {
+    mockUseQuery.mockImplementation((query) => {
       if (query === GetMarketsDocument) {
         return { data: { markets: marketsDataState }, loading: false };
       }
