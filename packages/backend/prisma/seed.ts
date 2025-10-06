@@ -144,8 +144,8 @@ async function main() {
     {
       code: 'BTC',
       displayName: '비트코인',
-      yahooSuffix: '-USD',
-      yahooMarketIdentifiers: 'ccc_market',
+      yahooSuffix: null,
+      yahooMarketIdentifiers: 'bithumb_krw',
     },
   ];
 
@@ -206,8 +206,8 @@ async function main() {
       market: 'BTC',
       symbol: 'BTC',
       name: 'Bitcoin (BTC)',
-      currency: 'USD',
-      currentPrice: 30000,
+      currency: 'KRW',
+      currentPrice: 43_000_000,
     },
   ];
 

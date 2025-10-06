@@ -5,6 +5,8 @@ import type { MarketQuoteStrategy } from './market-quote.strategy';
 import { YahooMarketQuoteStrategy } from './yahoo-market.strategy';
 import { KrxGoldMarketQuoteStrategy } from './krx-gold.strategy';
 import { NaverGoldPriceService } from '../../naver/naver-gold.service';
+import { BithumbService } from '../../bithumb/bithumb.service';
+import { BithumbMarketQuoteStrategy } from './bithumb-market.strategy';
 
 interface MarketConfig {
   yahooSuffix: string | null;
@@ -20,6 +22,7 @@ export class MarketQuoteStrategyFactory {
     private readonly prisma: PrismaService,
     private readonly yahooFinance: YahooFinanceService,
     private readonly naverGoldService: NaverGoldPriceService,
+    private readonly bithumbService: BithumbService,
   ) {}
 
   async createStrategy(market: string): Promise<MarketQuoteStrategy> {
@@ -37,6 +40,10 @@ export class MarketQuoteStrategyFactory {
   private async buildStrategy(market: string): Promise<MarketQuoteStrategy> {
     if (market === 'KRX_GOLD') {
       return new KrxGoldMarketQuoteStrategy(this.naverGoldService);
+    }
+
+    if (market === 'BTC') {
+      return new BithumbMarketQuoteStrategy(this.bithumbService);
     }
 
     const marketConfig = await this.getMarketConfig(market);

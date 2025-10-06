@@ -5,6 +5,7 @@ import { MarketDataService } from './market-data.service';
 import { YahooFinanceModule } from '../yahoo/yahoo.module';
 import { MarketQuoteStrategyFactory } from './strategies/market-quote-strategy.factory';
 import { NaverGoldPriceService } from '../naver/naver-gold.service';
+import { BithumbService } from '../bithumb/bithumb.service';
 
 @Module({
   imports: [YahooFinanceModule],
@@ -14,6 +15,7 @@ import { NaverGoldPriceService } from '../naver/naver-gold.service';
     MarketDataService,
     MarketQuoteStrategyFactory,
     NaverGoldPriceService,
+    BithumbService,
   ],
   exports: [HoldingsService],
 })

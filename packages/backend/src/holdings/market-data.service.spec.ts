@@ -5,12 +5,14 @@ import { YahooFinanceService } from '../yahoo/yahoo-finance.service';
 import type { YahooFinanceQuote } from '../yahoo/yahoo-finance.types';
 import { MarketQuoteStrategyFactory } from './strategies/market-quote-strategy.factory';
 import { NaverGoldPriceService } from '../naver/naver-gold.service';
+import { BithumbService } from '../bithumb/bithumb.service';
 
 describe('MarketDataService', () => {
   let prismaMock: { market: { findUnique: jest.Mock } };
   let service: MarketDataService;
   let yahooFinanceServiceMock: jest.Mocked<YahooFinanceService>;
   let naverGoldServiceMock: jest.Mocked<NaverGoldPriceService>;
+  let bithumbServiceMock: jest.Mocked<BithumbService>;
   let strategyFactory: MarketQuoteStrategyFactory;
 
   const mockQuote = (
@@ -37,6 +39,9 @@ describe('MarketDataService', () => {
     naverGoldServiceMock = {
       getLatestPrice: jest.fn(),
     } as unknown as jest.Mocked<NaverGoldPriceService>;
+    bithumbServiceMock = {
+      getTicker: jest.fn(),
+    } as unknown as jest.Mocked<BithumbService>;
     prismaMock = {
       market: {
         findUnique: jest.fn(),
@@ -65,6 +70,7 @@ describe('MarketDataService', () => {
       prismaMock as unknown as PrismaService,
       yahooFinanceServiceMock,
       naverGoldServiceMock,
+      bithumbServiceMock,
     );
 
     service = new MarketDataService(strategyFactory);
@@ -131,6 +137,29 @@ describe('MarketDataService', () => {
     naverGoldServiceMock.getLatestPrice.mockResolvedValue(null);
 
     await expect(service.getQuote('KRX_GOLD', 'KRXGOLD')).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it('비트코인 시장은 빗썸 시세를 활용한다', async () => {
+    const asOf = new Date('2025-10-02T00:00:00Z');
+    bithumbServiceMock.getTicker.mockResolvedValue({
+      price: 43_200_000,
+      asOf,
+    });
+
+    const quote = await service.getQuote('BTC', 'btc');
+
+    expect(bithumbServiceMock.getTicker).toHaveBeenCalledWith('BTC');
+    expect(quote.currency).toBe('KRW');
+    expect(quote.price).toBe(43_200_000);
+    expect(quote.exchange).toBe('Bithumb KRW Market');
+  });
+
+  it('빗썸 시세가 없으면 NotFoundException을 던진다', async () => {
+    bithumbServiceMock.getTicker.mockResolvedValue(null);
+
+    await expect(service.getQuote('BTC', 'BTC')).rejects.toThrow(
       NotFoundException,
     );
   });
