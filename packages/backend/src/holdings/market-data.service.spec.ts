@@ -3,11 +3,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MarketDataService } from './market-data.service';
 import { YahooFinanceService } from '../yahoo/yahoo-finance.service';
 import type { YahooFinanceQuote } from '../yahoo/yahoo-finance.types';
+import { MarketQuoteStrategyFactory } from './strategies/market-quote-strategy.factory';
+import { NaverGoldPriceService } from '../naver/naver-gold.service';
 
 describe('MarketDataService', () => {
   let prismaMock: { market: { findUnique: jest.Mock } };
   let service: MarketDataService;
   let yahooFinanceServiceMock: jest.Mocked<YahooFinanceService>;
+  let naverGoldServiceMock: jest.Mocked<NaverGoldPriceService>;
+  let strategyFactory: MarketQuoteStrategyFactory;
 
   const mockQuote = (
     override: Partial<YahooFinanceQuote> = {},
@@ -30,21 +34,40 @@ describe('MarketDataService', () => {
     yahooFinanceServiceMock = {
       getQuote: jest.fn(),
     } as unknown as jest.Mocked<YahooFinanceService>;
+    naverGoldServiceMock = {
+      getLatestPrice: jest.fn(),
+    } as unknown as jest.Mocked<NaverGoldPriceService>;
     prismaMock = {
       market: {
         findUnique: jest.fn(),
       },
     };
 
-    prismaMock.market.findUnique.mockResolvedValue({
-      yahooSuffix: null,
-      yahooMarketIdentifiers: 'us_market',
+    prismaMock.market.findUnique.mockImplementation(async ({ where }) => {
+      if (where.code === 'US') {
+        return {
+          yahooSuffix: null,
+          yahooMarketIdentifiers: 'us_market',
+        };
+      }
+
+      if (where.code === 'KOSPI') {
+        return {
+          yahooSuffix: '.KS',
+          yahooMarketIdentifiers: 'krx_market',
+        };
+      }
+
+      return null;
     });
 
-    service = new MarketDataService(
+    strategyFactory = new MarketQuoteStrategyFactory(
       prismaMock as unknown as PrismaService,
       yahooFinanceServiceMock,
+      naverGoldServiceMock,
     );
+
+    service = new MarketDataService(strategyFactory);
   });
 
   it('미국 시장 종목을 조회하고 정보를 반환한다', async () => {
@@ -66,11 +89,6 @@ describe('MarketDataService', () => {
       mockQuote({ symbol: '005930.KS', market: 'krx_market' }),
     );
 
-    prismaMock.market.findUnique.mockResolvedValueOnce({
-      yahooSuffix: '.KS',
-      yahooMarketIdentifiers: 'krx_market',
-    });
-
     const quote = await service.getQuote('KOSPI', '005930');
 
     expect(yahooFinanceServiceMock.getQuote).toHaveBeenCalledWith('005930.KS');
@@ -90,6 +108,29 @@ describe('MarketDataService', () => {
     yahooFinanceServiceMock.getQuote.mockResolvedValue(null);
 
     await expect(service.getQuote('US', 'UNKNOWN')).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it('KRX 금현물 시장은 네이버 금 가격을 활용한다', async () => {
+    naverGoldServiceMock.getLatestPrice.mockResolvedValue({
+      price: 173_000,
+      asOf: new Date('2025-10-02T00:00:00Z'),
+    });
+
+    const quote = await service.getQuote('KRX_GOLD', 'KRXGOLD');
+
+    expect(naverGoldServiceMock.getLatestPrice).toHaveBeenCalledTimes(1);
+    expect(quote.symbol).toBe('KRXGOLD');
+    expect(quote.name).toBe('KRX 금현물 (1g)');
+    expect(quote.currency).toBe('KRW');
+    expect(quote.price).toBe(173_000);
+  });
+
+  it('KRX 금현물 가격이 없으면 NotFoundException을 던진다', async () => {
+    naverGoldServiceMock.getLatestPrice.mockResolvedValue(null);
+
+    await expect(service.getQuote('KRX_GOLD', 'KRXGOLD')).rejects.toThrow(
       NotFoundException,
     );
   });

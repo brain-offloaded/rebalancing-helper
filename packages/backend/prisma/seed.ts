@@ -135,6 +135,18 @@ async function main() {
       yahooSuffix: '.KQ',
       yahooMarketIdentifiers: 'kr_market',
     },
+    {
+      code: 'KRX_GOLD',
+      displayName: 'KRX 금현물',
+      yahooSuffix: null,
+      yahooMarketIdentifiers: 'ccy_market',
+    },
+    {
+      code: 'BTC',
+      displayName: '비트코인',
+      yahooSuffix: '-USD',
+      yahooMarketIdentifiers: 'ccc_market',
+    },
   ];
 
   for (const market of defaultMarkets) {
@@ -182,6 +194,20 @@ async function main() {
       name: 'Kakao Corp',
       currency: 'KRW',
       currentPrice: 51000,
+    },
+    {
+      market: 'KRX_GOLD',
+      symbol: 'KRXGOLD',
+      name: 'KRX 금현물 1g',
+      currency: 'KRW',
+      currentPrice: 90000,
+    },
+    {
+      market: 'BTC',
+      symbol: 'BTC',
+      name: 'Bitcoin (BTC)',
+      currency: 'USD',
+      currentPrice: 30000,
     },
   ];
 

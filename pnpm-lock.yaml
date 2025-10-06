@@ -56,6 +56,9 @@ importers:
       graphql:
         specifier: ^16.11.0
         version: 16.11.0
+      iconv-lite:
+        specifier: 0.6.3
+        version: 0.6.3
       joi:
         specifier: ^17.13.3
         version: 17.13.3
