@@ -526,13 +526,13 @@ describe('HoldingsService', () => {
       expect(prismaMock.holdingAccount.findFirst).toHaveBeenCalledWith({
         where: { id: ACCOUNT_ID, userId: USER_ID },
       });
-      expect(prismaMock.holding.update).toHaveBeenCalledWith({
-        where: { id: manualHolding.id },
-        data: {
-          quantity: input.quantity,
-          marketValue: manualHolding.currentPrice * input.quantity,
-        },
-      });
+      expect(prismaMock.holding.update).toHaveBeenCalledTimes(1);
+      const updateArgs = prismaMock.holding.update.mock.calls[0][0];
+      expect(updateArgs.where).toEqual({ id: manualHolding.id });
+      expect(updateArgs.data.quantity).toBe(input.quantity);
+      expect(updateArgs.data.marketValue).toBeCloseTo(
+        manualHolding.currentPrice * input.quantity,
+      );
       expect(result.quantity).toBe(input.quantity);
     });
 

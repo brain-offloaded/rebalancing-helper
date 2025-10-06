@@ -25,6 +25,7 @@ import {
 } from './brokerage.dto';
 import { CredentialCryptoService } from './credential-crypto.service';
 import { Holding, HoldingSource } from '../holdings/holdings.entities';
+import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class BrokerageService {
@@ -34,10 +35,19 @@ export class BrokerageService {
   ) {}
 
   private mapHolding(holding: PrismaHolding): Holding {
+    const { quantity, currentPrice, marketValue, source, ...rest } = holding;
+
     return {
-      ...holding,
-      source: holding.source as HoldingSource,
+      ...rest,
+      source: source as HoldingSource,
+      quantity: this.toNumber(quantity),
+      currentPrice: this.toNumber(currentPrice),
+      marketValue: this.toNumber(marketValue),
     };
+  }
+
+  private toNumber(value: Decimal | number): number {
+    return typeof value === 'number' ? value : value.toNumber();
   }
 
   private mapAccount(

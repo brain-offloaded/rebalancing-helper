@@ -8,6 +8,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { HoldingTag, Holding, HoldingSource } from './holdings.entities';
+import { Decimal } from '@prisma/client/runtime/library';
 import {
   AddHoldingTagInput,
   RemoveHoldingTagInput,
@@ -28,10 +29,27 @@ export class HoldingsService {
   ) {}
 
   private mapHolding(holding: PrismaHolding): Holding {
+    const { quantity, currentPrice, marketValue, source, ...rest } = holding;
+
     return {
-      ...holding,
-      source: holding.source as HoldingSource,
+      ...rest,
+      source: source as HoldingSource,
+      quantity: this.toNumber(quantity),
+      currentPrice: this.toNumber(currentPrice),
+      marketValue: this.toNumber(marketValue),
     };
+  }
+
+  private toDecimal(value: Decimal | number | string): Decimal {
+    if (typeof (value as Decimal).toNumber === 'function') {
+      return value as Decimal;
+    }
+
+    return new Decimal(value as Decimal.Value);
+  }
+
+  private toNumber(value: Decimal | number): number {
+    return typeof value === 'number' ? value : value.toNumber();
   }
 
   private mapHoldings(holdings: PrismaHolding[]): Holding[] {
@@ -281,6 +299,10 @@ export class HoldingsService {
       input.symbol,
     );
 
+    const quantityDecimal = this.toDecimal(input.quantity);
+    const priceDecimal = this.toDecimal(quote.price);
+    const marketValueDecimal = quantityDecimal.mul(priceDecimal);
+
     const created = await this.prisma.holding.create({
       data: {
         userId,
@@ -289,9 +311,9 @@ export class HoldingsService {
         market: quote.market,
         symbol: quote.symbol,
         name: quote.name,
-        quantity: input.quantity,
-        currentPrice: quote.price,
-        marketValue: input.quantity * quote.price,
+        quantity: quantityDecimal.toNumber(),
+        currentPrice: priceDecimal.toNumber(),
+        marketValue: marketValueDecimal.toNumber(),
         currency: quote.currency,
         lastUpdated: quote.lastUpdated,
       },
@@ -305,13 +327,16 @@ export class HoldingsService {
     input: IncreaseManualHoldingInput,
   ): Promise<Holding> {
     const holding = await this.getManualHoldingOrThrow(userId, input);
-    const nextQuantity = holding.quantity + input.quantityDelta;
+    const currentQuantity = this.toDecimal(holding.quantity);
+    const delta = this.toDecimal(input.quantityDelta);
+    const nextQuantity = currentQuantity.add(delta);
+    const marketValue = this.toDecimal(holding.currentPrice).mul(nextQuantity);
 
     const updated = await this.prisma.holding.update({
       where: { id: holding.id },
       data: {
-        quantity: nextQuantity,
-        marketValue: nextQuantity * holding.currentPrice,
+        quantity: nextQuantity.toNumber(),
+        marketValue: marketValue.toNumber(),
       },
     });
 
@@ -323,12 +348,14 @@ export class HoldingsService {
     input: SetManualHoldingQuantityInput,
   ): Promise<Holding> {
     const holding = await this.getManualHoldingOrThrow(userId, input);
+    const quantityDecimal = this.toDecimal(input.quantity);
+    const marketValue = this.toDecimal(holding.currentPrice).mul(quantityDecimal);
 
     const updated = await this.prisma.holding.update({
       where: { id: holding.id },
       data: {
-        quantity: input.quantity,
-        marketValue: input.quantity * holding.currentPrice,
+        quantity: quantityDecimal.toNumber(),
+        marketValue: marketValue.toNumber(),
       },
     });
 
@@ -368,11 +395,15 @@ export class HoldingsService {
       input.symbol,
     );
 
+    const quantityDecimal = this.toDecimal(holding.quantity);
+    const priceDecimal = this.toDecimal(quote.price);
+    const marketValue = quantityDecimal.mul(priceDecimal);
+
     const updated = await this.prisma.holding.update({
       where: { id: holding.id },
       data: {
-        currentPrice: quote.price,
-        marketValue: holding.quantity * quote.price,
+        currentPrice: priceDecimal.toNumber(),
+        marketValue: marketValue.toNumber(),
         name: quote.name,
         currency: quote.currency,
         lastUpdated: quote.lastUpdated,
