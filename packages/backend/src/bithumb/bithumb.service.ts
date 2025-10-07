@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ExternalHttpService } from '../common/http/external-http.service';
+import https from 'node:https';
 
 interface BithumbTickerData {
   closing_price?: string;
@@ -15,8 +15,6 @@ interface BithumbApiResponse {
 export class BithumbService {
   private static readonly BASE_URL = 'https://api.bithumb.com/public/ticker';
   private readonly logger = new Logger(BithumbService.name);
-
-  constructor(private readonly httpService: ExternalHttpService) {}
 
   async getTicker(
     symbol: string,
@@ -68,12 +66,46 @@ export class BithumbService {
       `${symbol}_KRW`,
     )}`;
 
-    const response = await this.httpService.getJson<BithumbApiResponse>(url);
+    return new Promise<BithumbTickerData | null>((resolve, reject) => {
+      https
+        .get(url, (res) => {
+          if (
+            !res.statusCode ||
+            res.statusCode < 200 ||
+            res.statusCode >= 300
+          ) {
+            res.resume();
+            reject(
+              new Error(`Unexpected status code: ${res.statusCode ?? 'N/A'}`),
+            );
+            return;
+          }
 
-    if (response.status !== '0000' || !response.data) {
-      return null;
-    }
+          const chunks: Buffer[] = [];
 
-    return response.data ?? null;
+          res.on('data', (chunk: Buffer) => {
+            chunks.push(Buffer.from(chunk));
+          });
+
+          res.on('end', () => {
+            try {
+              const raw = Buffer.concat(chunks).toString('utf8');
+              const parsed = JSON.parse(raw) as BithumbApiResponse;
+
+              if (parsed.status !== '0000' || !parsed.data) {
+                resolve(null);
+                return;
+              }
+
+              resolve(parsed.data ?? null);
+            } catch (err) {
+              reject(err as Error);
+            }
+          });
+        })
+        .on('error', (err) => {
+          reject(err);
+        });
+    });
   }
 }

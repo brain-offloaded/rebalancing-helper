@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { decode } from 'iconv-lite';
-import { ExternalHttpService } from '../common/http/external-http.service';
+import https from 'node:https';
 
 interface GoldPriceRow {
   price: number;
@@ -12,8 +12,6 @@ export class NaverGoldPriceService {
   private static readonly GOLD_DAILY_QUOTE_URL =
     'https://finance.naver.com/marketindex/goldDailyQuote.naver';
   private readonly logger = new Logger(NaverGoldPriceService.name);
-
-  constructor(private readonly httpService: ExternalHttpService) {}
 
   async getLatestPrice(): Promise<{ price: number; asOf: Date } | null> {
     try {
@@ -34,11 +32,37 @@ export class NaverGoldPriceService {
   }
 
   private async fetchHtml(): Promise<string> {
-    const buffer = await this.httpService.getBuffer(
-      NaverGoldPriceService.GOLD_DAILY_QUOTE_URL,
-    );
+    return new Promise<string>((resolve, reject) => {
+      https
+        .get(NaverGoldPriceService.GOLD_DAILY_QUOTE_URL, (res) => {
+          if (
+            !res.statusCode ||
+            res.statusCode < 200 ||
+            res.statusCode >= 300
+          ) {
+            reject(
+              new Error(`Unexpected status code: ${res.statusCode ?? 'N/A'}`),
+            );
+            res.resume();
+            return;
+          }
 
-    return decode(buffer, 'EUC-KR');
+          const chunks: Buffer[] = [];
+
+          res.on('data', (chunk: Buffer) => {
+            chunks.push(Buffer.from(chunk));
+          });
+
+          res.on('end', () => {
+            const buffer = Buffer.concat(chunks);
+            const decoded = decode(buffer, 'EUC-KR');
+            resolve(decoded);
+          });
+        })
+        .on('error', (err) => {
+          reject(err);
+        });
+    });
   }
 
   private extractLatestRow(html: string): GoldPriceRow | null {

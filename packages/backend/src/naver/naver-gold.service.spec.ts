@@ -1,20 +1,12 @@
 import { Logger } from '@nestjs/common';
-import { ExternalHttpService } from '../common/http/external-http.service';
 import { NaverGoldPriceService } from './naver-gold.service';
 
 describe('NaverGoldPriceService', () => {
   let service: NaverGoldPriceService;
-  let httpService: jest.Mocked<ExternalHttpService>;
 
   beforeEach(() => {
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-    httpService = {
-      getBuffer: jest.fn(),
-      getJson: jest.fn(),
-      getText: jest.fn(),
-    } as unknown as jest.Mocked<ExternalHttpService>;
-
-    service = new NaverGoldPriceService(httpService);
+    service = new NaverGoldPriceService();
   });
 
   afterEach(() => {
@@ -33,7 +25,12 @@ describe('NaverGoldPriceService', () => {
         </tbody>
       </table>
     `;
-    httpService.getBuffer.mockResolvedValue(Buffer.from(sampleHtml, 'utf8'));
+    jest
+      .spyOn(
+        service as unknown as { fetchHtml(): Promise<string> },
+        'fetchHtml',
+      )
+      .mockResolvedValue(sampleHtml);
 
     const result = await service.getLatestPrice();
 
@@ -45,7 +42,12 @@ describe('NaverGoldPriceService', () => {
 
   it('필수 데이터가 없으면 null을 반환한다', async () => {
     const invalidHtml = `<table><tbody><tr class="up"><td class="date"></td></tr></tbody></table>`;
-    httpService.getBuffer.mockResolvedValue(Buffer.from(invalidHtml, 'utf8'));
+    jest
+      .spyOn(
+        service as unknown as { fetchHtml(): Promise<string> },
+        'fetchHtml',
+      )
+      .mockResolvedValue(invalidHtml);
 
     const result = await service.getLatestPrice();
 

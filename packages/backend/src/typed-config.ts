@@ -10,8 +10,6 @@ const schema = {
   JWT_SECRET: Joi.string().min(1).default('local-dev-secret'),
   BROKER_CREDENTIAL_ENCRYPTION_KEY: Joi.string().min(1).required(),
   BASE_CURRENCY: Joi.string().uppercase().length(3).default('USD'),
-  HTTP_TIMEOUT_MS: Joi.number().integer().min(1).default(5_000),
-  HTTP_MAX_REDIRECTS: Joi.number().integer().min(0).default(5),
 } satisfies Joi.SchemaMap;
 
 const { TypedConfigService: TypedConfigServiceClass, TypedConfigModule } =
