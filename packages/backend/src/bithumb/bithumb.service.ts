@@ -99,7 +99,7 @@ export class BithumbService {
 
               resolve(parsed.data ?? null);
             } catch (err) {
-              reject(err);
+              reject(err as Error);
             }
           });
         })
