@@ -13,8 +13,7 @@ interface BithumbApiResponse {
 
 @Injectable()
 export class BithumbService {
-  private static readonly BASE_URL =
-    'https://api.bithumb.com/public/ticker';
+  private static readonly BASE_URL = 'https://api.bithumb.com/public/ticker';
   private readonly logger = new Logger(BithumbService.name);
 
   async getTicker(
@@ -62,9 +61,7 @@ export class BithumbService {
     }
   }
 
-  private async fetchTicker(
-    symbol: string,
-  ): Promise<BithumbTickerData | null> {
+  private async fetchTicker(symbol: string): Promise<BithumbTickerData | null> {
     const url = `${BithumbService.BASE_URL}/${encodeURIComponent(
       `${symbol}_KRW`,
     )}`;
@@ -72,7 +69,11 @@ export class BithumbService {
     return new Promise<BithumbTickerData | null>((resolve, reject) => {
       https
         .get(url, (res) => {
-          if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
+          if (
+            !res.statusCode ||
+            res.statusCode < 200 ||
+            res.statusCode >= 300
+          ) {
             res.resume();
             reject(
               new Error(`Unexpected status code: ${res.statusCode ?? 'N/A'}`),

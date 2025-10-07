@@ -15,8 +15,14 @@ describe('BithumbService', () => {
 
   it('빗썸 시세 API 응답을 파싱해 종가와 시각을 반환한다', async () => {
     jest
-      .spyOn(service as unknown as { fetchTicker(symbol: string): Promise<unknown> }, 'fetchTicker')
-      .mockResolvedValue({ closing_price: '42890000', date: `${1_700_000_000_000}` });
+      .spyOn(
+        service as unknown as { fetchTicker(symbol: string): Promise<unknown> },
+        'fetchTicker',
+      )
+      .mockResolvedValue({
+        closing_price: '42890000',
+        date: `${1_700_000_000_000}`,
+      });
 
     const result = await service.getTicker('btc');
 
@@ -41,7 +47,10 @@ describe('BithumbService', () => {
 
   it('요청 중 예외가 발생하면 null을 반환한다', async () => {
     jest
-      .spyOn(service as unknown as { fetchTicker(symbol: string): Promise<unknown> }, 'fetchTicker')
+      .spyOn(
+        service as unknown as { fetchTicker(symbol: string): Promise<unknown> },
+        'fetchTicker',
+      )
       .mockRejectedValue(new Error('network error'));
 
     const result = await service.getTicker('BTC');

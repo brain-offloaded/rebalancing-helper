@@ -349,7 +349,9 @@ export class HoldingsService {
   ): Promise<Holding> {
     const holding = await this.getManualHoldingOrThrow(userId, input);
     const quantityDecimal = this.toDecimal(input.quantity);
-    const marketValue = this.toDecimal(holding.currentPrice).mul(quantityDecimal);
+    const marketValue = this.toDecimal(holding.currentPrice).mul(
+      quantityDecimal,
+    );
 
     const updated = await this.prisma.holding.update({
       where: { id: holding.id },
