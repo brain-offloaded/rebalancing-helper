@@ -56,6 +56,9 @@ importers:
       graphql:
         specifier: ^16.11.0
         version: 16.11.0
+      iconv-lite:
+        specifier: 0.6.3
+        version: 0.6.3
       joi:
         specifier: ^17.13.3
         version: 17.13.3
@@ -96,6 +99,9 @@ importers:
       '@types/express':
         specifier: ^5.0.0
         version: 5.0.3
+      '@types/iconv-lite':
+        specifier: ^0.0.1
+        version: 0.0.1
       '@types/jest':
         specifier: ^29.5.12
         version: 29.5.14
@@ -2150,6 +2156,10 @@ packages:
 
   '@types/http-errors@2.0.5':
     resolution: {integrity: sha512-r8Tayk8HJnX0FztbZN7oVqGccWgw98T/0neJphO91KkmOzug1KkofZURD4UaD5uH8AqcFLfdPErnBod0u71/qg==}
+
+  '@types/iconv-lite@0.0.1':
+    resolution: {integrity: sha512-SsRBQxGw7/2/NxYJfBdiUx5a7Ms/voaUhOO9u2y9FTeTNBO1PXohzE4i3JfD8q2Te42HLTn5pyZtDf8j1bPKgQ==}
+    deprecated: This is a stub types definition for iconv-lite (https://github.com/ashtuchkin/iconv-lite). iconv-lite provides its own type definitions, so you don\'t need @types/iconv-lite installed!
 
   '@types/istanbul-lib-coverage@2.0.6':
     resolution: {integrity: sha512-2QF/t/auWm0lsy8XtKVPG19v3sSOQlJe/YHZgfjb/KBBHOGSV+J2q/S671rcq9uTBrLAXmZpqJiaQbMT+zNU1w==}
@@ -8242,6 +8252,10 @@ snapshots:
       hoist-non-react-statics: 3.3.2
 
   '@types/http-errors@2.0.5': {}
+
+  '@types/iconv-lite@0.0.1':
+    dependencies:
+      '@types/node': 22.18.6
 
   '@types/istanbul-lib-coverage@2.0.6': {}
 

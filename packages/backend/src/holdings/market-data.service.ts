@@ -1,17 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { YahooFinanceService } from '../yahoo/yahoo-finance.service';
 import type { YahooFinanceQuote } from '../yahoo/yahoo-finance.types';
 import type { MarketQuote, MarketQuoteSource } from './market-quote.dto';
+import { MarketQuoteStrategyFactory } from './strategies/market-quote-strategy.factory';
+import type {
+  MarketQuoteStrategyResult,
+  MarketQuoteStrategy,
+} from './strategies/market-quote.strategy';
 
 export type { MarketQuote } from './market-quote.dto';
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5분 캐시 유지
-
-type MarketConfig = {
-  yahooSuffix: string | null;
-  expectedYahooMarkets: string[];
-};
 
 @Injectable()
 export class MarketDataService {
@@ -19,12 +17,8 @@ export class MarketDataService {
     string,
     { value: MarketQuote; expiresAt: number }
   >();
-  private readonly marketConfigCache = new Map<string, MarketConfig>();
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly yahooFinance: YahooFinanceService,
-  ) {}
+  constructor(private readonly strategyFactory: MarketQuoteStrategyFactory) {}
 
   async getQuote(market: string, symbol: string): Promise<MarketQuote> {
     const normalizedMarket = market.trim().toUpperCase();
@@ -37,25 +31,27 @@ export class MarketDataService {
       return cached.value;
     }
 
-    const marketConfig = await this.getMarketConfig(normalizedMarket);
-    const yahooSymbol = this.toYahooSymbol(normalizedSymbol, marketConfig);
+    const strategy =
+      await this.strategyFactory.createStrategy(normalizedMarket);
+    const result = await this.fetchWithStrategy(strategy, {
+      market: normalizedMarket,
+      symbol: normalizedSymbol,
+    });
 
-    const rawQuote = await this.fetchQuote(yahooSymbol);
-
-    if (!rawQuote) {
+    if (!result) {
       throw new NotFoundException('Market quote not found');
     }
 
     this.assertMarketMatch(
       normalizedMarket,
-      marketConfig.expectedYahooMarkets,
-      rawQuote.market,
+      result.expectedMarkets ?? [],
+      result.rawQuote.market,
     );
 
     const quote = this.buildMarketQuote(
       normalizedSymbol,
       normalizedMarket,
-      rawQuote,
+      result.rawQuote,
     );
 
     this.cache.set(cacheKey, {
@@ -66,13 +62,11 @@ export class MarketDataService {
     return quote;
   }
 
-  private toYahooSymbol(symbol: string, config: MarketConfig): string {
-    return config.yahooSuffix ? `${symbol}${config.yahooSuffix}` : symbol;
-  }
-
-  private async fetchQuote(symbol: string): Promise<YahooQuote | null> {
-    const quote = await this.yahooFinance.getQuote(symbol);
-    return quote ?? null;
+  private async fetchWithStrategy(
+    strategy: MarketQuoteStrategy,
+    context: { market: string; symbol: string },
+  ): Promise<MarketQuoteStrategyResult | null> {
+    return strategy.getQuote(context);
   }
 
   private buildMarketQuote(
@@ -123,43 +117,6 @@ export class MarketDataService {
     if (!expectedMarkets.includes(yahooMarket)) {
       throw new NotFoundException('Market quote not found');
     }
-  }
-
-  private async getMarketConfig(market: string): Promise<MarketConfig> {
-    const cached = this.marketConfigCache.get(market);
-    if (cached) {
-      return cached;
-    }
-
-    const marketRecord = await this.prisma.market.findUnique({
-      where: { code: market },
-      select: {
-        yahooSuffix: true,
-        yahooMarketIdentifiers: true,
-      },
-    });
-
-    if (!marketRecord) {
-      throw new NotFoundException('Market not supported');
-    }
-
-    const expectedMarkets = this.normalizeYahooMarkets(
-      marketRecord.yahooMarketIdentifiers,
-    );
-    const config: MarketConfig = {
-      yahooSuffix: marketRecord.yahooSuffix,
-      expectedYahooMarkets: expectedMarkets,
-    };
-
-    this.marketConfigCache.set(market, config);
-    return config;
-  }
-
-  private normalizeYahooMarkets(value: string): string[] {
-    return value
-      .split(',')
-      .map((item) => item.trim())
-      .filter((item): item is string => item.length > 0);
   }
 }
 
