@@ -72,7 +72,7 @@
     },
     "gql:codegen": {
       "dependsOn": [
-        "backend#gql:schema"
+        "@rebalancing-helper/backend#gql:schema"
       ],
       "outputs": [
         "src/graphql/__generated__/index.ts"
@@ -81,7 +81,7 @@
     },
     "gql:all": {
       "dependsOn": [
-        "frontend#gql:codegen"
+        "@rebalancing-helper/frontend#gql:codegen"
       ],
       "cache": false
     }
