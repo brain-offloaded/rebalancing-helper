@@ -1,14 +1,40 @@
-export const formatCurrencyValue = (value: number, currency: string) => {
-  if (!Number.isFinite(value)) {
+import type { DecimalInput } from '@rebalancing-helper/common';
+import { createDecimal } from '@rebalancing-helper/common';
+
+import { formatDecimal } from '../../utils/decimal-format';
+
+export const formatCurrencyValue = (value: DecimalInput, currency: string) => {
+  try {
+    const decimal = createDecimal(value);
+
+    if (currency === 'KRW') {
+      return `₩${formatDecimal(decimal, {
+        decimalPlaces: 0,
+        useGrouping: true,
+      })}`;
+    }
+
+    const formatted = formatDecimal(decimal, {
+      decimalPlaces: 2,
+      useGrouping: true,
+    });
+
+    if (currency === 'USD') {
+      return `$${formatted}`;
+    }
+
+    return `${currency} ${formatted}`;
+  } catch {
     return '-';
   }
-  if (currency === 'KRW') {
-    return `₩${Math.round(value).toLocaleString()}`;
+};
+
+export const formatQuantityValue = (value: DecimalInput) => {
+  try {
+    return formatDecimal(value, { trimTrailingZeros: true, useGrouping: true });
+  } catch {
+    return '-';
   }
-  if (currency === 'USD') {
-    return `$${value.toFixed(2)}`;
-  }
-  return `${currency} ${value.toFixed(2)}`;
 };
 
 export const formatLastUpdated = (value: string) => {

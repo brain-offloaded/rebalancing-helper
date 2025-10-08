@@ -1,3 +1,5 @@
+import type { DecimalInput } from '@rebalancing-helper/common';
+
 export interface Holding {
   id: string;
   source: 'BROKERAGE' | 'MANUAL';
@@ -6,9 +8,9 @@ export interface Holding {
   symbol: string;
   name: string;
   alias: string | null;
-  quantity: number;
-  currentPrice: number;
-  marketValue: number;
+  quantity: DecimalInput;
+  currentPrice: DecimalInput;
+  marketValue: DecimalInput;
   currency: string;
   lastUpdated: string;
   createdAt: string;

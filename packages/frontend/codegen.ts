@@ -25,6 +25,10 @@ const config: CodegenConfig = {
         defaultScalarType: 'unknown',
         scalars: {
           DateTime: 'string',
+          Decimal: {
+            input: 'import("@rebalancing-helper/common").DecimalInput',
+            output: 'import("@rebalancing-helper/common").Decimal',
+          },
         },
       },
     },

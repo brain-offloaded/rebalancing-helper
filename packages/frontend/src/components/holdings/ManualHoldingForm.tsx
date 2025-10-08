@@ -1,5 +1,6 @@
 import type { FC } from 'react';
 import { useMemo } from 'react';
+import { createDecimal } from '@rebalancing-helper/common';
 import { Button } from '../ui/Button';
 import type { ManualAccount, MarketOption } from './types';
 import {
@@ -68,6 +69,20 @@ export const ManualHoldingForm: FC<ManualHoldingFormProps> = ({
     }
     return '0.01';
   }, [market]);
+
+  const isQuantityInvalid = useMemo(() => {
+    const normalized = quantity.replace(/,/g, '').trim();
+
+    if (normalized.length === 0) {
+      return false;
+    }
+
+    try {
+      return createDecimal(normalized).isNegative();
+    } catch {
+      return true;
+    }
+  }, [quantity]);
 
   return (
     <ManualForm onSubmit={onSubmit}>
@@ -139,7 +154,7 @@ export const ManualHoldingForm: FC<ManualHoldingFormProps> = ({
           !market ||
           !accountId ||
           accountLoading ||
-          Number(quantity) < 0
+          isQuantityInvalid
         }
       >
         수동 추가

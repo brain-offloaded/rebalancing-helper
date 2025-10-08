@@ -31,7 +31,10 @@ export type Scalars = {
   /** A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format. */
   DateTime: { input: string; output: string };
   /** decimal.js 기반 고정 소수점 값을 표현하는 커스텀 Decimal 스칼라입니다. */
-  Decimal: { input: unknown; output: unknown };
+  Decimal: {
+    input: import('@rebalancing-helper/common').DecimalInput;
+    output: import('@rebalancing-helper/common').Decimal;
+  };
 };
 
 export type AddHoldingTagInput = {

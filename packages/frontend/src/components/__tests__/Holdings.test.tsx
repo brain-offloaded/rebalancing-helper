@@ -3,6 +3,7 @@
 import userEvent from '@testing-library/user-event';
 import { screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDecimal } from '@rebalancing-helper/common';
 import { renderWithProviders } from '../../test-utils/render';
 import { Holdings } from '../Holdings';
 import {
@@ -32,9 +33,9 @@ const createHolding = (overrides: Partial<Record<string, unknown>> = {}) => ({
   symbol: 'AAPL',
   name: '애플',
   alias: null,
-  quantity: 1,
-  currentPrice: 100,
-  marketValue: 100,
+  quantity: createDecimal(1),
+  currentPrice: createDecimal(100),
+  marketValue: createDecimal(100),
   currency: 'USD',
   lastUpdated: new Date().toISOString(),
   createdAt: new Date().toISOString(),
@@ -164,9 +165,9 @@ describe('Holdings', () => {
         source: 'BROKERAGE',
         symbol: 'AAPL',
         name: '애플',
-        quantity: 3,
-        currentPrice: 190.23,
-        marketValue: 570.69,
+        quantity: createDecimal(3),
+        currentPrice: createDecimal(190.23),
+        marketValue: createDecimal(570.69),
       }),
       createHolding({
         id: 'holding-manual',
@@ -175,9 +176,9 @@ describe('Holdings', () => {
         market: 'US',
         symbol: 'VOO',
         name: 'Vanguard S&P 500 ETF',
-        quantity: 2,
-        currentPrice: 412.35,
-        marketValue: 824.7,
+        quantity: createDecimal(2),
+        currentPrice: createDecimal(412.35),
+        marketValue: createDecimal(824.7),
       }),
     ];
 
@@ -291,7 +292,7 @@ describe('Holdings', () => {
             accountId: 'manual-account-1',
             market: 'US',
             symbol: 'VOO',
-            quantity: 2,
+            quantity: '2',
           },
         },
       });
@@ -334,7 +335,7 @@ describe('Holdings', () => {
             accountId: 'manual-account-1',
             market: 'US',
             symbol: 'BRK',
-            quantity: 0,
+            quantity: '0',
           },
         },
       });
@@ -352,7 +353,7 @@ describe('Holdings', () => {
         market: 'US',
         symbol: 'VOO',
         name: 'Vanguard S&P 500 ETF',
-        quantity: 2,
+        quantity: createDecimal(2),
       }),
     ];
 
@@ -380,7 +381,7 @@ describe('Holdings', () => {
             accountId: 'manual-account-1',
             market: 'US',
             symbol: 'VOO',
-            quantity: 3,
+            quantity: '3',
           },
         },
       });
@@ -400,7 +401,7 @@ describe('Holdings', () => {
         market: 'US',
         symbol: 'VOO',
         name: 'Vanguard S&P 500 ETF',
-        quantity: 5,
+        quantity: createDecimal(5),
       }),
     ];
 
@@ -429,7 +430,7 @@ describe('Holdings', () => {
             accountId: 'manual-account-1',
             market: 'US',
             symbol: 'VOO',
-            quantity: 10,
+            quantity: '10',
           },
         },
       });
