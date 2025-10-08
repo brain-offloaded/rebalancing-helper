@@ -26,7 +26,8 @@
       "persistent": true
     },
     "lint": {
-      "cache": true
+      "cache": true,
+      "outputLogs": "new-only"
     },
     "lint:fix": {
       "cache": false
@@ -58,7 +59,8 @@
       ]
     },
     "prisma:generate": {
-      "cache": false
+      "cache": false,
+      "outputLogs": "errors-only"
     },
     "gql:schema": {
       "dependsOn": [
@@ -70,7 +72,8 @@
       "env": [
         "ENV_FILE"
       ],
-      "cache": false
+      "cache": false,
+      "outputLogs": "errors-only"
     },
     "gql:codegen": {
       "dependsOn": [
@@ -79,13 +82,15 @@
       "outputs": [
         "src/graphql/__generated__/index.ts"
       ],
-      "cache": false
+      "cache": false,
+      "outputLogs": "errors-only"
     },
     "gql:all": {
       "dependsOn": [
         "@rebalancing-helper/frontend#gql:codegen"
       ],
-      "cache": false
+      "cache": false,
+      "outputLogs": "errors-only"
     }
   }
 }
