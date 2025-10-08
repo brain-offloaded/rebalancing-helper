@@ -14,14 +14,14 @@
     "test:cov": "turbo run test:cov",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
-    "prisma:generate": "pnpm --filter backend prisma:generate",
+    "prisma:generate": "turbo run prisma:generate",
     "prisma:migrate": "pnpm --filter backend prisma:migrate",
     "prisma:deploy": "pnpm --filter backend prisma:deploy",
     "prisma:seed": "pnpm --filter backend prisma:seed",
     "prisma:studio": "pnpm --filter backend prisma:studio",
     "gql:schema": "pnpm --filter backend gql:schema",
     "gql:codegen": "pnpm --filter frontend gql:codegen",
-    "gql:all": "pnpm gql:schema && pnpm gql:codegen"
+    "gql:all": "turbo run gql:all"
   },
   "devDependencies": {
     "turbo": "^2.4.4"

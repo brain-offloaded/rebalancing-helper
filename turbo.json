@@ -4,7 +4,8 @@
     "build": {
       "dependsOn": [
         "^build",
-        "prisma:generate"
+        "prisma:generate",
+        "gql:all"
       ],
       "outputs": [
         "dist/**",
@@ -16,6 +17,11 @@
       "outputLogs": "new-only"
     },
     "dev": {
+      "dependsOn": [
+        "^dev",
+        "prisma:generate",
+        "gql:all"
+      ],
       "cache": false,
       "persistent": true
     },
@@ -49,11 +55,14 @@
         "BROKER_CREDENTIAL_ENCRYPTION_KEY"
       ]
     },
+    "prisma:generate": {
+      "cache": false
+    },
     "gql:all": {
       "dependsOn": [
         "prisma:generate",
-        "gql:schema",
-        "^gql:types"
+        "^gql:schema",
+        "^gql:codegen"
       ],
       "outputs": [
         "generated.graphql",
