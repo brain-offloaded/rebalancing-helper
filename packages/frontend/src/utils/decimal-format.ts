@@ -1,6 +1,6 @@
 import {
-  Decimal,
-  DecimalInput,
+  type Decimal,
+  type DecimalInput,
   createDecimal,
   toPlainString,
 } from '@rebalancing-helper/common';
