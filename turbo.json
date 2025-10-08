@@ -58,19 +58,32 @@
     "prisma:generate": {
       "cache": false
     },
-    "gql:all": {
+    "gql:schema": {
       "dependsOn": [
-        "prisma:generate",
-        "^gql:schema",
-        "^gql:codegen"
+        "prisma:generate"
       ],
       "outputs": [
-        "generated.graphql",
-        "src/graphql/**/*.ts"
+        "generated.graphql"
       ],
       "env": [
         "ENV_FILE"
-      ]
+      ],
+      "cache": false
+    },
+    "gql:codegen": {
+      "dependsOn": [
+        "backend#gql:schema"
+      ],
+      "outputs": [
+        "src/graphql/__generated__/index.ts"
+      ],
+      "cache": false
+    },
+    "gql:all": {
+      "dependsOn": [
+        "frontend#gql:codegen"
+      ],
+      "cache": false
     }
   }
 }

@@ -21,7 +21,7 @@
     "prisma:studio": "pnpm --filter backend prisma:studio",
     "gql:schema": "pnpm --filter backend gql:schema",
     "gql:codegen": "pnpm --filter frontend gql:codegen",
-    "gql:all": "turbo run gql:all"
+    "gql:all": "turbo run gql:all --filter frontend"
   },
   "devDependencies": {
     "turbo": "^2.4.4"

@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
+    "gql:all": "node -e \"console.log('GraphQL artifacts up to date')\"",
     "gql:codegen": "graphql-codegen --config codegen.ts"
   },
   "dependencies": {
