@@ -54,7 +54,9 @@
     },
     "gql:all": {
       "dependsOn": [
-        "prisma:generate"
+        "prisma:generate",
+        "gql:schema",
+        "^gql:types"
       ],
       "outputs": [
         "generated.graphql",
@@ -62,8 +64,7 @@
       ],
       "env": [
         "ENV_FILE"
-      ],
-      "cache": false
+      ]
     }
   }
 }
