@@ -110,7 +110,10 @@
     "collectCoverageFrom": [
       "**/*.(t|j)s",
       "!**/*.(entities|dto|input|entity|module|types|type).ts",
-      "!test-utils/**/*"
+      "!test-utils/**/*",
+      "!holdings/strategies/market-quote.strategy.ts",
+      "!generate-schema.ts",
+      "!typed-config.ts"
     ],
     "coverageDirectory": "../coverage",
     "coverageReporters": [
