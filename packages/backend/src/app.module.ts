@@ -17,7 +17,6 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { TypedConfigModule } from './typed-config';
 import { MarketsModule } from './markets/markets.module';
-import { DecimalScalar } from './common/scalars/decimal.scalar';
 
 export type GraphqlContextFactoryArgs = {
   req: Request;
@@ -68,6 +67,6 @@ export function createGraphqlContext({
     MarketsModule,
   ],
   controllers: [AppController],
-  providers: [AppService, DecimalScalar],
+  providers: [AppService],
 })
 export class AppModule {}

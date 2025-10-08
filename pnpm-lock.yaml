@@ -47,9 +47,6 @@ importers:
       '@prisma/client':
         specifier: ^6.16.1
         version: 6.16.2(prisma@6.16.2(magicast@0.3.5)(typescript@5.8.3))(typescript@5.8.3)
-      '@rebalancing-helper/common':
-        specifier: workspace:*
-        version: link:../common
       axios:
         specifier: ^1.12.2
         version: 1.12.2
@@ -62,9 +59,6 @@ importers:
       class-validator:
         specifier: ^0.14.2
         version: 0.14.2
-      dotenv:
-        specifier: ^16.4.5
-        version: 16.6.1
       graphql:
         specifier: ^16.11.0
         version: 16.11.0
@@ -177,49 +171,6 @@ importers:
       webpack:
         specifier: ^5.97.1
         version: 5.101.3
-
-  packages/common:
-    dependencies:
-      decimal.js-light:
-        specifier: ^2.5.1
-        version: 2.5.1
-    devDependencies:
-      '@eslint/js':
-        specifier: ^9.33.0
-        version: 9.36.0
-      '@types/node':
-        specifier: ^22.10.7
-        version: 22.18.6
-      '@vitest/coverage-v8':
-        specifier: ^3.2.4
-        version: 3.2.4(vitest@3.2.4(@types/node@22.18.6)(jiti@2.6.0)(jsdom@27.0.0(postcss@8.5.6))(terser@5.44.0)(yaml@2.8.1))
-      eslint:
-        specifier: ^9.33.0
-        version: 9.36.0(jiti@2.6.0)
-      eslint-config-prettier:
-        specifier: ^10.0.1
-        version: 10.1.8(eslint@9.36.0(jiti@2.6.0))
-      eslint-plugin-prettier:
-        specifier: ^5.2.2
-        version: 5.5.4(@types/eslint@9.6.1)(eslint-config-prettier@10.1.8(eslint@9.36.0(jiti@2.6.0)))(eslint@9.36.0(jiti@2.6.0))(prettier@3.6.2)
-      globals:
-        specifier: ^16.3.0
-        version: 16.4.0
-      prettier:
-        specifier: ^3.6.2
-        version: 3.6.2
-      rimraf:
-        specifier: ^6.0.1
-        version: 6.0.1
-      typescript:
-        specifier: ~5.8.3
-        version: 5.8.3
-      typescript-eslint:
-        specifier: ^8.39.1
-        version: 8.44.0(eslint@9.36.0(jiti@2.6.0))(typescript@5.8.3)
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.18.6)(jiti@2.6.0)(jsdom@27.0.0(postcss@8.5.6))(terser@5.44.0)(yaml@2.8.1)
 
   packages/frontend:
     dependencies:
@@ -5060,11 +5011,6 @@ packages:
   rfdc@1.4.1:
     resolution: {integrity: sha512-q1b3N5QkRUWUl7iyylaaj3kOpIT0N2i9MqIEQXP73GVsN9cw3fdx8X63cEmWhJGi2PPCF23Ijp7ktmd39rawIA==}
 
-  rimraf@6.0.1:
-    resolution: {integrity: sha512-9dkvaxAsk/xNXSJzMgFqqMCuFgt2+KsOFek3TMLfo8NCPfWpBmqwyNn5Y+NX56QUYfCtsyhF3ayiboEoUmJk/A==}
-    engines: {node: 20 || >=22}
-    hasBin: true
-
   rollup@4.52.0:
     resolution: {integrity: sha512-+IuescNkTJQgX7AkIDtITipZdIGcWF0pnVvZTWStiazUmcGA2ag8dfg0urest2XlXUi9kuhfQ+qmdc5Stc3z7g==}
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
@@ -9520,7 +9466,7 @@ snapshots:
 
   dotenv-expand@12.0.1:
     dependencies:
-      dotenv: 16.6.1
+      dotenv: 16.4.7
 
   dotenv@16.4.7: {}
 
@@ -11558,11 +11504,6 @@ snapshots:
   reusify@1.1.0: {}
 
   rfdc@1.4.1: {}
-
-  rimraf@6.0.1:
-    dependencies:
-      glob: 11.0.3
-      package-json-from-dist: 1.0.1
 
   rollup@4.52.0:
     dependencies:
