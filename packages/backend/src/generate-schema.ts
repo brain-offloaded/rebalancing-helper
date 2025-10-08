@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from '../src/app.module';
+import { AppModule } from './app.module';
 import { GraphQLSchemaHost } from '@nestjs/graphql';
 import { lexicographicSortSchema, printSchema } from 'graphql';
 import { writeFileSync } from 'node:fs';

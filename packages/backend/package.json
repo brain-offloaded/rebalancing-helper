@@ -27,7 +27,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio",
-    "gql:schema": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/generate-schema.ts"
+    "gql:schema": "nest start --entryFile generate-schema"
   },
   "dependencies": {
     "@apollo/server": "^4.12.2",
