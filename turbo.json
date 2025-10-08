@@ -14,10 +14,7 @@
       "env": [
         "BROKER_CREDENTIAL_ENCRYPTION_KEY"
       ],
-      "outputLogs": "new-only"
-    },
-    "prisma:generate": {
-      "cache": false
+      "outputLogs": "errors-only"
     },
     "dev": {
       "dependsOn": [
@@ -46,7 +43,8 @@
       ],
       "env": [
         "BROKER_CREDENTIAL_ENCRYPTION_KEY"
-      ]
+      ],
+      "outputLogs": "new-only"
     },
     "test:cov": {
       "dependsOn": [
@@ -59,7 +57,8 @@
       ],
       "env": [
         "BROKER_CREDENTIAL_ENCRYPTION_KEY"
-      ]
+      ],
+      "outputLogs": "new-only"
     },
     "prisma:generate": {
       "cache": false,
@@ -75,7 +74,7 @@
       "env": [
         "ENV_FILE"
       ],
-      "cache": false,
+      "cache": true,
       "outputLogs": "errors-only"
     },
     "gql:codegen": {
@@ -85,7 +84,7 @@
       "outputs": [
         "src/graphql/__generated__/index.ts"
       ],
-      "cache": false,
+      "cache": true,
       "outputLogs": "errors-only"
     },
     "gql:all": {
