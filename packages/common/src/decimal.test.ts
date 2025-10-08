@@ -19,7 +19,7 @@ import {
   toPlainString,
   toPrismaDecimal,
   type DecimalInput,
-} from '../decimal';
+} from './decimal';
 
 function expectDecimalEqual(value: DecimalInput, expected: string) {
   expect(createDecimal(value).toString()).toBe(expected);
