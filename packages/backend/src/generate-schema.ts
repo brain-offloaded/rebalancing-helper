@@ -5,13 +5,17 @@ import { GraphQLSchemaHost } from '@nestjs/graphql';
 import { lexicographicSortSchema, printSchema } from 'graphql';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { config } from 'dotenv';
+import { TypedConfigService } from './typed-config';
 
 async function main() {
+  config({ path: process.env.ENV_FILE ?? '.env' });
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: false,
   });
   try {
     const { schema } = app.get(GraphQLSchemaHost);
+    app.get(TypedConfigService).get('DATABASE_URL'); // Ensure env is valid
     const sortedSchema = lexicographicSortSchema(schema);
     const sdl = printSchema(sortedSchema);
     const outPath = join(process.cwd(), 'generated.graphql');

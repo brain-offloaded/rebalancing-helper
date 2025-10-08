@@ -3,7 +3,8 @@
   "tasks": {
     "build": {
       "dependsOn": [
-        "^build"
+        "^build",
+        "prisma:generate"
       ],
       "outputs": [
         "dist/**",
@@ -26,7 +27,8 @@
     },
     "test": {
       "dependsOn": [
-        "^test"
+        "^test",
+        "prisma:generate"
       ],
       "outputs": [
         "coverage/**"
@@ -36,11 +38,29 @@
       ]
     },
     "test:cov": {
+      "dependsOn": [
+        "^test:cov",
+        "prisma:generate"
+      ],
       "outputs": [
         "coverage/**"
       ],
       "env": [
         "BROKER_CREDENTIAL_ENCRYPTION_KEY"
+      ]
+    },
+    "gql:all": {
+      "dependsOn": [
+        "prisma:generate",
+        "gql:schema",
+        "^gql:types"
+      ],
+      "outputs": [
+        "generated.graphql",
+        "src/graphql/**/*.ts"
+      ],
+      "env": [
+        "ENV_FILE"
       ]
     }
   }
