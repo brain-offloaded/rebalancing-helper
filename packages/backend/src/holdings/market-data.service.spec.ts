@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { createDecimal } from '@rebalancing-helper/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MarketDataService } from './market-data.service';
 import { YahooFinanceService } from '../yahoo/yahoo-finance.service';
@@ -120,7 +121,7 @@ describe('MarketDataService', () => {
 
   it('KRX 금현물 시장은 네이버 금 가격을 활용한다', async () => {
     naverGoldServiceMock.getLatestPrice.mockResolvedValue({
-      price: 173_000,
+      price: createDecimal(173_000),
       asOf: new Date('2025-10-02T00:00:00Z'),
     });
 
@@ -144,7 +145,7 @@ describe('MarketDataService', () => {
   it('비트코인 시장은 빗썸 시세를 활용한다', async () => {
     const asOf = new Date('2025-10-02T00:00:00Z');
     bithumbServiceMock.getTicker.mockResolvedValue({
-      price: 43_200_000,
+      price: createDecimal(43_200_000),
       asOf,
     });
 

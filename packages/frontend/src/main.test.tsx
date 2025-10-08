@@ -12,6 +12,7 @@ describe('main entry point', () => {
   beforeEach(() => {
     document.body.innerHTML = '<div id="root"></div>';
     vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it('React 애플리케이션을 루트에 렌더링한다', async () => {

@@ -3,7 +3,9 @@
   "tasks": {
     "build": {
       "dependsOn": [
-        "^build"
+        "^build",
+        "prisma:generate",
+        "gql:all"
       ],
       "outputs": [
         "dist/**",
@@ -12,36 +14,85 @@
       "env": [
         "BROKER_CREDENTIAL_ENCRYPTION_KEY"
       ],
-      "outputLogs": "new-only"
+      "outputLogs": "errors-only"
     },
     "dev": {
+      "dependsOn": [
+        "^dev",
+        "prisma:generate",
+        "gql:all"
+      ],
       "cache": false,
       "persistent": true
     },
     "lint": {
-      "cache": true
+      "cache": true,
+      "outputLogs": "new-only"
     },
     "lint:fix": {
       "cache": false
     },
     "test": {
       "dependsOn": [
-        "^test"
+        "^test",
+        "prisma:generate",
+        "gql:all"
       ],
       "outputs": [
         "coverage/**"
       ],
       "env": [
         "BROKER_CREDENTIAL_ENCRYPTION_KEY"
-      ]
+      ],
+      "outputLogs": "new-only"
     },
     "test:cov": {
+      "dependsOn": [
+        "^test:cov",
+        "prisma:generate",
+        "gql:all"
+      ],
       "outputs": [
         "coverage/**"
       ],
       "env": [
         "BROKER_CREDENTIAL_ENCRYPTION_KEY"
-      ]
+      ],
+      "outputLogs": "new-only"
+    },
+    "prisma:generate": {
+      "cache": false,
+      "outputLogs": "errors-only"
+    },
+    "gql:schema": {
+      "dependsOn": [
+        "prisma:generate"
+      ],
+      "outputs": [
+        "generated.graphql"
+      ],
+      "env": [
+        "ENV_FILE"
+      ],
+      "cache": true,
+      "outputLogs": "errors-only"
+    },
+    "gql:codegen": {
+      "dependsOn": [
+        "@rebalancing-helper/backend#gql:schema"
+      ],
+      "outputs": [
+        "src/graphql/__generated__/index.ts"
+      ],
+      "cache": true,
+      "outputLogs": "errors-only"
+    },
+    "gql:all": {
+      "dependsOn": [
+        "@rebalancing-helper/frontend#gql:codegen"
+      ],
+      "cache": false,
+      "outputLogs": "errors-only"
     }
   }
 }

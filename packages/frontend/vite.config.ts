@@ -16,7 +16,7 @@ export default defineConfig({
       reportsDirectory: './coverage',
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
-        ...configDefaults.coverage.exclude,
+        ...configDefaults.coverage.exclude!,
         'src/vite-env.d.ts',
         'src/graphql/**',
       ],

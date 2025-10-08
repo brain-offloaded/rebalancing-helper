@@ -22,7 +22,7 @@ export class KrxGoldMarketQuoteStrategy implements MarketQuoteStrategy {
       symbol: context.symbol,
       shortName: 'KRX 금현물',
       longName: 'KRX 금현물 (1g)',
-      regularMarketPrice: latestPrice.price,
+      regularMarketPrice: latestPrice.price.toNumber(),
       currency: 'KRW',
       financialCurrency: 'KRW',
       market: context.market,

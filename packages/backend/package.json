@@ -1,5 +1,5 @@
 {
-  "name": "backend",
+  "name": "@rebalancing-helper/backend",
   "version": "0.0.1",
   "description": "",
   "author": "",
@@ -27,9 +27,11 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio",
-    "gql:schema": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/generate-schema.ts"
+    "pregql:schema": "pnpm --filter @rebalancing-helper/common build",
+    "gql:schema": "ENV_FILE=../.env.example ts-node --project tsconfig.build.json src/generate-schema.ts"
   },
   "dependencies": {
+    "@rebalancing-helper/common": "workspace:*",
     "@apollo/server": "^4.12.2",
     "@nestjs/apollo": "^13.1.0",
     "@nestjs/axios": "^4.0.1",
@@ -43,6 +45,7 @@
     "@prisma/client": "^6.16.1",
     "axios": "^1.12.2",
     "bcryptjs": "^3.0.2",
+    "dotenv": "^16.4.5",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "graphql": "^16.11.0",
@@ -107,7 +110,10 @@
     "collectCoverageFrom": [
       "**/*.(t|j)s",
       "!**/*.(entities|dto|input|entity|module|types|type).ts",
-      "!test-utils/**/*"
+      "!test-utils/**/*",
+      "!holdings/strategies/market-quote.strategy.ts",
+      "!generate-schema.ts",
+      "!typed-config.ts"
     ],
     "coverageDirectory": "../coverage",
     "coverageReporters": [

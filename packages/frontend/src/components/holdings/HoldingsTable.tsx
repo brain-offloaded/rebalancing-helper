@@ -2,7 +2,11 @@ import type { MouseEvent } from 'react';
 import { IconButton } from '../ui/Button';
 import { Table, TableCell, TableHeadCell, TableRow } from '../ui/Table';
 import { TagBadge } from '../ui/Tag';
-import { formatCurrencyValue, formatLastUpdated } from './formatters';
+import {
+  formatCurrencyValue,
+  formatLastUpdated,
+  formatQuantityValue,
+} from './formatters';
 import type { Holding, Tag } from './types';
 import {
   CellContent,
@@ -86,7 +90,7 @@ export const HoldingsTable: React.FC<HoldingsTableProps> = ({
                   )}
                 </CellContent>
               </TableCell>
-              <TableCell>{holding.quantity.toLocaleString()}</TableCell>
+              <TableCell>{formatQuantityValue(holding.quantity)}</TableCell>
               <TableCell>
                 <PriceWrapper>
                   <PrimaryText>

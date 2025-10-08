@@ -1,9 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { decode } from 'iconv-lite';
+
+import type { Decimal } from '@rebalancing-helper/common';
+import { createDecimal } from '@rebalancing-helper/common';
+
 import { ExternalHttpService } from '../common/http/external-http.service';
 
 interface GoldPriceRow {
-  price: number;
+  price: Decimal;
   date: Date;
 }
 
@@ -15,7 +19,7 @@ export class NaverGoldPriceService {
 
   constructor(private readonly httpService: ExternalHttpService) {}
 
-  async getLatestPrice(): Promise<{ price: number; asOf: Date } | null> {
+  async getLatestPrice(): Promise<{ price: Decimal; asOf: Date } | null> {
     try {
       const html = await this.fetchHtml();
       const row = this.extractLatestRow(html);
@@ -63,9 +67,16 @@ export class NaverGoldPriceService {
       return null;
     }
 
-    const price = Number(priceText.replace(/,/g, ''));
+    const normalizedPrice = priceText.replace(/,/g, '');
+    const numericPrice = Number(normalizedPrice);
 
-    if (!Number.isFinite(price)) {
+    if (!Number.isFinite(numericPrice)) {
+      return null;
+    }
+
+    const priceDecimal = createDecimal(normalizedPrice);
+
+    if (priceDecimal.isNegative()) {
       return null;
     }
 
@@ -75,7 +86,7 @@ export class NaverGoldPriceService {
       return null;
     }
 
-    return { price, date };
+    return { price: priceDecimal, date };
   }
 
   private cleanCellText(value: string): string {

@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  type Decimal,
+  createDecimal,
+  toPlainString,
+} from '@rebalancing-helper/common';
+import {
   useCreateManualHoldingMutation,
   useDeleteManualHoldingMutation,
   useGetBrokerageAccountsQuery,
@@ -30,6 +35,7 @@ import type {
   MarketOption,
   Tag,
 } from './holdings/types';
+import { formatDecimal, tryCreateDecimal } from '../utils/decimal-format';
 
 const parseQuantityInput = (rawValue: string) =>
   rawValue.replace(/,/g, '').trim();
@@ -39,6 +45,18 @@ const isValidDeltaInput = (value: string) =>
 
 const isValidTargetInput = (value: string) =>
   /^(\d+(\.\d*)?|\.\d*)?$/.test(value);
+
+type ManualQuantityMode = 'delta' | 'target' | null;
+
+interface ManualQuantityState {
+  isProvided: boolean;
+  isValid: boolean;
+  delta: Decimal | null;
+  preview: Decimal | null;
+  mode: ManualQuantityMode;
+}
+
+const ZERO_DELTA_THRESHOLD = createDecimal('0.0000001');
 
 export const Holdings: React.FC = () => {
   const [selectedHoldingId, setSelectedHoldingId] = useState<string | null>(
@@ -144,20 +162,22 @@ export const Holdings: React.FC = () => {
     [selectedHolding, holdingTagsBySymbol],
   );
 
-  const manualQuantityState = useMemo(() => {
+  const manualQuantityState = useMemo<ManualQuantityState>(() => {
     if (!selectedHolding || selectedHolding.source !== 'MANUAL') {
       return {
         isProvided: false,
         isValid: true,
-        delta: 0,
-        preview: selectedHolding?.quantity ?? null,
-        mode: null as 'delta' | 'target' | null,
-      } as const;
+        delta: createDecimal(0),
+        preview: selectedHolding
+          ? createDecimal(selectedHolding.quantity)
+          : null,
+        mode: null,
+      };
     }
 
     const deltaTrimmed = parseQuantityInput(quantityDeltaInput);
     const targetTrimmed = parseQuantityInput(quantityTargetInput);
-    const baseQuantity = selectedHolding.quantity;
+    const baseQuantity = createDecimal(selectedHolding.quantity);
 
     if (targetTrimmed.length > 0) {
       if (!isValidTargetInput(targetTrimmed)) {
@@ -166,26 +186,27 @@ export const Holdings: React.FC = () => {
           isValid: false,
           delta: null,
           preview: null,
-          mode: 'target' as const,
+          mode: 'target',
         };
       }
-      const parsedTarget = Number(targetTrimmed);
-      if (!Number.isFinite(parsedTarget) || parsedTarget < 0) {
+
+      const parsedTarget = tryCreateDecimal(targetTrimmed);
+      if (!parsedTarget || parsedTarget.isNegative()) {
         return {
           isProvided: true,
           isValid: false,
           delta: null,
           preview: null,
-          mode: 'target' as const,
+          mode: 'target',
         };
       }
-      const deltaValue = parsedTarget - baseQuantity;
+
       return {
         isProvided: true,
         isValid: true,
-        delta: deltaValue,
+        delta: parsedTarget.minus(baseQuantity),
         preview: parsedTarget,
-        mode: 'target' as const,
+        mode: 'target',
       };
     }
 
@@ -193,9 +214,9 @@ export const Holdings: React.FC = () => {
       return {
         isProvided: false,
         isValid: true,
-        delta: 0,
+        delta: createDecimal(0),
         preview: baseQuantity,
-        mode: null as const,
+        mode: null,
       };
     }
 
@@ -205,29 +226,29 @@ export const Holdings: React.FC = () => {
         isValid: false,
         delta: null,
         preview: null,
-        mode: 'delta' as const,
+        mode: 'delta',
       };
     }
 
-    const parsedDelta = Number(deltaTrimmed);
-    if (!Number.isFinite(parsedDelta)) {
+    const parsedDelta = tryCreateDecimal(deltaTrimmed);
+    if (!parsedDelta) {
       return {
         isProvided: true,
         isValid: false,
         delta: null,
         preview: null,
-        mode: 'delta' as const,
+        mode: 'delta',
       };
     }
 
-    const nextQuantity = baseQuantity + parsedDelta;
-    if (nextQuantity < 0) {
+    const nextQuantity = baseQuantity.plus(parsedDelta);
+    if (nextQuantity.isNegative()) {
       return {
         isProvided: true,
         isValid: false,
         delta: parsedDelta,
         preview: null,
-        mode: 'delta' as const,
+        mode: 'delta',
       };
     }
 
@@ -236,7 +257,7 @@ export const Holdings: React.FC = () => {
       isValid: true,
       delta: parsedDelta,
       preview: nextQuantity,
-      mode: 'delta' as const,
+      mode: 'delta',
     };
   }, [quantityDeltaInput, quantityTargetInput, selectedHolding]);
 
@@ -255,23 +276,49 @@ export const Holdings: React.FC = () => {
         : '유효한 증감 수량을 입력해주세요.';
     }
 
-    const deltaValue = manualQuantityState.delta ?? 0;
-    if (Math.abs(deltaValue) < 1e-6) {
+    const deltaValue = manualQuantityState.delta;
+    const isDeltaTrivial =
+      !deltaValue || deltaValue.abs().lessThan(ZERO_DELTA_THRESHOLD);
+    if (isDeltaTrivial) {
       return manualQuantityState.mode === 'target'
         ? '목표 수량이 현재 수량과 동일합니다.'
-        : `현재 수량 ${selectedHolding.quantity.toLocaleString()} (변경 없음)`;
+        : `현재 수량 ${formatDecimal(selectedHolding.quantity, {
+            trimTrailingZeros: true,
+            useGrouping: true,
+          })} (변경 없음)`;
     }
 
-    const sign = deltaValue > 0 ? '+' : '';
+    if (!deltaValue) {
+      return '';
+    }
+
+    const sign = deltaValue.isPositive() ? '+' : '';
+    const deltaText = formatDecimal(deltaValue, {
+      trimTrailingZeros: true,
+      useGrouping: true,
+    });
+
     if (
       manualQuantityState.mode === 'target' &&
       manualQuantityState.preview !== null
     ) {
-      return `목표 ${manualQuantityState.preview.toLocaleString()}로 변경됩니다 (현재 대비 ${sign}${deltaValue.toLocaleString()}).`;
+      const previewText = formatDecimal(manualQuantityState.preview, {
+        trimTrailingZeros: true,
+        useGrouping: true,
+      });
+      return `목표 ${previewText}로 변경됩니다 (현재 대비 ${sign}${deltaText}).`;
     }
 
     if (manualQuantityState.preview !== null) {
-      return `현재 ${selectedHolding.quantity.toLocaleString()} → ${manualQuantityState.preview.toLocaleString()} (${sign}${deltaValue.toLocaleString()})`;
+      const currentText = formatDecimal(selectedHolding.quantity, {
+        trimTrailingZeros: true,
+        useGrouping: true,
+      });
+      const previewText = formatDecimal(manualQuantityState.preview, {
+        trimTrailingZeros: true,
+        useGrouping: true,
+      });
+      return `현재 ${currentText} → ${previewText} (${sign}${deltaText})`;
     }
 
     return '';
@@ -368,15 +415,16 @@ export const Holdings: React.FC = () => {
       event.preventDefault();
       const market = manualMarket.trim().toUpperCase();
       const symbol = manualSymbol.trim().toUpperCase();
-      if (!market || !symbol || manualQuantity.trim() === '') {
+      const quantityTrimmed = parseQuantityInput(manualQuantity);
+      if (!market || !symbol || quantityTrimmed === '') {
         return;
       }
       if (!manualAccountId) {
         alert('수동 입력 계좌를 선택해주세요.');
         return;
       }
-      const quantityValue = Number(manualQuantity);
-      if (!Number.isFinite(quantityValue) || quantityValue < 0) {
+      const quantityDecimal = tryCreateDecimal(quantityTrimmed);
+      if (!quantityDecimal || quantityDecimal.isNegative()) {
         alert('유효한 수량을 입력해주세요.');
         return;
       }
@@ -387,7 +435,9 @@ export const Holdings: React.FC = () => {
               accountId: manualAccountId,
               market,
               symbol,
-              quantity: quantityValue,
+              quantity: toPlainString(quantityDecimal, {
+                trimTrailingZeros: true,
+              }),
             },
           },
         });
@@ -530,12 +580,13 @@ export const Holdings: React.FC = () => {
     const aliasPayload = trimmedAlias.length === 0 ? null : trimmedAlias;
 
     let quantityChanged = false;
-    let parsedQuantity: number | null = null;
+    let parsedQuantity: Decimal | null = null;
 
     if (selectedHolding.source === 'MANUAL') {
+      const currentQuantity = createDecimal(selectedHolding.quantity);
       if (!manualQuantityState.isProvided) {
         quantityChanged = false;
-        parsedQuantity = selectedHolding.quantity;
+        parsedQuantity = currentQuantity;
       } else if (
         !manualQuantityState.isValid ||
         manualQuantityState.preview === null
@@ -549,8 +600,7 @@ export const Holdings: React.FC = () => {
       } else {
         parsedQuantity = manualQuantityState.preview;
         quantityChanged =
-          parsedQuantity !== null &&
-          Math.abs(parsedQuantity - selectedHolding.quantity) > 1e-6;
+          parsedQuantity !== null && !parsedQuantity.eq(currentQuantity);
       }
     }
 
@@ -596,7 +646,9 @@ export const Holdings: React.FC = () => {
                 accountId: selectedHolding.accountId,
                 market: selectedHolding.market,
                 symbol: selectedHolding.symbol,
-                quantity: parsedQuantity,
+                quantity: toPlainString(parsedQuantity, {
+                  trimTrailingZeros: true,
+                }),
               },
             },
           });

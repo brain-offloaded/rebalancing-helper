@@ -1,16 +1,19 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from '../src/app.module';
+import { AppModule } from './app.module';
 import { GraphQLSchemaHost } from '@nestjs/graphql';
 import { lexicographicSortSchema, printSchema } from 'graphql';
 import { writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { config } from 'dotenv';
+import { INestApplicationContext } from '@nestjs/common';
 
 async function main() {
-  const app = await NestFactory.createApplicationContext(AppModule, {
-    logger: false,
-  });
+  const path = resolve(__dirname, process.env.ENV_FILE ?? '../.env');
+  config({ path });
+  let app: INestApplicationContext = null as unknown as INestApplicationContext;
   try {
+    app = await NestFactory.createApplicationContext(AppModule);
     const { schema } = app.get(GraphQLSchemaHost);
     const sortedSchema = lexicographicSortSchema(schema);
     const sdl = printSchema(sortedSchema);
@@ -23,12 +26,15 @@ ${sdl}`,
       'utf8',
     );
     console.log(`Schema written to ${outPath}`);
+  } catch (e) {
+    console.log('Error during schema generation', e);
+    throw e;
   } finally {
     await app.close();
   }
 }
 
 main().catch((e) => {
-  console.error(e);
+  console.log(e);
   process.exit(1);
 });

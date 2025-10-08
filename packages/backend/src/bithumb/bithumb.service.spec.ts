@@ -32,10 +32,8 @@ describe('BithumbService', () => {
 
     const result = await service.getTicker('btc');
 
-    expect(result).toEqual({
-      price: 42_890_000,
-      asOf: new Date(1_700_000_000_000),
-    });
+    expect(result?.price.toNumber()).toBe(42_890_000);
+    expect(result?.asOf).toEqual(new Date(1_700_000_000_000));
   });
 
   it('가격이나 시각이 없으면 null을 반환한다', async () => {
