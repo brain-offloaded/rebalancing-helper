@@ -34,7 +34,8 @@
     "test": {
       "dependsOn": [
         "^test",
-        "prisma:generate"
+        "prisma:generate",
+        "gql:all"
       ],
       "outputs": [
         "coverage/**"
@@ -46,7 +47,8 @@
     "test:cov": {
       "dependsOn": [
         "^test:cov",
-        "prisma:generate"
+        "prisma:generate",
+        "gql:all"
       ],
       "outputs": [
         "coverage/**"
