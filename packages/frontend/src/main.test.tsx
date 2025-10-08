@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+vi.mock('@rebalancing-helper/common', () => ({
+  forTestFunction: vi.fn(),
+}));
+
 vi.mock('react-dom/client', () => {
   const render = vi.fn();
   return {
@@ -12,6 +16,7 @@ describe('main entry point', () => {
   beforeEach(() => {
     document.body.innerHTML = '<div id="root"></div>';
     vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it('React 애플리케이션을 루트에 렌더링한다', async () => {
@@ -19,7 +24,10 @@ describe('main entry point', () => {
 
     await import('./main');
 
+    const { forTestFunction } = await import('@rebalancing-helper/common');
+
     expect(createRoot).toHaveBeenCalledWith(document.getElementById('root'));
     expect(__renderMock).toHaveBeenCalledTimes(1);
+    expect(forTestFunction).toHaveBeenCalledTimes(1);
   });
 });

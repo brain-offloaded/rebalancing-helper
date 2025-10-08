@@ -16,6 +16,7 @@
     "gql:codegen": "graphql-codegen --config codegen.ts"
   },
   "dependencies": {
+    "@rebalancing-helper/common": "workspace:*",
     "@apollo/client": "^3.8.10",
     "@types/styled-components": "^5.1.34",
     "graphql": "^16.11.0",

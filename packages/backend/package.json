@@ -30,6 +30,7 @@
     "gql:schema": "ENV_FILE=../../.env.example nest start --entryFile generate-schema"
   },
   "dependencies": {
+    "@rebalancing-helper/common": "workspace:*",
     "@apollo/server": "^4.12.2",
     "@nestjs/apollo": "^13.1.0",
     "@nestjs/axios": "^4.0.1",
