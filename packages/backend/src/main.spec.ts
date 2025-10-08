@@ -1,5 +1,4 @@
 import { NestFactory } from '@nestjs/core';
-import { forTestFunction } from '@rebalancing-helper/common';
 import { bootstrap } from './main';
 import { PrismaService } from './prisma/prisma.service';
 import { TypedConfigService } from './typed-config';
@@ -9,12 +8,6 @@ jest.mock('@nestjs/core', () => ({
     create: jest.fn(),
   },
 }));
-
-jest.mock('@rebalancing-helper/common', () => ({
-  forTestFunction: jest.fn(),
-}));
-
-const mockedForTestFunction = jest.mocked(forTestFunction);
 
 describe('bootstrap', () => {
   const enableCors = jest.fn();
@@ -27,7 +20,6 @@ describe('bootstrap', () => {
   } as unknown as TypedConfigService;
 
   beforeEach(() => {
-    mockedForTestFunction.mockClear();
     enableCors.mockClear();
     listen.mockClear();
     configGet.mockReset().mockReturnValue(3000);
@@ -53,7 +45,6 @@ describe('bootstrap', () => {
     await bootstrap();
 
     expect(NestFactory.create).toHaveBeenCalled();
-    expect(mockedForTestFunction).toHaveBeenCalledTimes(1);
     expect(enableCors).toHaveBeenCalledWith({
       origin: ['http://localhost:5173'],
       credentials: true,
@@ -75,6 +66,5 @@ describe('bootstrap', () => {
     await bootstrap();
 
     expect(listen).toHaveBeenCalledWith(4000);
-    expect(mockedForTestFunction).toHaveBeenCalledTimes(1);
   });
 });

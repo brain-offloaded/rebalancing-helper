@@ -16,6 +16,9 @@
       ],
       "outputLogs": "new-only"
     },
+    "prisma:generate": {
+      "cache": false
+    },
     "dev": {
       "dependsOn": [
         "^dev",

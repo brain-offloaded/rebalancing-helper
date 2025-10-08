@@ -1,9 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('@rebalancing-helper/common', () => ({
-  forTestFunction: vi.fn(),
-}));
-
 vi.mock('react-dom/client', () => {
   const render = vi.fn();
   return {
@@ -24,10 +20,7 @@ describe('main entry point', () => {
 
     await import('./main');
 
-    const { forTestFunction } = await import('@rebalancing-helper/common');
-
     expect(createRoot).toHaveBeenCalledWith(document.getElementById('root'));
     expect(__renderMock).toHaveBeenCalledTimes(1);
-    expect(forTestFunction).toHaveBeenCalledTimes(1);
   });
 });
