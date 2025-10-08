@@ -4,18 +4,17 @@ import { AppModule } from './app.module';
 import { GraphQLSchemaHost } from '@nestjs/graphql';
 import { lexicographicSortSchema, printSchema } from 'graphql';
 import { writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { config } from 'dotenv';
-import { TypedConfigService } from './typed-config';
+import { INestApplicationContext } from '@nestjs/common';
 
 async function main() {
-  config({ path: process.env.ENV_FILE ?? '.env' });
-  const app = await NestFactory.createApplicationContext(AppModule, {
-    logger: false,
-  });
+  const path = resolve(__dirname, process.env.ENV_FILE ?? '../.env');
+  config({ path });
+  let app: INestApplicationContext = null as unknown as INestApplicationContext;
   try {
+    app = await NestFactory.createApplicationContext(AppModule);
     const { schema } = app.get(GraphQLSchemaHost);
-    app.get(TypedConfigService).get('DATABASE_URL'); // Ensure env is valid
     const sortedSchema = lexicographicSortSchema(schema);
     const sdl = printSchema(sortedSchema);
     const outPath = join(process.cwd(), 'generated.graphql');
@@ -28,7 +27,7 @@ ${sdl}`,
     );
     console.log(`Schema written to ${outPath}`);
   } catch (e) {
-    console.error('Error during schema generation', e);
+    console.log('Error during schema generation', e);
     throw e;
   } finally {
     await app.close();
@@ -36,6 +35,6 @@ ${sdl}`,
 }
 
 main().catch((e) => {
-  console.error(e);
+  console.log(e);
   process.exit(1);
 });
