@@ -23,6 +23,9 @@ ${sdl}`,
       'utf8',
     );
     console.log(`Schema written to ${outPath}`);
+  } catch (e) {
+    console.error('Error during schema generation', e);
+    throw e;
   } finally {
     await app.close();
   }
