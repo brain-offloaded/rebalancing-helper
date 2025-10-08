@@ -45,6 +45,7 @@ export function createGraphqlContext({
   imports: [
     TypedConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: process.env.ENV_FILE ?? '.env',
     }),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,

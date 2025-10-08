@@ -27,7 +27,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio",
-    "gql:schema": "nest start --entryFile generate-schema"
+    "gql:schema": "ENV_FILE=.env.example nest start --entryFile generate-schema"
   },
   "dependencies": {
     "@apollo/server": "^4.12.2",
