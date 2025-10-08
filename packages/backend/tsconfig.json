@@ -15,6 +15,10 @@
     "skipLibCheck": true,
     "strict": true,
     "strictPropertyInitialization": false,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@rebalancing-helper/common": ["../common/src"],
+      "@rebalancing-helper/common/*": ["../common/src/*"]
+    }
   },
 }
