@@ -37,10 +37,8 @@ describe('NaverGoldPriceService', () => {
 
     const result = await service.getLatestPrice();
 
-    expect(result).toEqual({
-      price: 174_239.08,
-      asOf: new Date(Date.UTC(2025, 9, 2)),
-    });
+    expect(result?.price.toNumber()).toBeCloseTo(174_239.08, 2);
+    expect(result?.asOf).toEqual(new Date(Date.UTC(2025, 9, 2)));
   });
 
   it('필수 데이터가 없으면 null을 반환한다', async () => {

@@ -1,4 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { createDecimal } from '@rebalancing-helper/common';
 import { RebalancingService } from './rebalancing.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { HoldingsService } from '../holdings/holdings.service';
@@ -101,8 +102,10 @@ describe('RebalancingService', () => {
     holdingsServiceMock.getHoldings.mockResolvedValue([]);
 
     currencyConversionServiceMock = {
-      getRate: jest.fn().mockResolvedValue(1),
-      convert: jest.fn().mockImplementation(async (amount: number) => amount),
+      getRate: jest.fn().mockResolvedValue(createDecimal(1)),
+      convert: jest
+        .fn()
+        .mockImplementation(async (amount: number) => createDecimal(amount)),
     } as unknown as jest.Mocked<CurrencyConversionService>;
 
     configServiceMock = {
@@ -715,7 +718,9 @@ describe('RebalancingService', () => {
         updatedAt: baseDate,
       },
     ]);
-    currencyConversionServiceMock.getRate.mockResolvedValue(0.00075);
+    currencyConversionServiceMock.getRate.mockResolvedValue(
+      createDecimal('0.00075'),
+    );
 
     const analysis = await service.getRebalancingAnalysis(USER_ID, 'group-1');
 

@@ -1,3 +1,5 @@
+import { createDecimal } from '@rebalancing-helper/common';
+
 import { CurrencyConversionService } from './currency-conversion.service';
 import { YahooFinanceService } from './yahoo-finance.service';
 import type { YahooFinanceQuote } from './yahoo-finance.types';
@@ -28,15 +30,19 @@ describe('CurrencyConversionService', () => {
   });
 
   it('returns 1 when currencies are identical', async () => {
-    await expect(service.getRate('USD', 'USD')).resolves.toBe(1);
+    const rate = await service.getRate('USD', 'USD');
+    expect(rate.equals(createDecimal(1))).toBe(true);
     expect(yahooFinanceMock.getQuote).not.toHaveBeenCalled();
   });
 
   it('fetches direct exchange rate and caches it', async () => {
     yahooFinanceMock.getQuote.mockResolvedValue(buildQuote(1300));
 
-    await expect(service.getRate('USD', 'KRW')).resolves.toBe(1300);
-    await expect(service.getRate('USD', 'KRW')).resolves.toBe(1300);
+    const first = await service.getRate('USD', 'KRW');
+    const second = await service.getRate('USD', 'KRW');
+
+    expect(first.toNumber()).toBe(1300);
+    expect(second.toNumber()).toBe(1300);
 
     expect(yahooFinanceMock.getQuote).toHaveBeenCalledTimes(1);
     expect(yahooFinanceMock.getQuote).toHaveBeenCalledWith('USDKRW=X');
@@ -49,7 +55,7 @@ describe('CurrencyConversionService', () => {
 
     const rate = await service.getRate('KRW', 'USD');
 
-    expect(rate).toBeCloseTo(1 / 1300, 10);
+    expect(rate.toNumber()).toBeCloseTo(1 / 1300, 10);
     expect(yahooFinanceMock.getQuote).toHaveBeenNthCalledWith(1, 'KRWUSD=X');
     expect(yahooFinanceMock.getQuote).toHaveBeenNthCalledWith(2, 'USDKRW=X');
   });
@@ -65,6 +71,7 @@ describe('CurrencyConversionService', () => {
   it('converts amount using fetched rate', async () => {
     yahooFinanceMock.getQuote.mockResolvedValue(buildQuote(2));
 
-    await expect(service.convert(50, 'USD', 'CAD')).resolves.toBe(100);
+    const converted = await service.convert(50, 'USD', 'CAD');
+    expect(converted.toNumber()).toBe(100);
   });
 });

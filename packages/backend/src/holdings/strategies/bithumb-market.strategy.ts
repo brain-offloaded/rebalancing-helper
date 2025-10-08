@@ -26,7 +26,7 @@ export class BithumbMarketQuoteStrategy implements MarketQuoteStrategy {
         displaySymbol === 'BTC'
           ? '비트코인 (BTC/KRW)'
           : `${displaySymbol} (KRW)`,
-      regularMarketPrice: ticker.price,
+      regularMarketPrice: ticker.price.toNumber(),
       currency: 'KRW',
       financialCurrency: 'KRW',
       market: context.market,

@@ -5,6 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import type { Decimal, DecimalInput } from '@rebalancing-helper/common';
+import { createDecimal } from '@rebalancing-helper/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   RebalancingGroup,
@@ -25,7 +27,9 @@ import { HoldingsService } from '../holdings/holdings.service';
 import { CurrencyConversionService } from '../yahoo/currency-conversion.service';
 import { TypedConfigService } from '../typed-config';
 
-const PERCENTAGE_TOLERANCE = 0.01;
+const PERCENTAGE_TOLERANCE = createDecimal('0.01');
+const ONE_HUNDRED = createDecimal(100);
+const ONE = createDecimal(1);
 
 type GroupWithTags = Prisma.RebalancingGroupGetPayload<{
   include: { tags: true };
@@ -43,6 +47,18 @@ export class RebalancingService {
     private readonly configService: TypedConfigService,
   ) {
     this.baseCurrency = this.configService.get('BASE_CURRENCY').toUpperCase();
+  }
+
+  private toDecimal(value: DecimalInput): Decimal {
+    return createDecimal(value);
+  }
+
+  private toNumber(value: Decimal): number {
+    return value.toNumber();
+  }
+
+  private clampToZero(value: Decimal): Decimal {
+    return value.isNegative() ? createDecimal(0) : value;
   }
 
   private async assertTagsBelongToUser(
@@ -210,12 +226,12 @@ export class RebalancingService {
 
     const groupTagIds = group.tags.map((tag) => tag.tagId);
     const totalPercentage = input.targets.reduce(
-      (sum, target) => sum + target.targetPercentage,
-      0,
+      (sum, target) => sum.plus(this.toDecimal(target.targetPercentage)),
+      createDecimal(0),
     );
     if (
       input.targets.length > 0 &&
-      Math.abs(totalPercentage - 100) > PERCENTAGE_TOLERANCE
+      totalPercentage.minus(ONE_HUNDRED).abs().greaterThan(PERCENTAGE_TOLERANCE)
     ) {
       throw new BadRequestException('Target percentages must sum to 100');
     }
@@ -329,24 +345,24 @@ export class RebalancingService {
 
     const holdingsForValue = holdings.map((holding) => ({
       symbol: holding.symbol,
-      marketValue: holding.marketValue,
+      marketValue: this.toDecimal(holding.marketValue),
       currency: (holding.currency ?? this.baseCurrency).toUpperCase(),
     }));
     const targetAllocations = await this.prisma.targetAllocation.findMany({
       where: { groupId },
     });
-    const targetMap = new Map(
+    const targetMap = new Map<string, Decimal>(
       targetAllocations.map((target) => [
         target.tagId,
-        target.targetPercentage,
+        this.toDecimal(target.targetPercentage),
       ]),
     );
 
     const allocations: TagAllocation[] = [];
-    let totalValue = 0;
+    let totalValue = createDecimal(0);
     const holdingsByTag = new Map<string, string[]>();
-    const marketValueBySymbol = new Map<string, number>();
-    const tagValueByTag = new Map<string, number>();
+    const marketValueBySymbol = new Map<string, Decimal>();
+    const tagValueByTag = new Map<string, Decimal>();
 
     const currenciesToConvert = new Set<string>();
     for (const holding of holdingsForValue) {
@@ -355,7 +371,7 @@ export class RebalancingService {
       }
     }
 
-    const conversionRates = new Map<string, number>();
+    const conversionRates = new Map<string, Decimal>();
     for (const currency of currenciesToConvert) {
       try {
         const rate = await this.currencyConversionService.getRate(
@@ -369,19 +385,21 @@ export class RebalancingService {
             error instanceof Error ? error.message : String(error)
           }`,
         );
-        conversionRates.set(currency, 1);
+        conversionRates.set(currency, ONE);
       }
     }
 
     for (const holding of holdingsForValue) {
-      const currentValue = marketValueBySymbol.get(holding.symbol) ?? 0;
+      const currentValue =
+        marketValueBySymbol.get(holding.symbol) ?? createDecimal(0);
+      const rate =
+        holding.currency === this.baseCurrency
+          ? ONE
+          : (conversionRates.get(holding.currency) ?? ONE);
+      const convertedValue = holding.marketValue.times(rate);
       marketValueBySymbol.set(
         holding.symbol,
-        currentValue +
-          holding.marketValue *
-            (holding.currency === this.baseCurrency
-              ? 1
-              : (conversionRates.get(holding.currency) ?? 1)),
+        currentValue.plus(convertedValue),
       );
     }
 
@@ -392,10 +410,11 @@ export class RebalancingService {
       );
       holdingsByTag.set(tagId, holdingsForTag);
       const tagValue = holdingsForTag.reduce((sum, symbol) => {
-        return sum + (marketValueBySymbol.get(symbol) ?? 0);
-      }, 0);
+        const value = marketValueBySymbol.get(symbol);
+        return value ? sum.plus(value) : sum;
+      }, createDecimal(0));
       tagValueByTag.set(tagId, tagValue);
-      totalValue += tagValue;
+      totalValue = totalValue.plus(tagValue);
     }
 
     for (const tagId of groupTagIds) {
@@ -404,28 +423,29 @@ export class RebalancingService {
         continue;
       }
 
-      const tagValue = tagValueByTag.get(tagId) ?? 0;
+      const tagValue = tagValueByTag.get(tagId) ?? createDecimal(0);
 
-      const currentPercentage =
-        totalValue > 0 ? (tagValue / totalValue) * 100 : 0;
-      const targetPercentage = targetMap.get(tagId) ?? 0;
-      const difference = targetPercentage - currentPercentage;
+      const currentPercentage = totalValue.isZero()
+        ? createDecimal(0)
+        : tagValue.dividedBy(totalValue).times(ONE_HUNDRED);
+      const targetPercentage = targetMap.get(tagId) ?? createDecimal(0);
+      const difference = targetPercentage.minus(currentPercentage);
 
       allocations.push({
         tagId,
         tagName: tag.name,
         tagColor: tag.color,
-        currentValue: tagValue,
-        currentPercentage,
-        targetPercentage,
-        difference,
+        currentValue: this.toNumber(tagValue),
+        currentPercentage: this.toNumber(currentPercentage),
+        targetPercentage: this.toNumber(targetPercentage),
+        difference: this.toNumber(difference),
       });
     }
 
     return {
       groupId,
       groupName: group.name,
-      totalValue,
+      totalValue: this.toNumber(totalValue),
       baseCurrency: this.baseCurrency,
       allocations,
       lastUpdated: new Date(),
@@ -437,18 +457,26 @@ export class RebalancingService {
     input: CalculateInvestmentInput,
   ): Promise<InvestmentRecommendation[]> {
     const analysis = await this.getRebalancingAnalysis(userId, input.groupId);
-    const newTotalValue = analysis.totalValue + input.investmentAmount;
+    const investmentBudget = this.toDecimal(input.investmentAmount);
+    const newTotalValue = this.toDecimal(analysis.totalValue).plus(
+      investmentBudget,
+    );
 
-    const investmentBudget = input.investmentAmount;
     const allocationNeeds = analysis.allocations.map((allocation) => {
-      const targetValue = (allocation.targetPercentage / 100) * newTotalValue;
-      const neededValue = Math.max(0, targetValue - allocation.currentValue);
-      return { allocation, neededValue };
+      const targetValue = this.toDecimal(allocation.targetPercentage)
+        .dividedBy(ONE_HUNDRED)
+        .times(newTotalValue);
+      const currentValue = this.toDecimal(allocation.currentValue);
+      const neededValue = targetValue.minus(currentValue);
+      const positiveNeeded = neededValue.greaterThan(0)
+        ? neededValue
+        : createDecimal(0);
+      return { allocation, neededValue: positiveNeeded };
     });
 
     const totalNeededValue = allocationNeeds.reduce(
-      (sum, item) => sum + item.neededValue,
-      0,
+      (sum, item) => sum.plus(item.neededValue),
+      createDecimal(0),
     );
 
     const recommendations: InvestmentRecommendation[] = [];
@@ -456,26 +484,33 @@ export class RebalancingService {
 
     for (let index = 0; index < allocationNeeds.length; index++) {
       const { allocation, neededValue } = allocationNeeds[index];
-      let recommendedAmount = 0;
+      let recommendedAmount = createDecimal(0);
 
-      if (neededValue > 0 && investmentBudget > 0) {
-        if (totalNeededValue <= investmentBudget) {
-          recommendedAmount = Math.min(neededValue, remainingAmount);
+      if (neededValue.greaterThan(0) && !investmentBudget.isZero()) {
+        if (totalNeededValue.lessThanOrEqualTo(investmentBudget)) {
+          recommendedAmount = neededValue.lessThan(remainingAmount)
+            ? neededValue
+            : remainingAmount;
         } else {
-          const proportion = neededValue / totalNeededValue;
-          recommendedAmount = proportion * investmentBudget;
+          const proportion = neededValue.dividedBy(totalNeededValue);
+          recommendedAmount = proportion.times(investmentBudget);
           if (index === allocationNeeds.length - 1) {
             recommendedAmount = remainingAmount;
           } else {
-            recommendedAmount = Math.min(recommendedAmount, remainingAmount);
+            recommendedAmount = recommendedAmount.lessThan(remainingAmount)
+              ? recommendedAmount
+              : remainingAmount;
           }
         }
       }
 
-      remainingAmount = Math.max(0, remainingAmount - recommendedAmount);
+      remainingAmount = this.clampToZero(
+        remainingAmount.minus(recommendedAmount),
+      );
 
-      const recommendedPercentage =
-        investmentBudget > 0 ? (recommendedAmount / investmentBudget) * 100 : 0;
+      const recommendedPercentage = investmentBudget.isZero()
+        ? createDecimal(0)
+        : recommendedAmount.dividedBy(investmentBudget).times(ONE_HUNDRED);
       const suggestedSymbols = await this.holdingsService.getHoldingsForTag(
         userId,
         allocation.tagId,
@@ -484,8 +519,8 @@ export class RebalancingService {
       recommendations.push({
         tagId: allocation.tagId,
         tagName: allocation.tagName,
-        recommendedAmount,
-        recommendedPercentage,
+        recommendedAmount: this.toNumber(recommendedAmount),
+        recommendedPercentage: this.toNumber(recommendedPercentage),
         suggestedSymbols,
         baseCurrency: analysis.baseCurrency,
       });

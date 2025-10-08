@@ -1,4 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
+
+import type { Decimal } from '@rebalancing-helper/common';
+import { createDecimal } from '@rebalancing-helper/common';
+
 import { ExternalHttpService } from '../common/http/external-http.service';
 
 interface BithumbTickerData {
@@ -20,7 +24,7 @@ export class BithumbService {
 
   async getTicker(
     symbol: string,
-  ): Promise<{ price: number; asOf: Date } | null> {
+  ): Promise<{ price: Decimal; asOf: Date } | null> {
     const normalizedSymbol = symbol.trim().toUpperCase();
 
     if (!normalizedSymbol) {
@@ -34,9 +38,21 @@ export class BithumbService {
         return null;
       }
 
-      const price = Number(ticker.closing_price);
+      const rawPrice = ticker.closing_price;
 
-      if (!Number.isFinite(price)) {
+      if (rawPrice === undefined || rawPrice === null || rawPrice === '') {
+        return null;
+      }
+
+      const numericPrice = Number(rawPrice);
+
+      if (!Number.isFinite(numericPrice)) {
+        return null;
+      }
+
+      const priceDecimal = createDecimal(rawPrice);
+
+      if (priceDecimal.isNegative()) {
         return null;
       }
 
@@ -54,7 +70,7 @@ export class BithumbService {
         return null;
       }
 
-      return { price, asOf };
+      return { price: priceDecimal, asOf };
     } catch (error) {
       this.logger.warn(
         `Failed to fetch ticker from Bithumb: ${(error as Error).message}`,
