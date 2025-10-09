@@ -1,5 +1,5 @@
 import userEvent from '@testing-library/user-event';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { renderWithProviders } from '../../test-utils/render';
@@ -263,5 +263,108 @@ describe('RebalancingGroupDetailPage', () => {
     );
 
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('목표 비율을 저장하면 mutation을 호출하고 분석을 새로고침한다', async () => {
+    const { setTargets, refetchAnalysis } = setupMocks();
+    const user = userEvent.setup();
+    const alertSpy = vi
+      .spyOn(window, 'alert')
+      .mockImplementation(() => undefined);
+
+    renderWithProviders(
+      <RebalancingGroupDetailPage groupId="group-1" onClose={vi.fn()} />,
+      { withApollo: false },
+    );
+
+    const growthInput = screen.getByLabelText('성장주 목표 비율');
+    const dividendInput = screen.getByLabelText('배당주 목표 비율');
+
+    await user.clear(growthInput);
+    await user.type(growthInput, '55');
+    await user.clear(dividendInput);
+    await user.type(dividendInput, '45');
+
+    await user.click(screen.getByRole('button', { name: '목표 비율 저장' }));
+
+    await waitFor(() => expect(setTargets).toHaveBeenCalled());
+
+    expect(setTargets).toHaveBeenCalledWith(
+      expect.objectContaining({
+        variables: {
+          input: {
+            groupId: 'group-1',
+            targets: [
+              { tagId: 'tag-1', targetPercentage: 55 },
+              { tagId: 'tag-2', targetPercentage: 45 },
+            ],
+          },
+        },
+      }),
+    );
+    expect(refetchAnalysis).toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith('목표 비율을 저장했습니다.');
+
+    alertSpy.mockRestore();
+  });
+
+  it('태그 저장 시 그룹 정보를 갱신하고 분석을 새로고침한다', async () => {
+    const { updateGroup, refetchGroups, refetchAnalysis } = setupMocks();
+    const user = userEvent.setup();
+    const alertSpy = vi
+      .spyOn(window, 'alert')
+      .mockImplementation(() => undefined);
+
+    renderWithProviders(
+      <RebalancingGroupDetailPage groupId="group-1" onClose={vi.fn()} />,
+      { withApollo: false },
+    );
+
+    await user.click(screen.getByRole('button', { name: '태그 저장' }));
+
+    await waitFor(() => expect(updateGroup).toHaveBeenCalled());
+
+    expect(updateGroup).toHaveBeenCalledWith(
+      expect.objectContaining({
+        variables: {
+          input: {
+            id: 'group-1',
+            tagIds: ['tag-1', 'tag-2'],
+          },
+        },
+      }),
+    );
+    expect(refetchGroups).toHaveBeenCalled();
+    expect(refetchAnalysis).toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith('태그 구성을 저장했습니다.');
+
+    alertSpy.mockRestore();
+  });
+
+  it('그룹 삭제를 확인하면 삭제 후 onClose를 호출한다', async () => {
+    const { deleteGroup, refetchGroups } = setupMocks();
+    const user = userEvent.setup();
+    const alertSpy = vi
+      .spyOn(window, 'alert')
+      .mockImplementation(() => undefined);
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const onClose = vi.fn();
+
+    renderWithProviders(
+      <RebalancingGroupDetailPage groupId="group-1" onClose={onClose} />,
+      { withApollo: false },
+    );
+
+    await user.click(screen.getByRole('button', { name: '그룹 삭제' }));
+
+    await waitFor(() => expect(deleteGroup).toHaveBeenCalled());
+
+    expect(deleteGroup).toHaveBeenCalledWith({ variables: { id: 'group-1' } });
+    expect(refetchGroups).toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith('그룹을 삭제했습니다.');
+    expect(onClose).toHaveBeenCalled();
+
+    alertSpy.mockRestore();
+    confirmSpy.mockRestore();
   });
 });

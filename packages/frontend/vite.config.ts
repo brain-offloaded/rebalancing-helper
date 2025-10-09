@@ -19,6 +19,7 @@ export default defineConfig({
         ...configDefaults.coverage.exclude!,
         'src/vite-env.d.ts',
         'src/graphql/**',
+        'src/components/types.ts',
       ],
       thresholds: {
         branches: 75,
