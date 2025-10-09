@@ -113,7 +113,8 @@
       "!test-utils/**/*",
       "!holdings/strategies/market-quote.strategy.ts",
       "!generate-schema.ts",
-      "!typed-config.ts"
+      "!typed-config.ts",
+      "!app.controller.ts"
     ],
     "coverageDirectory": "../coverage",
     "coverageReporters": [
