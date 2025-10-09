@@ -10,6 +10,7 @@ import { INestApplicationContext } from '@nestjs/common';
 
 async function main() {
   const path = resolve(__dirname, process.env.ENV_FILE ?? '../.env');
+  console.log(path);
   config({ path });
   let app: INestApplicationContext = null as unknown as INestApplicationContext;
   try {
