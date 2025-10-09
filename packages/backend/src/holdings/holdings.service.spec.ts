@@ -524,7 +524,8 @@ describe('HoldingsService', () => {
       prismaMock.holding.update.mockResolvedValue({
         ...manualHolding,
         quantity: input.quantity,
-        marketValue: Number(manualHolding.currentPrice) * Number(input.quantity),
+        marketValue:
+          Number(manualHolding.currentPrice) * Number(input.quantity),
       });
 
       const result = await service.setManualHoldingQuantity(USER_ID, input);

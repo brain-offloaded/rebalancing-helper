@@ -75,7 +75,9 @@ describe('NaverGoldPriceService', () => {
   });
 
   it('금 가격 행이 없으면 null을 반환한다', async () => {
-    httpService.getBuffer.mockResolvedValue(Buffer.from('<div>empty</div>', 'utf8'));
+    httpService.getBuffer.mockResolvedValue(
+      Buffer.from('<div>empty</div>', 'utf8'),
+    );
 
     const result = await service.getLatestPrice();
 
