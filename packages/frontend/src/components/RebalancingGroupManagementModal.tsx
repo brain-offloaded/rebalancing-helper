@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import styled from 'styled-components';
 import {
   PieChart,
@@ -249,10 +255,35 @@ export const RebalancingGroupManagementModal: React.FC<
     | RebalancingAnalysis
     | undefined;
 
-  const recommendations =
-    (recommendationData?.investmentRecommendation as
-      | InvestmentRecommendation[]
-      | undefined) ?? [];
+  const [recommendations, setRecommendations] = useState<
+    InvestmentRecommendation[]
+  >([]);
+  const previousGroupIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!open || !groupId) {
+      setRecommendations([]);
+      previousGroupIdRef.current = groupId;
+      return;
+    }
+
+    if (previousGroupIdRef.current !== groupId) {
+      previousGroupIdRef.current = groupId;
+      setRecommendations([]);
+    }
+
+    if (investmentAmountValue === null) {
+      return;
+    }
+
+    if (recommendationData) {
+      const nextRecommendations =
+        (recommendationData.investmentRecommendation as
+          | InvestmentRecommendation[]
+          | undefined) ?? [];
+      setRecommendations(nextRecommendations);
+    }
+  }, [open, groupId, investmentAmountValue, recommendationData]);
 
   const baseCurrency =
     analysis?.baseCurrency ?? recommendations[0]?.baseCurrency ?? 'USD';
@@ -376,14 +407,6 @@ export const RebalancingGroupManagementModal: React.FC<
     [group, nameInput, descriptionInput, updateGroupMutation, refetchGroups],
   );
 
-  const handleSaveBasicInfo = useCallback(
-    async (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      await saveBasicInfo();
-    },
-    [saveBasicInfo],
-  );
-
   const handleToggleTag = (tagId: string) => {
     setSelectedTagIds((prev) =>
       prev.includes(tagId)
@@ -427,14 +450,6 @@ export const RebalancingGroupManagementModal: React.FC<
       refetchGroups,
       refetchAnalysis,
     ],
-  );
-
-  const handleSaveTags = useCallback(
-    async (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      await saveTags();
-    },
-    [saveTags],
   );
 
   const saveTargets = useCallback(
@@ -489,14 +504,6 @@ export const RebalancingGroupManagementModal: React.FC<
       }
     },
     [group, targetAllocations, setTargetAllocationsMutation, refetchAnalysis],
-  );
-
-  const handleSaveTargets = useCallback(
-    async (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      await saveTargets();
-    },
-    [saveTargets],
   );
 
   const handleDeleteGroup = useCallback(async () => {
@@ -713,7 +720,7 @@ export const RebalancingGroupManagementModal: React.FC<
           </ValueBadge>
         </SummaryBadges>
 
-        <Form onSubmit={handleSaveBasicInfo}>
+        <Form as="div">
           <ModalSection>
             <Field>
               <FieldLabel htmlFor="group-name-input">그룹 이름</FieldLabel>
@@ -735,11 +742,6 @@ export const RebalancingGroupManagementModal: React.FC<
               />
             </Field>
           </ModalSection>
-          <ButtonGroup>
-            <Button type="submit" variant="primary" disabled={updatingGroup}>
-              {updatingGroup ? '저장 중...' : '기본 정보 저장'}
-            </Button>
-          </ButtonGroup>
         </Form>
 
         <ModalSection>
@@ -759,7 +761,7 @@ export const RebalancingGroupManagementModal: React.FC<
           </TagContainer>
         </ModalSection>
 
-        <Form onSubmit={handleSaveTags}>
+        <Form as="div">
           <ModalSection>
             <FieldLabel as="h4">태그 구성</FieldLabel>
             <TagSelectionGrid>
@@ -800,14 +802,9 @@ export const RebalancingGroupManagementModal: React.FC<
               </HelperText>
             ) : null}
           </ModalSection>
-          <ButtonGroup>
-            <Button type="submit" variant="secondary" disabled={updatingGroup}>
-              {updatingGroup ? '저장 중...' : '태그 저장'}
-            </Button>
-          </ButtonGroup>
         </Form>
 
-        <Form onSubmit={handleSaveTargets}>
+        <Form as="div">
           <ModalSection>
             <FieldLabel as="h4">목표 비율 설정</FieldLabel>
             {selectedTagIds.length === 0 ? (
@@ -875,11 +872,6 @@ export const RebalancingGroupManagementModal: React.FC<
               합니다)
             </HelperText>
           </ModalSection>
-          <ButtonGroup>
-            <Button type="submit" variant="primary" disabled={savingTargets}>
-              {savingTargets ? '저장 중...' : '목표 비율 저장'}
-            </Button>
-          </ButtonGroup>
         </Form>
 
         {analysis && (
@@ -1032,7 +1024,7 @@ export const RebalancingGroupManagementModal: React.FC<
             </HelperText>
           ) : null}
 
-          {recommendations.length > 0 && (
+          {!shouldSkipRecommendation && recommendations.length > 0 && (
             <AllocationTable>
               <thead>
                 <tr>
