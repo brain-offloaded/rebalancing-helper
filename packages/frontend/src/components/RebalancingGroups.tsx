@@ -176,7 +176,7 @@ export const RebalancingGroups: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [showTargetForm, setShowTargetForm] = useState(false);
-  const [investmentAmount, setInvestmentAmount] = useState<number>(1000);
+  const [investmentAmountInput, setInvestmentAmountInput] = useState('1000');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -208,11 +208,26 @@ export const RebalancingGroups: React.FC = () => {
       variables: { groupId: selectedGroup as string },
       skip: !selectedGroup,
     });
+  const investmentAmountValue = useMemo(() => {
+    if (investmentAmountInput.trim() === '') {
+      return null;
+    }
+
+    const parsed = Number(investmentAmountInput);
+    return Number.isNaN(parsed) ? null : parsed;
+  }, [investmentAmountInput]);
+
+  const shouldSkipRecommendation =
+    !selectedGroup || investmentAmountValue === null;
+
   const { data: recommendationData } = useGetInvestmentRecommendationQuery({
     variables: {
-      input: { groupId: selectedGroup as string, investmentAmount },
+      input: {
+        groupId: selectedGroup as string,
+        investmentAmount: investmentAmountValue ?? 0,
+      },
     },
-    skip: !selectedGroup,
+    skip: shouldSkipRecommendation,
   });
 
   const [createGroup] = useCreateRebalancingGroupMutation();
@@ -316,6 +331,16 @@ export const RebalancingGroups: React.FC = () => {
     setShowTargetForm(false);
     setTargetAllocations({});
   };
+
+  const handleOpenDetailPage = useCallback((group: RebalancingGroup) => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('rebalancingGroupId', group.id);
+    window.open(url.toString(), '_blank', 'noopener');
+  }, []);
 
   const handleStartTagManagement = (group: RebalancingGroup) => {
     if (tagManagement.groupId === group.id) {
@@ -703,6 +728,9 @@ export const RebalancingGroups: React.FC = () => {
                 태그 관리
               </Button>
               <Button onClick={() => handleRename(group)}>이름 변경</Button>
+              <Button onClick={() => handleOpenDetailPage(group)}>
+                새 탭에서 관리
+              </Button>
               <Button
                 type="button"
                 variant="danger"
@@ -826,11 +854,12 @@ export const RebalancingGroups: React.FC = () => {
                   const tag = tagsData?.tags?.find((t: Tag) => t.id === tagId);
                   return tag ? (
                     <FormGroup key={tagId}>
-                      <Label>
+                      <Label htmlFor={`target-allocation-${tagId}`}>
                         <TagColor color={tag.color} />
                         {tag.name} 목표 비율 (%)
                       </Label>
                       <Input
+                        id={`target-allocation-${tagId}`}
                         type="number"
                         min="0"
                         max="100"
@@ -987,17 +1016,27 @@ export const RebalancingGroups: React.FC = () => {
           <div style={{ marginTop: '24px' }}>
             <h4>투자 추천</h4>
             <FormGroup>
-              <Label>투자 예정 금액 ({currencySymbol})</Label>
+              <Label htmlFor="investment-amount-input">
+                투자 예정 금액 ({currencySymbol})
+              </Label>
               <Input
                 type="number"
-                value={investmentAmount}
-                onChange={(e) =>
-                  setInvestmentAmount(parseFloat(e.target.value) || 0)
+                id="investment-amount-input"
+                value={investmentAmountInput}
+                onChange={(event) =>
+                  setInvestmentAmountInput(event.target.value)
                 }
                 min="0"
                 step={isZeroDecimalCurrency ? 1000 : 100}
+                placeholder="투자 금액을 입력하세요"
               />
             </FormGroup>
+
+            {shouldSkipRecommendation ? (
+              <p style={{ color: '#6c757d' }}>
+                투자 금액을 입력하면 추천 결과가 표시됩니다.
+              </p>
+            ) : null}
 
             {recommendations.length > 0 && (
               <AllocationTable>

@@ -284,11 +284,12 @@ describe('RebalancingGroups', () => {
     await user.click(screen.getByRole('button', { name: '분석 보기' }));
     await user.click(screen.getByRole('button', { name: '목표 비율 설정' }));
 
-    const inputs = screen.getAllByRole('spinbutton');
-    await user.clear(inputs[0]);
-    await user.type(inputs[0], '40');
-    await user.clear(inputs[1]);
-    await user.type(inputs[1], '30');
+    const growthInput = screen.getByLabelText('성장주 목표 비율 (%)');
+    const dividendInput = screen.getByLabelText('배당주 목표 비율 (%)');
+    await user.clear(growthInput);
+    await user.type(growthInput, '40');
+    await user.clear(dividendInput);
+    await user.type(dividendInput, '30');
 
     await user.click(screen.getByRole('button', { name: '목표 비율 적용' }));
 
@@ -308,11 +309,12 @@ describe('RebalancingGroups', () => {
     await user.click(screen.getByRole('button', { name: '분석 보기' }));
     await user.click(screen.getByRole('button', { name: '목표 비율 설정' }));
 
-    const inputs = screen.getAllByRole('spinbutton');
-    await user.clear(inputs[0]);
-    await user.type(inputs[0], '60');
-    await user.clear(inputs[1]);
-    await user.type(inputs[1], '40');
+    const growthInput = screen.getByLabelText('성장주 목표 비율 (%)');
+    const dividendInput = screen.getByLabelText('배당주 목표 비율 (%)');
+    await user.clear(growthInput);
+    await user.type(growthInput, '60');
+    await user.clear(dividendInput);
+    await user.type(dividendInput, '40');
 
     await user.click(screen.getByRole('button', { name: '목표 비율 적용' }));
 
@@ -344,10 +346,11 @@ describe('RebalancingGroups', () => {
     await user.click(screen.getByRole('button', { name: '분석 보기' }));
     await user.click(screen.getByRole('button', { name: '목표 비율 설정' }));
 
-    const inputs = screen.getAllByRole('spinbutton');
+    const growthInput = screen.getByLabelText('성장주 목표 비율 (%)');
+    const dividendInput = screen.getByLabelText('배당주 목표 비율 (%)');
 
-    expect(inputs[0]).toHaveValue(50);
-    expect(inputs[1]).toHaveValue(50);
+    expect(growthInput).toHaveValue(50);
+    expect(dividendInput).toHaveValue(50);
   });
 
   it('분석 보기 버튼을 다시 누르면 분석 패널을 닫는다', async () => {
@@ -472,5 +475,35 @@ describe('RebalancingGroups', () => {
 
     expect(refetchGroups).toHaveBeenCalled();
     confirmSpy.mockRestore();
+  });
+
+  it('새 탭에서 관리 버튼을 누르면 새 창으로 상세 페이지를 연다', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+    const user = userEvent.setup();
+    setupMocks();
+
+    renderWithProviders(<RebalancingGroups />, { withApollo: false });
+
+    await user.click(screen.getByRole('button', { name: '새 탭에서 관리' }));
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    const openedUrl = openSpy.mock.calls[0]?.[0] as string;
+    expect(openedUrl).toContain('rebalancingGroupId=group-1');
+
+    openSpy.mockRestore();
+  });
+
+  it('투자 예정 금액 입력을 비워도 빈 값으로 유지한다', async () => {
+    setupMocks();
+    const user = userEvent.setup();
+
+    renderWithProviders(<RebalancingGroups />, { withApollo: false });
+
+    await user.click(screen.getByRole('button', { name: '분석 보기' }));
+
+    const amountInput = screen.getByLabelText(/투자 예정 금액/);
+    await user.clear(amountInput);
+
+    expect((amountInput as HTMLInputElement).value).toBe('');
   });
 });
