@@ -1,4 +1,6 @@
 import { ObjectType, Field, ID, registerEnumType } from '@nestjs/graphql';
+import type { DecimalInput } from '@rebalancing-helper/common';
+import { DecimalScalar } from '../common/scalars/decimal.scalar';
 
 export enum HoldingSource {
   BROKERAGE = 'BROKERAGE',
@@ -47,14 +49,14 @@ export class Holding {
   @Field(() => String, { nullable: true })
   alias: string | null;
 
-  @Field(() => Number)
-  quantity: number;
+  @Field(() => DecimalScalar)
+  quantity: DecimalInput;
 
-  @Field(() => Number)
-  currentPrice: number;
+  @Field(() => DecimalScalar)
+  currentPrice: DecimalInput;
 
-  @Field(() => Number)
-  marketValue: number;
+  @Field(() => DecimalScalar)
+  marketValue: DecimalInput;
 
   @Field(() => String)
   currency: string;
@@ -80,14 +82,14 @@ export class EnrichedHolding {
   @Field(() => String)
   name: string;
 
-  @Field(() => Number)
-  quantity: number;
+  @Field(() => DecimalScalar)
+  quantity: DecimalInput;
 
-  @Field(() => Number)
-  currentPrice: number;
+  @Field(() => DecimalScalar)
+  currentPrice: DecimalInput;
 
-  @Field(() => Number)
-  marketValue: number;
+  @Field(() => DecimalScalar)
+  marketValue: DecimalInput;
 
   @Field(() => String)
   currency: string;

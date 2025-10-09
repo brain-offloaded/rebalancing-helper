@@ -105,7 +105,7 @@ export type CreateBrokerageAccountInput = {
 export type CreateManualHoldingInput = {
   accountId: Scalars['String']['input'];
   market: Scalars['String']['input'];
-  quantity: Scalars['Float']['input'];
+  quantity: Scalars['Decimal']['input'];
   symbol: Scalars['String']['input'];
 };
 
@@ -127,13 +127,13 @@ export type Holding = {
   alias: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['DateTime']['output'];
   currency: Scalars['String']['output'];
-  currentPrice: Scalars['Float']['output'];
+  currentPrice: Scalars['Decimal']['output'];
   id: Scalars['ID']['output'];
   lastUpdated: Scalars['DateTime']['output'];
   market: Maybe<Scalars['String']['output']>;
-  marketValue: Scalars['Float']['output'];
+  marketValue: Scalars['Decimal']['output'];
   name: Scalars['String']['output'];
-  quantity: Scalars['Float']['output'];
+  quantity: Scalars['Decimal']['output'];
   source: HoldingSource;
   symbol: Scalars['String']['output'];
   updatedAt: Scalars['DateTime']['output'];
@@ -152,7 +152,7 @@ export type HoldingTag = {
 export type IncreaseManualHoldingInput = {
   accountId: Scalars['String']['input'];
   market: Scalars['String']['input'];
-  quantityDelta: Scalars['Float']['input'];
+  quantityDelta: Scalars['Decimal']['input'];
   symbol: Scalars['String']['input'];
 };
 
@@ -446,7 +446,7 @@ export type SetHoldingTagsInput = {
 export type SetManualHoldingQuantityInput = {
   accountId: Scalars['String']['input'];
   market: Scalars['String']['input'];
-  quantity: Scalars['Float']['input'];
+  quantity: Scalars['Decimal']['input'];
   symbol: Scalars['String']['input'];
 };
 
@@ -626,9 +626,9 @@ export type GetBrokerageHoldingsQuery = {
     id: string;
     symbol: string;
     name: string;
-    quantity: number;
-    currentPrice: number;
-    marketValue: number;
+    quantity: import('@rebalancing-helper/common').Decimal;
+    currentPrice: import('@rebalancing-helper/common').Decimal;
+    marketValue: import('@rebalancing-helper/common').Decimal;
     currency: string;
     accountId: string;
     lastUpdated: string;
@@ -740,9 +740,9 @@ export type RefreshBrokerageHoldingsMutation = {
     id: string;
     symbol: string;
     name: string;
-    quantity: number;
-    currentPrice: number;
-    marketValue: number;
+    quantity: import('@rebalancing-helper/common').Decimal;
+    currentPrice: import('@rebalancing-helper/common').Decimal;
+    marketValue: import('@rebalancing-helper/common').Decimal;
     currency: string;
     accountId: string;
     lastUpdated: string;
@@ -837,9 +837,9 @@ export type GetHoldingsQuery = {
     symbol: string;
     name: string;
     alias: string | null;
-    quantity: number;
-    currentPrice: number;
-    marketValue: number;
+    quantity: import('@rebalancing-helper/common').Decimal;
+    currentPrice: import('@rebalancing-helper/common').Decimal;
+    marketValue: import('@rebalancing-helper/common').Decimal;
     currency: string;
     lastUpdated: string;
     createdAt: string;
@@ -862,9 +862,9 @@ export type CreateManualHoldingMutation = {
     symbol: string;
     name: string;
     alias: string | null;
-    quantity: number;
-    currentPrice: number;
-    marketValue: number;
+    quantity: import('@rebalancing-helper/common').Decimal;
+    currentPrice: import('@rebalancing-helper/common').Decimal;
+    marketValue: import('@rebalancing-helper/common').Decimal;
     currency: string;
     lastUpdated: string;
     createdAt: string;
@@ -887,9 +887,9 @@ export type IncreaseManualHoldingMutation = {
     symbol: string;
     name: string;
     alias: string | null;
-    quantity: number;
-    currentPrice: number;
-    marketValue: number;
+    quantity: import('@rebalancing-helper/common').Decimal;
+    currentPrice: import('@rebalancing-helper/common').Decimal;
+    marketValue: import('@rebalancing-helper/common').Decimal;
     currency: string;
     lastUpdated: string;
     createdAt: string;
@@ -912,9 +912,9 @@ export type SetManualHoldingQuantityMutation = {
     symbol: string;
     name: string;
     alias: string | null;
-    quantity: number;
-    currentPrice: number;
-    marketValue: number;
+    quantity: import('@rebalancing-helper/common').Decimal;
+    currentPrice: import('@rebalancing-helper/common').Decimal;
+    marketValue: import('@rebalancing-helper/common').Decimal;
     currency: string;
     lastUpdated: string;
     createdAt: string;
@@ -946,10 +946,10 @@ export type SyncManualHoldingPriceMutation = {
     symbol: string;
     name: string;
     alias: string | null;
-    currentPrice: number;
-    marketValue: number;
+    currentPrice: import('@rebalancing-helper/common').Decimal;
+    marketValue: import('@rebalancing-helper/common').Decimal;
     lastUpdated: string;
-    quantity: number;
+    quantity: import('@rebalancing-helper/common').Decimal;
     currency: string;
     createdAt: string;
     updatedAt: string;
@@ -971,9 +971,9 @@ export type SetHoldingAliasMutation = {
     symbol: string;
     name: string;
     alias: string | null;
-    quantity: number;
-    currentPrice: number;
-    marketValue: number;
+    quantity: import('@rebalancing-helper/common').Decimal;
+    currentPrice: import('@rebalancing-helper/common').Decimal;
+    marketValue: import('@rebalancing-helper/common').Decimal;
     currency: string;
     lastUpdated: string;
     createdAt: string;
