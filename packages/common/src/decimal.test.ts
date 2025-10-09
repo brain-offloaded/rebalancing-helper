@@ -34,6 +34,12 @@ describe('Decimal 유틸리티', () => {
     expectDecimalEqual(createDecimal({ valueOf: () => '789.012' }), '789.012');
   });
 
+  it('선행 플러스 부호를 허용한다', () => {
+    expectDecimalEqual(createDecimal('+1'), '1');
+    expectDecimalEqual(createDecimal(' +42.5 '), '42.5');
+    expectDecimalEqual(createDecimal('+1e3'), '1000');
+  });
+
   it('Prisma Decimal 대응 래퍼를 제공한다', () => {
     const prismaDecimalLike = {
       toString: () => '456.789',
