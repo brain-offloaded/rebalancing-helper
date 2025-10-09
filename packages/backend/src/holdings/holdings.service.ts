@@ -20,7 +20,7 @@ import {
   SetHoldingAliasInput,
 } from './holdings.dto';
 import { MarketDataService } from './market-data.service';
-import { PrismaDecimalService } from 'src/prisma/prisma-decimal.service';
+import { PrismaDecimalService } from '../prisma/prisma-decimal.service';
 
 @Injectable()
 export class HoldingsService {
