@@ -92,7 +92,10 @@
         "@rebalancing-helper/frontend#gql:codegen"
       ],
       "cache": false,
-      "outputLogs": "errors-only"
+      "outputLogs": "errors-only",
+      "env": [
+        "ENV_FILE"
+      ]
     }
   }
 }
