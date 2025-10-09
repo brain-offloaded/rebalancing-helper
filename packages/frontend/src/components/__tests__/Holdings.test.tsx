@@ -371,7 +371,12 @@ describe('Holdings', () => {
 
     await user.click(screen.getByText('Vanguard S&P 500 ETF'));
     const deltaInput = await screen.findByPlaceholderText('+100');
+    expect(deltaInput).toHaveValue('0');
+    const targetInput = await screen.findByPlaceholderText('5');
+    expect(targetInput).toHaveValue('2');
+    await user.clear(deltaInput);
     await user.type(deltaInput, '1');
+    expect(targetInput).toHaveValue('3');
     await user.click(screen.getByRole('button', { name: '저장' }));
 
     await waitFor(() => {
@@ -419,8 +424,12 @@ describe('Holdings', () => {
 
     await user.click(screen.getByText('Vanguard S&P 500 ETF'));
     const targetInput = await screen.findByPlaceholderText('5');
+    const deltaInput = await screen.findByPlaceholderText('+100');
+    expect(targetInput).toHaveValue('5');
+    expect(deltaInput).toHaveValue('0');
     await user.clear(targetInput);
     await user.type(targetInput, '10');
+    expect(deltaInput).toHaveValue('+5');
     await user.click(screen.getByRole('button', { name: '저장' }));
 
     await waitFor(() => {

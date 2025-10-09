@@ -86,7 +86,19 @@ function isPrimitiveDecimalSource(
 }
 
 function normalizePrimitive(value: PrimitiveDecimalSource): string | number {
-  return typeof value === 'bigint' ? value.toString() : value;
+  if (typeof value === 'bigint') {
+    return value.toString();
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.startsWith('+') && trimmed.length > 1) {
+      return trimmed.slice(1);
+    }
+    return trimmed;
+  }
+
+  return value;
 }
 
 export function isDecimal(value: unknown): value is DecimalType {

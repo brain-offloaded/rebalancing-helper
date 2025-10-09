@@ -2,6 +2,7 @@ import type { MouseEvent } from 'react';
 import { Button, ButtonGroup, IconButton } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { Field, FieldLabel, TextInput } from '../ui/FormControls';
+import { formatDecimal } from '../../utils/decimal-format';
 import {
   formatCurrencyValue,
   formatLastUpdated,
@@ -91,6 +92,10 @@ export const HoldingDetailModal: React.FC<HoldingDetailModalProps> = ({
   }
 
   const subtitle = formatMarketWithSymbol(holding.market, holding.symbol);
+  const formattedCurrentQuantity = formatDecimal(holding.quantity, {
+    trimTrailingZeros: true,
+    useGrouping: true,
+  });
   const selectedTags = selectedTagIds
     .map((tagId) => tags.find((tag) => tag.id === tagId))
     .filter((tag): tag is Tag => Boolean(tag));
@@ -146,6 +151,8 @@ export const HoldingDetailModal: React.FC<HoldingDetailModalProps> = ({
 
       <ModalSection>
         <ModalRow>
+          <InlineLabel>현재 수량</InlineLabel>
+          <ValueBadge>{formattedCurrentQuantity}</ValueBadge>
           <InlineLabel>수량 증감</InlineLabel>
           <QuantityInput
             value={quantityDeltaInput}
