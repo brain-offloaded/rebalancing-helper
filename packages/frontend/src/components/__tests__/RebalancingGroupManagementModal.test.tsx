@@ -279,13 +279,19 @@ describe('RebalancingGroupManagementModal', () => {
     );
 
     renderWithProviders(
-      <RebalancingGroupManagementModal open groupId="group-1" onClose={vi.fn()} />,
+      <RebalancingGroupManagementModal
+        open
+        groupId="group-1"
+        onClose={vi.fn()}
+      />,
       { withApollo: false },
     );
 
     expect(await screen.findByText('55.0%')).toBeInTheDocument();
 
-    const input = (await screen.findByLabelText(/투자 예정 금액/)) as HTMLInputElement;
+    const input = (await screen.findByLabelText(
+      /투자 예정 금액/,
+    )) as HTMLInputElement;
     await userEvent.clear(input);
     await userEvent.type(input, '2000');
 

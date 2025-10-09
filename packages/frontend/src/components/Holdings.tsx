@@ -358,6 +358,32 @@ export const Holdings: React.FC = () => {
     });
   }, [accountNameById, holdingTagsBySymbol, holdings, tagById]);
 
+  const formatQuantityInputValue = useCallback(
+    (value: Decimal) => formatDecimal(value, { trimTrailingZeros: true }),
+    [],
+  );
+
+  const formatDeltaInputValue = useCallback((value: Decimal) => {
+    if (value.isZero()) {
+      return '0';
+    }
+    const plain = formatDecimal(value, { trimTrailingZeros: true });
+    return value.isPositive() ? `+${plain}` : plain;
+  }, []);
+
+  const resetManualQuantityInputs = useCallback(
+    (baseQuantity: Decimal | null) => {
+      if (!baseQuantity) {
+        setQuantityDeltaInput('');
+        setQuantityTargetInput('');
+        return;
+      }
+      setQuantityDeltaInput('0');
+      setQuantityTargetInput(formatQuantityInputValue(baseQuantity));
+    },
+    [formatQuantityInputValue],
+  );
+
   useEffect(() => {
     if (!selectedHolding) {
       setAliasInput('');
@@ -375,7 +401,7 @@ export const Holdings: React.FC = () => {
     }
     setSelectedTagIds(selectedHoldingTags);
     setIsAddingTag(false);
-  }, [selectedHolding, selectedHoldingTags]);
+  }, [resetManualQuantityInputs, selectedHolding, selectedHoldingTags]);
 
   useEffect(() => {
     if (!selectedHolding && isModalOpen) {
@@ -543,27 +569,6 @@ export const Holdings: React.FC = () => {
       previous.includes(tagId) ? previous : [...previous, tagId],
     );
     setIsAddingTag(false);
-  };
-
-  const formatQuantityInputValue = (value: Decimal) =>
-    formatDecimal(value, { trimTrailingZeros: true });
-
-  const formatDeltaInputValue = (value: Decimal) => {
-    if (value.isZero()) {
-      return '0';
-    }
-    const plain = formatDecimal(value, { trimTrailingZeros: true });
-    return value.isPositive() ? `+${plain}` : plain;
-  };
-
-  const resetManualQuantityInputs = (baseQuantity: Decimal | null) => {
-    if (!baseQuantity) {
-      setQuantityDeltaInput('');
-      setQuantityTargetInput('');
-      return;
-    }
-    setQuantityDeltaInput('0');
-    setQuantityTargetInput(formatQuantityInputValue(baseQuantity));
   };
 
   const handleQuantityDeltaChange = (rawValue: string) => {
