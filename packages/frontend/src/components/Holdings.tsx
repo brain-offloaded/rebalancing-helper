@@ -361,16 +361,18 @@ export const Holdings: React.FC = () => {
   useEffect(() => {
     if (!selectedHolding) {
       setAliasInput('');
-      setQuantityDeltaInput('');
-      setQuantityTargetInput('');
+      resetManualQuantityInputs(null);
       setSelectedTagIds([]);
       setIsAddingTag(false);
       return;
     }
 
     setAliasInput(selectedHolding.alias ?? '');
-    setQuantityDeltaInput('');
-    setQuantityTargetInput('');
+    if (selectedHolding.source === 'MANUAL') {
+      resetManualQuantityInputs(createDecimal(selectedHolding.quantity));
+    } else {
+      resetManualQuantityInputs(null);
+    }
     setSelectedTagIds(selectedHoldingTags);
     setIsAddingTag(false);
   }, [selectedHolding, selectedHoldingTags]);
@@ -543,30 +545,104 @@ export const Holdings: React.FC = () => {
     setIsAddingTag(false);
   };
 
+  const formatQuantityInputValue = (value: Decimal) =>
+    formatDecimal(value, { trimTrailingZeros: true });
+
+  const formatDeltaInputValue = (value: Decimal) => {
+    if (value.isZero()) {
+      return '0';
+    }
+    const plain = formatDecimal(value, { trimTrailingZeros: true });
+    return value.isPositive() ? `+${plain}` : plain;
+  };
+
+  const resetManualQuantityInputs = (baseQuantity: Decimal | null) => {
+    if (!baseQuantity) {
+      setQuantityDeltaInput('');
+      setQuantityTargetInput('');
+      return;
+    }
+    setQuantityDeltaInput('0');
+    setQuantityTargetInput(formatQuantityInputValue(baseQuantity));
+  };
+
   const handleQuantityDeltaChange = (rawValue: string) => {
     const trimmed = parseQuantityInput(rawValue);
+    const isManualHolding =
+      selectedHolding && selectedHolding.source === 'MANUAL';
+    const baseQuantity = isManualHolding
+      ? createDecimal(selectedHolding.quantity)
+      : null;
+
     if (trimmed === '') {
       setQuantityDeltaInput('');
+      if (baseQuantity) {
+        setQuantityTargetInput(formatQuantityInputValue(baseQuantity));
+      } else {
+        setQuantityTargetInput('');
+      }
       return;
     }
     if (!isValidDeltaInput(trimmed)) {
       return;
     }
     setQuantityDeltaInput(trimmed);
-    setQuantityTargetInput('');
+
+    if (!baseQuantity) {
+      setQuantityTargetInput('');
+      return;
+    }
+
+    const parsedDelta = tryCreateDecimal(trimmed);
+    if (!parsedDelta) {
+      setQuantityTargetInput('');
+      return;
+    }
+
+    const nextQuantity = baseQuantity.plus(parsedDelta);
+    if (nextQuantity.isNegative()) {
+      setQuantityTargetInput('');
+      return;
+    }
+
+    setQuantityTargetInput(formatQuantityInputValue(nextQuantity));
   };
 
   const handleQuantityTargetChange = (rawValue: string) => {
     const trimmed = parseQuantityInput(rawValue);
+    const isManualHolding =
+      selectedHolding && selectedHolding.source === 'MANUAL';
+    const baseQuantity = isManualHolding
+      ? createDecimal(selectedHolding.quantity)
+      : null;
+
     if (trimmed === '') {
       setQuantityTargetInput('');
+      if (baseQuantity) {
+        setQuantityDeltaInput('0');
+      } else {
+        setQuantityDeltaInput('');
+      }
       return;
     }
     if (!isValidTargetInput(trimmed)) {
       return;
     }
     setQuantityTargetInput(trimmed);
-    setQuantityDeltaInput('');
+
+    if (!baseQuantity) {
+      setQuantityDeltaInput('');
+      return;
+    }
+
+    const parsedTarget = tryCreateDecimal(trimmed);
+    if (!parsedTarget || parsedTarget.isNegative()) {
+      setQuantityDeltaInput('');
+      return;
+    }
+
+    const delta = parsedTarget.minus(baseQuantity);
+    setQuantityDeltaInput(formatDeltaInputValue(delta));
   };
 
   const handleSave = async () => {
