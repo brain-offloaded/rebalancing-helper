@@ -114,7 +114,7 @@
       "!holdings/strategies/market-quote.strategy.ts",
       "!generate-schema.ts",
       "!typed-config.ts",
-      "!app.controller.ts"
+      "!app.(controller|service).ts"
     ],
     "coverageDirectory": "../coverage",
     "coverageReporters": [
