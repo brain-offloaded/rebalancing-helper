@@ -18,7 +18,8 @@ describe('decimal.validators', () => {
   });
 
   it('IsDecimalValue는 Decimal 변환 가능 여부를 검증한다', () => {
-    IsDecimalValue()( {}, 'amount');
+    const target = {};
+    IsDecimalValue()(target, 'amount');
     const config = mockedRegisterDecorator.mock.calls[0][0];
 
     expect(config.name).toBe('isDecimalValue');
@@ -30,7 +31,8 @@ describe('decimal.validators', () => {
   });
 
   it('DecimalMin은 최소값 이상인지 확인한다', () => {
-    DecimalMin('10.5')( {}, 'amount');
+    const target = {};
+    DecimalMin('10.5')(target, 'amount');
     const config = mockedRegisterDecorator.mock.calls[0][0];
 
     expect(config.name).toBe('decimalMin');
@@ -45,7 +47,8 @@ describe('decimal.validators', () => {
   });
 
   it('DecimalPositive는 0보다 큰 값인지 확인한다', () => {
-    DecimalPositive()( {}, 'amount');
+    const target = {};
+    DecimalPositive()(target, 'amount');
     const config = mockedRegisterDecorator.mock.calls[0][0];
 
     expect(config.name).toBe('decimalPositive');
