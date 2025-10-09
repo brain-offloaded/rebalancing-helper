@@ -1,5 +1,7 @@
-import DecimalJs, { type Decimal as DecimalType } from 'decimal.js-light';
-import { Decimal as DecimalClass } from 'decimal.js-light';
+import DecimalJs, {
+  type Decimal as DecimalType,
+  Decimal as DecimalClass,
+} from 'decimal.js-light';
 
 export type PrimitiveDecimalSource = string | number | bigint;
 
