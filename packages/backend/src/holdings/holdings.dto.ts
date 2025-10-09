@@ -1,14 +1,18 @@
 import { InputType, Field } from '@nestjs/graphql';
+import type { DecimalInput } from '@rebalancing-helper/common';
 import {
   IsString,
   IsNotEmpty,
   IsArray,
-  IsNumber,
-  IsPositive,
-  Min,
   IsOptional,
   MaxLength,
 } from 'class-validator';
+import { DecimalScalar } from '../common/scalars/decimal.scalar';
+import {
+  DecimalMin,
+  DecimalPositive,
+  IsDecimalValue,
+} from '../common/validators/decimal.validators';
 
 @InputType()
 export class AddHoldingTagInput {
@@ -69,26 +73,26 @@ export class ManualHoldingIdentifierInput {
 
 @InputType()
 export class CreateManualHoldingInput extends ManualHoldingIdentifierInput {
-  @Field(() => Number)
-  @IsNumber()
-  @Min(0)
-  quantity: number;
+  @Field(() => DecimalScalar)
+  @IsDecimalValue()
+  @DecimalMin(0)
+  quantity: DecimalInput;
 }
 
 @InputType()
 export class IncreaseManualHoldingInput extends ManualHoldingIdentifierInput {
-  @Field(() => Number)
-  @IsNumber()
-  @IsPositive()
-  quantityDelta: number;
+  @Field(() => DecimalScalar)
+  @IsDecimalValue()
+  @DecimalPositive()
+  quantityDelta: DecimalInput;
 }
 
 @InputType()
 export class SetManualHoldingQuantityInput extends ManualHoldingIdentifierInput {
-  @Field(() => Number)
-  @IsNumber()
-  @Min(0)
-  quantity: number;
+  @Field(() => DecimalScalar)
+  @IsDecimalValue()
+  @DecimalMin(0)
+  quantity: DecimalInput;
 }
 
 @InputType()

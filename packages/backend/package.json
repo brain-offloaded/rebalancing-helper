@@ -28,7 +28,7 @@
     "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio",
     "pregql:schema": "pnpm --filter @rebalancing-helper/common build",
-    "gql:schema": "ENV_FILE=../.env.example ts-node --project tsconfig.build.json src/generate-schema.ts"
+    "gql:schema": "ENV_FILE=../../.env.example nest start --entryFile src/generate-schema"
   },
   "dependencies": {
     "@rebalancing-helper/common": "workspace:*",
@@ -113,7 +113,8 @@
       "!test-utils/**/*",
       "!holdings/strategies/market-quote.strategy.ts",
       "!generate-schema.ts",
-      "!typed-config.ts"
+      "!typed-config.ts",
+      "!app.(controller|service).ts"
     ],
     "coverageDirectory": "../coverage",
     "coverageReporters": [

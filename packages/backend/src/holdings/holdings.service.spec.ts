@@ -6,6 +6,7 @@ import {
 } from '@prisma/client';
 import { HoldingsService } from './holdings.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { PrismaDecimalService } from '../prisma/prisma-decimal.service';
 import { HoldingTag, Holding, HoldingSource } from './holdings.entities';
 import { MarketDataService, MarketQuote } from './market-data.service';
 import {
@@ -50,6 +51,7 @@ describe('HoldingsService', () => {
   let prismaMock: MockedPrisma;
   let service: HoldingsService;
   let marketDataServiceMock: jest.Mocked<MarketDataService>;
+  let prismaDecimalService: PrismaDecimalService;
 
   beforeEach(() => {
     prismaMock = {
@@ -84,8 +86,10 @@ describe('HoldingsService', () => {
       getQuote: jest.fn(),
     } as unknown as jest.Mocked<MarketDataService>;
 
+    prismaDecimalService = new PrismaDecimalService();
     service = new HoldingsService(
       prismaMock as unknown as PrismaService,
+      prismaDecimalService,
       marketDataServiceMock,
     );
   });
@@ -335,7 +339,7 @@ describe('HoldingsService', () => {
       prismaMock.holding.create.mockResolvedValue({
         ...manualHolding,
         quantity: input.quantity,
-        marketValue: input.quantity * quote.price,
+        marketValue: Number(input.quantity) * Number(quote.price),
       });
 
       const result = await service.createManualHolding(USER_ID, input);
@@ -357,12 +361,14 @@ describe('HoldingsService', () => {
           name: quote.name,
           quantity: input.quantity,
           currentPrice: quote.price,
-          marketValue: input.quantity * quote.price,
+          marketValue: Number(input.quantity) * Number(quote.price),
           currency: quote.currency,
           lastUpdated: quote.lastUpdated,
         },
       });
-      expect(result.marketValue).toBeCloseTo(input.quantity * quote.price);
+      expect(result.marketValue).toBeCloseTo(
+        Number(input.quantity) * Number(quote.price),
+      );
     });
 
     it('createManualHolding는 수량이 0이어도 생성한다', async () => {
@@ -436,7 +442,7 @@ describe('HoldingsService', () => {
         alias: manualHolding.alias,
         quantity: 2,
         currentPrice: manualHolding.currentPrice,
-        marketValue: manualHolding.currentPrice * 2,
+        marketValue: Number(manualHolding.currentPrice) * 2,
         currency: manualHolding.currency,
         name: manualHolding.name,
         lastUpdated: manualHolding.lastUpdated,
@@ -446,7 +452,7 @@ describe('HoldingsService', () => {
       prismaMock.holding.update.mockResolvedValue({
         ...manualHolding,
         quantity: 5,
-        marketValue: manualHolding.currentPrice * 5,
+        marketValue: Number(manualHolding.currentPrice) * 5,
       });
 
       const result = await service.increaseManualHolding(USER_ID, input);
@@ -467,7 +473,7 @@ describe('HoldingsService', () => {
         where: { id: manualHolding.id },
         data: {
           quantity: 5,
-          marketValue: manualHolding.currentPrice * 5,
+          marketValue: Number(manualHolding.currentPrice) * 5,
         },
       });
       expect(result.quantity).toBe(5);
@@ -508,7 +514,7 @@ describe('HoldingsService', () => {
         alias: manualHolding.alias,
         quantity: 2,
         currentPrice: manualHolding.currentPrice,
-        marketValue: manualHolding.currentPrice * 2,
+        marketValue: Number(manualHolding.currentPrice) * 2,
         currency: manualHolding.currency,
         name: manualHolding.name,
         lastUpdated: manualHolding.lastUpdated,
@@ -518,7 +524,8 @@ describe('HoldingsService', () => {
       prismaMock.holding.update.mockResolvedValue({
         ...manualHolding,
         quantity: input.quantity,
-        marketValue: manualHolding.currentPrice * input.quantity,
+        marketValue:
+          Number(manualHolding.currentPrice) * Number(input.quantity),
       });
 
       const result = await service.setManualHoldingQuantity(USER_ID, input);
@@ -531,7 +538,7 @@ describe('HoldingsService', () => {
       expect(updateArgs.where).toEqual({ id: manualHolding.id });
       expect(updateArgs.data.quantity).toBe(input.quantity);
       expect(updateArgs.data.marketValue).toBeCloseTo(
-        manualHolding.currentPrice * input.quantity,
+        Number(manualHolding.currentPrice) * Number(input.quantity),
       );
       expect(result.quantity).toBe(input.quantity);
     });
@@ -642,7 +649,7 @@ describe('HoldingsService', () => {
         alias: manualHolding.alias,
         quantity: manualHolding.quantity,
         currentPrice: 300,
-        marketValue: 300 * manualHolding.quantity,
+        marketValue: 300 * Number(manualHolding.quantity),
         currency: manualHolding.currency,
         name: manualHolding.name,
         lastUpdated: manualHolding.lastUpdated,
@@ -657,7 +664,7 @@ describe('HoldingsService', () => {
       prismaMock.holding.update.mockResolvedValue({
         ...manualHolding,
         currentPrice: 500,
-        marketValue: manualHolding.quantity * 500,
+        marketValue: Number(manualHolding.quantity) * 500,
         lastUpdated: new Date('2024-01-03T00:00:00Z'),
       });
 
@@ -683,7 +690,7 @@ describe('HoldingsService', () => {
         where: { id: manualHolding.id },
         data: {
           currentPrice: 500,
-          marketValue: manualHolding.quantity * 500,
+          marketValue: Number(manualHolding.quantity) * 500,
           name: quote.name,
           currency: quote.currency,
           lastUpdated: new Date('2024-01-03T00:00:00Z'),

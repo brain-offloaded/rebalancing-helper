@@ -68,7 +68,7 @@ input CreateBrokerageAccountInput {
 input CreateManualHoldingInput {
   accountId: String!
   market: String!
-  quantity: Float!
+  quantity: Decimal!
   symbol: String!
 }
 
@@ -97,13 +97,13 @@ type Holding {
   alias: String
   createdAt: DateTime!
   currency: String!
-  currentPrice: Float!
+  currentPrice: Decimal!
   id: ID!
   lastUpdated: DateTime!
   market: String
-  marketValue: Float!
+  marketValue: Decimal!
   name: String!
-  quantity: Float!
+  quantity: Decimal!
   source: HoldingSource!
   symbol: String!
   updatedAt: DateTime!
@@ -124,7 +124,7 @@ type HoldingTag {
 input IncreaseManualHoldingInput {
   accountId: String!
   market: String!
-  quantityDelta: Float!
+  quantityDelta: Decimal!
   symbol: String!
 }
 
@@ -259,7 +259,7 @@ input SetHoldingTagsInput {
 input SetManualHoldingQuantityInput {
   accountId: String!
   market: String!
-  quantity: Float!
+  quantity: Decimal!
   symbol: String!
 }
 

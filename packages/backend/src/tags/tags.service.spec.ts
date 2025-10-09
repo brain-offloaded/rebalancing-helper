@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { TagsService } from './tags.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTagInput, UpdateTagInput } from './tags.dto';
@@ -92,6 +93,32 @@ describe('TagsService', () => {
     expect(result).toBe(updated);
   });
 
+  it('updateTag는 전달된 필드만 갱신하고 description을 null로 허용한다', async () => {
+    const input = {
+      id: 'tag-1',
+      name: '배당주',
+      description: null as unknown as string,
+    } as UpdateTagInput;
+    prismaMock.tag.findFirst.mockResolvedValue({ id: 'tag-1' });
+    const updated: Tag = {
+      id: input.id,
+      name: input.name!,
+      description: null,
+      color: '#123456',
+      createdAt: baseDate,
+      updatedAt: baseDate,
+    };
+    prismaMock.tag.update.mockResolvedValue(updated);
+
+    const result = await service.updateTag(USER_ID, input);
+
+    expect(prismaMock.tag.update).toHaveBeenCalledWith({
+      where: { id: input.id },
+      data: { name: input.name, description: null },
+    });
+    expect(result).toBe(updated);
+  });
+
   it('updateTag는 다른 사용자의 태그면 NotFoundException을 던진다', async () => {
     prismaMock.tag.findFirst.mockResolvedValue(null);
 
@@ -116,6 +143,20 @@ describe('TagsService', () => {
 
     await expect(service.deleteTag(USER_ID, 'tag-1')).resolves.toBe(false);
     expect(prismaMock.tag.delete).not.toHaveBeenCalled();
+  });
+
+  it('deleteTag는 Prisma P2025 에러를 false로 처리한다', async () => {
+    const error = Object.assign(
+      Object.create(Prisma.PrismaClientKnownRequestError.prototype),
+      {
+        code: 'P2025',
+        clientVersion: '1.0',
+      },
+    ) as Prisma.PrismaClientKnownRequestError;
+    prismaMock.tag.findFirst.mockResolvedValue({ id: 'tag-1' });
+    prismaMock.tag.delete.mockRejectedValue(error);
+
+    await expect(service.deleteTag(USER_ID, 'tag-1')).resolves.toBe(false);
   });
 
   it('getTags는 사용자 기준으로 정렬한다', async () => {
