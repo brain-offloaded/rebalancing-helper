@@ -57,6 +57,7 @@ describe('RebalancingGroupManagementModal', () => {
   const deleteGroup = vi.fn().mockResolvedValue({});
 
   beforeEach(() => {
+    vi.clearAllMocks();
     mockUseGetRebalancingGroupsQuery.mockReturnValue({
       data: {
         rebalancingGroups: [
@@ -168,11 +169,137 @@ describe('RebalancingGroupManagementModal', () => {
 
     await waitFor(() => {
       expect(updateGroup).toHaveBeenCalledTimes(2);
+      expect(updateGroup).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          variables: {
+            input: {
+              id: 'group-1',
+              name: '성장 그룹',
+              description: '성장 전략을 위한 그룹',
+            },
+          },
+        }),
+      );
+      expect(updateGroup).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          variables: {
+            input: {
+              id: 'group-1',
+              tagIds: ['tag-1', 'tag-2'],
+            },
+          },
+        }),
+      );
       expect(setTargets).toHaveBeenCalledTimes(1);
+      expect(setTargets).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variables: {
+            input: {
+              groupId: 'group-1',
+              targets: [
+                { tagId: 'tag-1', targetPercentage: 50 },
+                { tagId: 'tag-2', targetPercentage: 50 },
+              ],
+            },
+          },
+        }),
+      );
+      expect(window.alert).toHaveBeenCalledTimes(1);
       expect(window.alert).toHaveBeenCalledWith(
         '리밸런싱 그룹 정보를 저장했습니다.',
       );
     });
+  });
+
+  it('투자 예정 금액을 수정하는 동안 기존 추천 결과가 유지된다', async () => {
+    const recommendationMap = new Map<
+      string,
+      {
+        data?: {
+          investmentRecommendation: Array<{
+            tagId: string;
+            tagName: string;
+            recommendedAmount: number;
+            recommendedPercentage: number;
+            suggestedSymbols: string[];
+            baseCurrency: string;
+          }>;
+        };
+        loading: boolean;
+      }
+    >([
+      [
+        '1000',
+        {
+          data: {
+            investmentRecommendation: [
+              {
+                tagId: 'tag-1',
+                tagName: '성장주',
+                recommendedAmount: 500,
+                recommendedPercentage: 55,
+                suggestedSymbols: ['AAPL'],
+                baseCurrency: 'USD',
+              },
+            ],
+          },
+          loading: false,
+        },
+      ],
+      [
+        '2000',
+        {
+          data: undefined,
+          loading: true,
+        },
+      ],
+    ]);
+
+    mockUseGetInvestmentRecommendationQuery.mockImplementation(
+      (options?: {
+        skip?: boolean;
+        variables?: { input?: { investmentAmount?: number } };
+      }) => {
+        if (options?.skip) {
+          return { data: undefined, loading: false };
+        }
+
+        const amount = options?.variables?.input?.investmentAmount;
+        const key = amount != null ? String(amount) : '';
+        const result = recommendationMap.get(key);
+
+        if (result) {
+          return result;
+        }
+
+        return { data: undefined, loading: false };
+      },
+    );
+
+    renderWithProviders(
+      <RebalancingGroupManagementModal
+        open
+        groupId="group-1"
+        onClose={vi.fn()}
+      />,
+      { withApollo: false },
+    );
+
+    expect(await screen.findByText('55.0%')).toBeInTheDocument();
+
+    const input = (await screen.findByLabelText(
+      /투자 예정 금액/,
+    )) as HTMLInputElement;
+    await userEvent.clear(input);
+    await userEvent.type(input, '2000');
+
+    expect(input.value).toBe('2000');
+    expect(screen.getByText('55.0%')).toBeInTheDocument();
+    expect(
+      screen.queryByText('투자 금액을 입력하면 추천 결과가 표시됩니다.'),
+    ).not.toBeInTheDocument();
   });
 
   it('삭제 버튼을 클릭하면 확인 후 그룹을 삭제하고 닫기 콜백을 호출한다', async () => {
