@@ -20,11 +20,13 @@ import {
   SetHoldingAliasInput,
 } from './holdings.dto';
 import { MarketDataService } from './market-data.service';
+import { PrismaDecimalService } from 'src/prisma/prisma-decimal.service';
 
 @Injectable()
 export class HoldingsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly prismaDecimalService: PrismaDecimalService,
     private readonly marketDataService: MarketDataService,
   ) {}
 
@@ -299,8 +301,11 @@ export class HoldingsService {
       input.symbol,
     );
 
-    const quantityDecimal = this.toDecimal(input.quantity);
-    const priceDecimal = this.toDecimal(quote.price);
+    const quantityDecimal =
+      this.prismaDecimalService.decimalInputToPrismaDecimal(input.quantity);
+    const priceDecimal = this.prismaDecimalService.decimalInputToPrismaDecimal(
+      quote.price,
+    );
     const marketValueDecimal = quantityDecimal.mul(priceDecimal);
 
     const created = await this.prisma.holding.create({
@@ -327,10 +332,15 @@ export class HoldingsService {
     input: IncreaseManualHoldingInput,
   ): Promise<Holding> {
     const holding = await this.getManualHoldingOrThrow(userId, input);
-    const currentQuantity = this.toDecimal(holding.quantity);
-    const delta = this.toDecimal(input.quantityDelta);
+    const currentQuantity =
+      this.prismaDecimalService.decimalInputToPrismaDecimal(holding.quantity);
+    const delta = this.prismaDecimalService.decimalInputToPrismaDecimal(
+      input.quantityDelta,
+    );
     const nextQuantity = currentQuantity.add(delta);
-    const marketValue = this.toDecimal(holding.currentPrice).mul(nextQuantity);
+    const marketValue = this.prismaDecimalService
+      .decimalInputToPrismaDecimal(holding.currentPrice)
+      .mul(nextQuantity);
 
     const updated = await this.prisma.holding.update({
       where: { id: holding.id },
@@ -348,10 +358,11 @@ export class HoldingsService {
     input: SetManualHoldingQuantityInput,
   ): Promise<Holding> {
     const holding = await this.getManualHoldingOrThrow(userId, input);
-    const quantityDecimal = this.toDecimal(input.quantity);
-    const marketValue = this.toDecimal(holding.currentPrice).mul(
-      quantityDecimal,
-    );
+    const quantityDecimal =
+      this.prismaDecimalService.decimalInputToPrismaDecimal(input.quantity);
+    const marketValue = this.prismaDecimalService
+      .decimalInputToPrismaDecimal(holding.currentPrice)
+      .mul(quantityDecimal);
 
     const updated = await this.prisma.holding.update({
       where: { id: holding.id },
@@ -397,8 +408,11 @@ export class HoldingsService {
       input.symbol,
     );
 
-    const quantityDecimal = this.toDecimal(holding.quantity);
-    const priceDecimal = this.toDecimal(quote.price);
+    const quantityDecimal =
+      this.prismaDecimalService.decimalInputToPrismaDecimal(holding.quantity);
+    const priceDecimal = this.prismaDecimalService.decimalInputToPrismaDecimal(
+      quote.price,
+    );
     const marketValue = quantityDecimal.mul(priceDecimal);
 
     const updated = await this.prisma.holding.update({

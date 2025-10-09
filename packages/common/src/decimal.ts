@@ -1,4 +1,5 @@
 import DecimalJs, { type Decimal as DecimalType } from 'decimal.js-light';
+import { Decimal as DecimalClass } from 'decimal.js-light';
 
 export type PrimitiveDecimalSource = string | number | bigint;
 
@@ -9,6 +10,7 @@ export type DecimalInput =
   | { valueOf(): PrimitiveDecimalSource | DecimalType };
 
 export type Decimal = DecimalType;
+export const Decimal = DecimalClass;
 
 export type DecimalRoundingKeyword =
   | 'UP'
