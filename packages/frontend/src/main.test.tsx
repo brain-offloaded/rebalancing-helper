@@ -15,16 +15,12 @@ describe('main entry point', () => {
     vi.clearAllMocks();
   });
 
-  it(
-    'React 애플리케이션을 루트에 렌더링한다',
-    { timeout: 15000 },
-    async () => {
-      const { createRoot, __renderMock } = await import('react-dom/client');
+  it('React 애플리케이션을 루트에 렌더링한다', { timeout: 15000 }, async () => {
+    const { createRoot, __renderMock } = await import('react-dom/client');
 
-      await import('./main');
+    await import('./main');
 
-      expect(createRoot).toHaveBeenCalledWith(document.getElementById('root'));
-      expect(__renderMock).toHaveBeenCalledTimes(1);
-    },
-  );
+    expect(createRoot).toHaveBeenCalledWith(document.getElementById('root'));
+    expect(__renderMock).toHaveBeenCalledTimes(1);
+  });
 });

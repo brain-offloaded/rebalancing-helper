@@ -44,16 +44,16 @@ describe('Dashboard', () => {
       renderWithProviders(<Dashboard />, { withApollo: false });
 
       await user.click(screen.getByRole('button', { name: '증권사 정보' }));
-    expect(screen.getByTestId('brokers')).toBeInTheDocument();
+      expect(screen.getByTestId('brokers')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '보유 종목' }));
-    expect(screen.getByTestId('holdings')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: '보유 종목' }));
+      expect(screen.getByTestId('holdings')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '태그 관리' }));
-    expect(screen.getByTestId('tags')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: '태그 관리' }));
+      expect(screen.getByTestId('tags')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '리밸런싱' }));
-    expect(screen.getByTestId('rebalancing')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: '리밸런싱' }));
+      expect(screen.getByTestId('rebalancing')).toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: '증권사 계정' }));
       expect(screen.getByTestId('accounts')).toBeInTheDocument();
