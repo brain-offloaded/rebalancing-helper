@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApolloProvider } from '@apollo/client';
 import styled from 'styled-components';
 import { ThemeProvider } from 'styled-components';
@@ -8,6 +8,7 @@ import { AuthProvider } from './auth/auth-context';
 import { useAuth } from './auth/use-auth';
 import { AuthForm } from './components/AuthForm';
 import { Dashboard } from './components/Dashboard';
+import { RebalancingGroupDetailPage } from './components/RebalancingGroupDetailPage';
 import { Button } from './components/ui/Button';
 import {
   HeaderBar,
@@ -28,11 +29,53 @@ const UserSection = styled.div`
 export const AppShell = () => {
   const { user, initializing, login, register, logout } = useAuth();
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [selectedRebalancingGroupId, setSelectedRebalancingGroupId] = useState<
+    string | null
+  >(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    return params.get('rebalancingGroupId');
+  });
 
   const handleSubmit = useMemo(
     () => (mode === 'login' ? login : register),
     [mode, login, register],
   );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      setSelectedRebalancingGroupId(params.get('rebalancingGroupId'));
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  const handleCloseRebalancingGroup = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete('rebalancingGroupId');
+    window.history.replaceState(
+      {},
+      '',
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+    setSelectedRebalancingGroupId(null);
+  }, []);
 
   if (initializing) {
     return (
@@ -83,7 +126,14 @@ export const AppShell = () => {
       </HeaderBar>
       <main>
         <PageContainer style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <Dashboard />
+          {selectedRebalancingGroupId ? (
+            <RebalancingGroupDetailPage
+              groupId={selectedRebalancingGroupId}
+              onClose={handleCloseRebalancingGroup}
+            />
+          ) : (
+            <Dashboard />
+          )}
         </PageContainer>
       </main>
     </div>

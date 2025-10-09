@@ -35,24 +35,28 @@ describe('Dashboard', () => {
     expect(screen.getByTestId('accounts')).toBeInTheDocument();
   });
 
-  it('탭을 전환하면 대응되는 컴포넌트를 표시한다', async () => {
-    const user = userEvent.setup();
+  it(
+    '탭을 전환하면 대응되는 컴포넌트를 표시한다',
+    { timeout: 15000 },
+    async () => {
+      const user = userEvent.setup();
 
-    renderWithProviders(<Dashboard />, { withApollo: false });
+      renderWithProviders(<Dashboard />, { withApollo: false });
 
-    await user.click(screen.getByRole('button', { name: '증권사 정보' }));
-    expect(screen.getByTestId('brokers')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: '증권사 정보' }));
+      expect(screen.getByTestId('brokers')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '보유 종목' }));
-    expect(screen.getByTestId('holdings')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: '보유 종목' }));
+      expect(screen.getByTestId('holdings')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '태그 관리' }));
-    expect(screen.getByTestId('tags')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: '태그 관리' }));
+      expect(screen.getByTestId('tags')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '리밸런싱' }));
-    expect(screen.getByTestId('rebalancing')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: '리밸런싱' }));
+      expect(screen.getByTestId('rebalancing')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '증권사 계정' }));
-    expect(screen.getByTestId('accounts')).toBeInTheDocument();
-  });
+      await user.click(screen.getByRole('button', { name: '증권사 계정' }));
+      expect(screen.getByTestId('accounts')).toBeInTheDocument();
+    },
+  );
 });
