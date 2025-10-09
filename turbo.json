@@ -4,7 +4,8 @@
     "build": {
       "dependsOn": [
         "^build",
-        "prisma:generate"
+        "prisma:generate",
+        "gql:all"
       ],
       "outputs": [
         "dist/**",
@@ -18,7 +19,8 @@
     "dev": {
       "dependsOn": [
         "^dev",
-        "prisma:generate"
+        "prisma:generate",
+        "gql:all"
       ],
       "cache": false,
       "persistent": true
