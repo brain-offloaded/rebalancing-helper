@@ -43,4 +43,18 @@ export interface HoldingTagLink {
   tagId: string;
 }
 
-export type HoldingSortMode = 'default' | 'account';
+export type HoldingSortField =
+  | 'account'
+  | 'displayName'
+  | 'quantity'
+  | 'currentPrice'
+  | 'marketValue'
+  | 'lastUpdated'
+  | 'tags';
+
+export type HoldingSortDirection = 'asc' | 'desc';
+
+export interface HoldingSortConfig {
+  field: HoldingSortField | null;
+  direction: HoldingSortDirection;
+}

@@ -1,4 +1,5 @@
 import type { MouseEvent } from 'react';
+import styled from 'styled-components';
 import { IconButton } from '../ui/Button';
 import { Table, TableCell, TableHeadCell, TableRow } from '../ui/Table';
 import { TagBadge } from '../ui/Tag';
@@ -7,7 +8,12 @@ import {
   formatLastUpdated,
   formatQuantityValue,
 } from './formatters';
-import type { Holding, Tag } from './types';
+import type {
+  Holding,
+  HoldingSortConfig,
+  HoldingSortField,
+  Tag,
+} from './types';
 import {
   CellContent,
   PriceWrapper,
@@ -26,6 +32,38 @@ export interface HoldingRowData {
   tags: Tag[];
 }
 
+type TableColumn = {
+  field: HoldingSortField;
+  label: string;
+};
+
+const tableColumns: TableColumn[] = [
+  { field: 'account', label: '계좌' },
+  { field: 'displayName', label: '종목' },
+  { field: 'quantity', label: '수량' },
+  { field: 'currentPrice', label: '현재가' },
+  { field: 'marketValue', label: '평가금액' },
+  { field: 'lastUpdated', label: '마지막 업데이트' },
+  { field: 'tags', label: '태그' },
+];
+
+const SortButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: ${({ theme }) => theme.spacing.xs};
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+`;
+
+const SortIndicator = styled.span`
+  font-size: 0.75rem;
+`;
+
 interface HoldingsTableProps {
   rows: HoldingRowData[];
   syncingHoldingId: string | null;
@@ -34,6 +72,8 @@ interface HoldingsTableProps {
     holding: Holding,
     event?: MouseEvent<HTMLButtonElement>,
   ) => void;
+  sortConfig: HoldingSortConfig;
+  onSortRequest: (field: HoldingSortField) => void;
 }
 
 export const HoldingsTable: React.FC<HoldingsTableProps> = ({
@@ -41,17 +81,37 @@ export const HoldingsTable: React.FC<HoldingsTableProps> = ({
   syncingHoldingId,
   onRowClick,
   onManualSync,
+  sortConfig,
+  onSortRequest,
 }) => (
   <Table>
     <thead>
       <tr>
-        <TableHeadCell>계좌</TableHeadCell>
-        <TableHeadCell>종목</TableHeadCell>
-        <TableHeadCell>수량</TableHeadCell>
-        <TableHeadCell>현재가</TableHeadCell>
-        <TableHeadCell>평가금액</TableHeadCell>
-        <TableHeadCell>마지막 업데이트</TableHeadCell>
-        <TableHeadCell>태그</TableHeadCell>
+        {tableColumns.map(({ field, label }) => (
+          <TableHeadCell
+            key={field}
+            aria-sort={
+              sortConfig.field === field
+                ? sortConfig.direction === 'asc'
+                  ? 'ascending'
+                  : 'descending'
+                : 'none'
+            }
+          >
+            <SortButton
+              type="button"
+              onClick={() => onSortRequest(field)}
+              aria-label={`${label} 정렬`}
+            >
+              {label}
+              {sortConfig.field === field ? (
+                <SortIndicator>
+                  {sortConfig.direction === 'asc' ? '▲' : '▼'}
+                </SortIndicator>
+              ) : null}
+            </SortButton>
+          </TableHeadCell>
+        ))}
       </tr>
     </thead>
     <tbody>

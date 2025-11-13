@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   type Decimal,
+  type DecimalInput,
   createDecimal,
   toPlainString,
 } from '@rebalancing-helper/common';
@@ -23,7 +24,7 @@ import {
   SectionHeader,
   SectionTitle,
 } from './ui/Layout';
-import { HoldingsTable } from './holdings/HoldingsTable';
+import { HoldingsTable, type HoldingRowData } from './holdings/HoldingsTable';
 import { HoldingsToolbar } from './holdings/HoldingsToolbar';
 import { ManualHoldingForm } from './holdings/ManualHoldingForm';
 import { HoldingDetailModal } from './holdings/HoldingDetailModal';
@@ -31,7 +32,8 @@ import { formatMarketWithSymbol } from './holdings/formatters';
 import type {
   Holding,
   HoldingTagLink,
-  HoldingSortMode,
+  HoldingSortConfig,
+  HoldingSortField,
   ManualAccount,
   MarketOption,
   Tag,
@@ -65,6 +67,71 @@ const compareLocalizedStrings = (left: string, right: string) =>
     numeric: true,
   });
 
+const compareDecimalInputs = (left: DecimalInput, right: DecimalInput) => {
+  const leftDecimal = createDecimal(left);
+  const rightDecimal = createDecimal(right);
+  if (leftDecimal.lessThan(rightDecimal)) {
+    return -1;
+  }
+  if (leftDecimal.greaterThan(rightDecimal)) {
+    return 1;
+  }
+  return 0;
+};
+
+const compareNumericValues = (left: number, right: number) => {
+  if (left < right) {
+    return -1;
+  }
+  if (left > right) {
+    return 1;
+  }
+  return 0;
+};
+
+const getTagSortKey = (tags: Tag[]) =>
+  tags
+    .map((tag) => tag.name)
+    .sort((left, right) => compareLocalizedStrings(left, right))
+    .join('|');
+
+const compareHoldingRowsByField = (
+  field: HoldingSortField,
+  left: HoldingRowData,
+  right: HoldingRowData,
+) => {
+  switch (field) {
+    case 'account':
+      return compareLocalizedStrings(left.accountName, right.accountName);
+    case 'displayName':
+      return compareLocalizedStrings(left.displayName, right.displayName);
+    case 'quantity':
+      return compareDecimalInputs(left.holding.quantity, right.holding.quantity);
+    case 'currentPrice':
+      return compareDecimalInputs(
+        left.holding.currentPrice,
+        right.holding.currentPrice,
+      );
+    case 'marketValue':
+      return compareDecimalInputs(
+        left.holding.marketValue,
+        right.holding.marketValue,
+      );
+    case 'lastUpdated':
+      return compareNumericValues(
+        new Date(left.holding.lastUpdated).getTime(),
+        new Date(right.holding.lastUpdated).getTime(),
+      );
+    case 'tags':
+      return compareLocalizedStrings(
+        getTagSortKey(left.tags),
+        getTagSortKey(right.tags),
+      );
+    default:
+      return 0;
+  }
+};
+
 const ZERO_DELTA_THRESHOLD = createDecimal('0.0000001');
 
 export const Holdings: React.FC = () => {
@@ -85,8 +152,11 @@ export const Holdings: React.FC = () => {
   const [manualQuantity, setManualQuantity] = useState('');
   const [manualAccountId, setManualAccountId] = useState('');
   const [syncingAll, setSyncingAll] = useState(false);
-  const [holdingSortMode, setHoldingSortMode] =
-    useState<HoldingSortMode>('default');
+  const [holdingSortConfig, setHoldingSortConfig] =
+    useState<HoldingSortConfig>({
+      field: null,
+      direction: 'asc',
+    });
 
   const {
     data: holdingsData,
@@ -173,8 +243,16 @@ export const Holdings: React.FC = () => {
     [selectedHolding, holdingTagsBySymbol],
   );
 
-  const handleSortModeChange = useCallback((mode: HoldingSortMode) => {
-    setHoldingSortMode(mode);
+  const handleSortRequest = useCallback((field: HoldingSortField) => {
+    setHoldingSortConfig((current) => {
+      if (current.field === field) {
+        return {
+          field,
+          direction: current.direction === 'asc' ? 'desc' : 'asc',
+        };
+      }
+      return { field, direction: 'asc' };
+    });
   }, []);
 
   const manualQuantityState = useMemo<ManualQuantityState>(() => {
@@ -372,21 +450,24 @@ export const Holdings: React.FC = () => {
       };
     });
 
-    if (holdingSortMode === 'account') {
-      return [...rows].sort((left, right) => {
-        const accountCompare = compareLocalizedStrings(
-          left.accountName,
-          right.accountName,
-        );
-        if (accountCompare !== 0) {
-          return accountCompare;
-        }
-        return compareLocalizedStrings(left.displayName, right.displayName);
-      });
+    return rows;
+  }, [accountNameById, holdingTagsBySymbol, holdings, tagById]);
+
+  const sortedHoldingRows = useMemo(() => {
+    if (!holdingSortConfig.field) {
+      return holdingRows;
     }
 
-    return rows;
-  }, [accountNameById, holdingSortMode, holdingTagsBySymbol, holdings, tagById]);
+    const multiplier = holdingSortConfig.direction === 'asc' ? 1 : -1;
+    return [...holdingRows].sort((left, right) => {
+      const comparison = compareHoldingRowsByField(
+        holdingSortConfig.field!,
+        left,
+        right,
+      );
+      return comparison * multiplier;
+    });
+  }, [holdingRows, holdingSortConfig]);
 
   const formatQuantityInputValue = useCallback(
     (value: Decimal) => formatDecimal(value, { trimTrailingZeros: true }),
@@ -845,15 +926,15 @@ export const Holdings: React.FC = () => {
         manualHoldingsCount={manualHoldings.length}
         syncingAll={syncingAll}
         onSyncAll={handleManualSyncAll}
-        sortMode={holdingSortMode}
-        onSortModeChange={handleSortModeChange}
       />
 
       <HoldingsTable
-        rows={holdingRows}
+        rows={sortedHoldingRows}
         syncingHoldingId={syncingHoldingId}
         onRowClick={handleRowClick}
         onManualSync={handleManualSync}
+        sortConfig={holdingSortConfig}
+        onSortRequest={handleSortRequest}
       />
 
       <Section>

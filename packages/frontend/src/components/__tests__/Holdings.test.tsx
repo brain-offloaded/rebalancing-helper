@@ -194,7 +194,7 @@ describe('Holdings', () => {
     expect(screen.getByText('$412.35')).toBeInTheDocument();
   });
 
-  it('정렬 기준을 계좌로 바꾸면 계좌명 순서로 정렬한다', async () => {
+  it('계좌 헤더를 클릭하면 계좌명 기준 오름/내림차순으로 정렬한다', async () => {
     const user = userEvent.setup();
     brokerageAccountsDataState = [
       {
@@ -243,10 +243,19 @@ describe('Holdings', () => {
     const rows = screen.getAllByRole('row');
     expect(within(rows[1]).getByText('Account B')).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText('정렬 기준'), 'account');
+    const accountHeaderButton = screen.getByRole('button', {
+      name: '계좌 정렬',
+    });
+
+    await user.click(accountHeaderButton);
 
     const sortedRows = screen.getAllByRole('row');
     expect(within(sortedRows[1]).getByText('Account A')).toBeInTheDocument();
+
+    await user.click(accountHeaderButton);
+
+    const reversedRows = screen.getAllByRole('row');
+    expect(within(reversedRows[1]).getByText('Account B')).toBeInTheDocument();
   });
 
   it('태그 관리 모달에서 태그를 갱신한다', async () => {
