@@ -154,7 +154,7 @@ export const Holdings: React.FC = () => {
   const [syncingAll, setSyncingAll] = useState(false);
   const [holdingSortConfig, setHoldingSortConfig] =
     useState<HoldingSortConfig>({
-      field: null,
+      field: 'account',
       direction: 'asc',
     });
 
@@ -246,10 +246,13 @@ export const Holdings: React.FC = () => {
   const handleSortRequest = useCallback((field: HoldingSortField) => {
     setHoldingSortConfig((current) => {
       if (current.field === field) {
-        return {
-          field,
-          direction: current.direction === 'asc' ? 'desc' : 'asc',
-        };
+        if (current.direction === 'asc') {
+          return { field, direction: 'desc' };
+        }
+
+        if (current.direction === 'desc') {
+          return { field: null, direction: 'asc' };
+        }
       }
       return { field, direction: 'asc' };
     });

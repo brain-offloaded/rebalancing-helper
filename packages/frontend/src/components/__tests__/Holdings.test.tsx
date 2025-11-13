@@ -194,7 +194,7 @@ describe('Holdings', () => {
     expect(screen.getByText('$412.35')).toBeInTheDocument();
   });
 
-  it('계좌 헤더를 클릭하면 계좌명 기준 오름/내림차순으로 정렬한다', async () => {
+  it('계좌 헤더를 클릭하면 계좌명 기준 오름/내림/기본 순으로 순환 정렬한다', async () => {
     const user = userEvent.setup();
     brokerageAccountsDataState = [
       {
@@ -219,6 +219,17 @@ describe('Holdings', () => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
+      {
+        id: 'acc-2',
+        name: 'Account C',
+        brokerId: 'broker-api',
+        syncMode: 'API',
+        broker: null,
+        description: null,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
     ];
 
     holdingsData = [
@@ -236,12 +247,18 @@ describe('Holdings', () => {
         symbol: 'AAA',
         name: 'Manual A',
       }),
+      createHolding({
+        id: 'holding-c',
+        accountId: 'acc-2',
+        symbol: 'CCC',
+        name: 'Broker C',
+      }),
     ];
 
     renderWithProviders(<Holdings />, { withApollo: false });
 
     const rows = screen.getAllByRole('row');
-    expect(within(rows[1]).getByText('Account B')).toBeInTheDocument();
+    expect(within(rows[1]).getByText('Account A')).toBeInTheDocument();
 
     const accountHeaderButton = screen.getByRole('button', {
       name: '계좌 정렬',
@@ -250,12 +267,17 @@ describe('Holdings', () => {
     await user.click(accountHeaderButton);
 
     const sortedRows = screen.getAllByRole('row');
-    expect(within(sortedRows[1]).getByText('Account A')).toBeInTheDocument();
+    expect(within(sortedRows[1]).getByText('Account C')).toBeInTheDocument();
 
     await user.click(accountHeaderButton);
 
     const reversedRows = screen.getAllByRole('row');
     expect(within(reversedRows[1]).getByText('Account B')).toBeInTheDocument();
+
+    await user.click(accountHeaderButton);
+
+    const resetRows = screen.getAllByRole('row');
+    expect(within(resetRows[1]).getByText('Account A')).toBeInTheDocument();
   });
 
   it('태그 관리 모달에서 태그를 갱신한다', async () => {

@@ -47,7 +47,13 @@ const tableColumns: TableColumn[] = [
   { field: 'tags', label: '태그' },
 ];
 
-const SortButton = styled.button`
+const SortableHeadCell = styled(TableHeadCell)<{ $active: boolean }>`
+  background-color: ${({ theme, $active }) =>
+    $active ? theme.colors.dark : theme.colors.primary};
+  transition: background-color 0.2s ease;
+`;
+
+const SortButton = styled.button<{ $active: boolean }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -55,13 +61,18 @@ const SortButton = styled.button`
   width: 100%;
   border: none;
   background: transparent;
-  color: inherit;
+  color: ${({ $active }) => ($active ? '#ffffff' : 'rgba(255, 255, 255, 0.85)')};
   font: inherit;
+  font-weight: ${({ theme, $active }) =>
+    $active
+      ? theme.typography.fontWeight.bold
+      : theme.typography.fontWeight.semibold};
   cursor: pointer;
 `;
 
-const SortIndicator = styled.span`
+const SortIndicator = styled.span<{ $active: boolean }>`
   font-size: 0.75rem;
+  opacity: ${({ $active }) => ($active ? 1 : 0.75)};
 `;
 
 interface HoldingsTableProps {
@@ -88,7 +99,7 @@ export const HoldingsTable: React.FC<HoldingsTableProps> = ({
     <thead>
       <tr>
         {tableColumns.map(({ field, label }) => (
-          <TableHeadCell
+          <SortableHeadCell
             key={field}
             aria-sort={
               sortConfig.field === field
@@ -97,20 +108,25 @@ export const HoldingsTable: React.FC<HoldingsTableProps> = ({
                   : 'descending'
                 : 'none'
             }
+            $active={sortConfig.field === field}
           >
             <SortButton
               type="button"
               onClick={() => onSortRequest(field)}
               aria-label={`${label} 정렬`}
+              aria-pressed={sortConfig.field === field}
+              $active={sortConfig.field === field}
             >
               {label}
-              {sortConfig.field === field ? (
-                <SortIndicator>
-                  {sortConfig.direction === 'asc' ? '▲' : '▼'}
-                </SortIndicator>
-              ) : null}
+              <SortIndicator $active={sortConfig.field === field}>
+                {sortConfig.field !== field
+                  ? '↕'
+                  : sortConfig.direction === 'asc'
+                    ? '▲'
+                    : '▼'}
+              </SortIndicator>
             </SortButton>
-          </TableHeadCell>
+          </SortableHeadCell>
         ))}
       </tr>
     </thead>
