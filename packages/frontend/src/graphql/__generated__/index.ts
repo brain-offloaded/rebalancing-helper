@@ -129,7 +129,7 @@ export type Holding = {
   currency: Scalars['String']['output'];
   currentPrice: Scalars['Decimal']['output'];
   id: Scalars['ID']['output'];
-  lastUpdated: Scalars['DateTime']['output'];
+  lastTradedAt: Scalars['DateTime']['output'];
   market: Maybe<Scalars['String']['output']>;
   marketValue: Scalars['Decimal']['output'];
   name: Scalars['String']['output'];
@@ -631,7 +631,7 @@ export type GetBrokerageHoldingsQuery = {
     marketValue: import('@rebalancing-helper/common').Decimal;
     currency: string;
     accountId: string;
-    lastUpdated: string;
+    lastTradedAt: string;
   }>;
 };
 
@@ -745,7 +745,7 @@ export type RefreshBrokerageHoldingsMutation = {
     marketValue: import('@rebalancing-helper/common').Decimal;
     currency: string;
     accountId: string;
-    lastUpdated: string;
+    lastTradedAt: string;
   }>;
 };
 
@@ -841,7 +841,7 @@ export type GetHoldingsQuery = {
     currentPrice: import('@rebalancing-helper/common').Decimal;
     marketValue: import('@rebalancing-helper/common').Decimal;
     currency: string;
-    lastUpdated: string;
+    lastTradedAt: string;
     createdAt: string;
     updatedAt: string;
   }>;
@@ -866,7 +866,7 @@ export type CreateManualHoldingMutation = {
     currentPrice: import('@rebalancing-helper/common').Decimal;
     marketValue: import('@rebalancing-helper/common').Decimal;
     currency: string;
-    lastUpdated: string;
+    lastTradedAt: string;
     createdAt: string;
     updatedAt: string;
   };
@@ -891,7 +891,7 @@ export type IncreaseManualHoldingMutation = {
     currentPrice: import('@rebalancing-helper/common').Decimal;
     marketValue: import('@rebalancing-helper/common').Decimal;
     currency: string;
-    lastUpdated: string;
+    lastTradedAt: string;
     createdAt: string;
     updatedAt: string;
   };
@@ -916,7 +916,7 @@ export type SetManualHoldingQuantityMutation = {
     currentPrice: import('@rebalancing-helper/common').Decimal;
     marketValue: import('@rebalancing-helper/common').Decimal;
     currency: string;
-    lastUpdated: string;
+    lastTradedAt: string;
     createdAt: string;
     updatedAt: string;
   };
@@ -948,7 +948,7 @@ export type SyncManualHoldingPriceMutation = {
     alias: string | null;
     currentPrice: import('@rebalancing-helper/common').Decimal;
     marketValue: import('@rebalancing-helper/common').Decimal;
-    lastUpdated: string;
+    lastTradedAt: string;
     quantity: import('@rebalancing-helper/common').Decimal;
     currency: string;
     createdAt: string;
@@ -975,7 +975,7 @@ export type SetHoldingAliasMutation = {
     currentPrice: import('@rebalancing-helper/common').Decimal;
     marketValue: import('@rebalancing-helper/common').Decimal;
     currency: string;
-    lastUpdated: string;
+    lastTradedAt: string;
     createdAt: string;
     updatedAt: string;
   };
@@ -1555,7 +1555,7 @@ export const GetBrokerageHoldingsDocument = gql`
       marketValue
       currency
       accountId
-      lastUpdated
+      lastTradedAt
     }
   }
 `;
@@ -1973,7 +1973,7 @@ export const RefreshBrokerageHoldingsDocument = gql`
       marketValue
       currency
       accountId
-      lastUpdated
+      lastTradedAt
     }
   }
 `;
@@ -2430,7 +2430,7 @@ export const GetHoldingsDocument = gql`
       currentPrice
       marketValue
       currency
-      lastUpdated
+      lastTradedAt
       createdAt
       updatedAt
     }
@@ -2520,7 +2520,7 @@ export const CreateManualHoldingDocument = gql`
       currentPrice
       marketValue
       currency
-      lastUpdated
+      lastTradedAt
       createdAt
       updatedAt
     }
@@ -2583,7 +2583,7 @@ export const IncreaseManualHoldingDocument = gql`
       currentPrice
       marketValue
       currency
-      lastUpdated
+      lastTradedAt
       createdAt
       updatedAt
     }
@@ -2646,7 +2646,7 @@ export const SetManualHoldingQuantityDocument = gql`
       currentPrice
       marketValue
       currency
-      lastUpdated
+      lastTradedAt
       createdAt
       updatedAt
     }
@@ -2756,7 +2756,7 @@ export const SyncManualHoldingPriceDocument = gql`
       alias
       currentPrice
       marketValue
-      lastUpdated
+      lastTradedAt
       quantity
       currency
       createdAt
@@ -2821,7 +2821,7 @@ export const SetHoldingAliasDocument = gql`
       currentPrice
       marketValue
       currency
-      lastUpdated
+      lastTradedAt
       createdAt
       updatedAt
     }

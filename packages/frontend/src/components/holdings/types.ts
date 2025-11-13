@@ -12,7 +12,7 @@ export interface Holding {
   currentPrice: DecimalInput;
   marketValue: DecimalInput;
   currency: string;
-  lastUpdated: string;
+  lastTradedAt: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -49,7 +49,7 @@ export type HoldingSortField =
   | 'quantity'
   | 'currentPrice'
   | 'marketValue'
-  | 'lastUpdated'
+  | 'lastTradedAt'
   | 'tags';
 
 export type HoldingSortDirection = 'asc' | 'desc';

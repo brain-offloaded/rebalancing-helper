@@ -42,8 +42,8 @@ const tableColumns: TableColumn[] = [
   { field: 'displayName', label: '종목' },
   { field: 'quantity', label: '수량' },
   { field: 'currentPrice', label: '현재가' },
-  { field: 'marketValue', label: '평가금액' },
-  { field: 'lastUpdated', label: '마지막 업데이트' },
+  { field: 'marketValue', label: '평가액' },
+  { field: 'lastTradedAt', label: '최근 매매' },
   { field: 'tags', label: '태그' },
 ];
 
@@ -68,6 +68,7 @@ const SortButton = styled.button<{ $active: boolean }>`
       ? theme.typography.fontWeight.bold
       : theme.typography.fontWeight.semibold};
   cursor: pointer;
+  white-space: nowrap;
 `;
 
 const SortIndicator = styled.span<{ $active: boolean }>`
@@ -193,7 +194,7 @@ export const HoldingsTable: React.FC<HoldingsTableProps> = ({
               <TableCell>
                 <CellContent>
                   <PrimaryText>
-                    {formatLastUpdated(holding.lastUpdated)}
+                    {formatLastUpdated(holding.lastTradedAt)}
                   </PrimaryText>
                 </CellContent>
               </TableCell>

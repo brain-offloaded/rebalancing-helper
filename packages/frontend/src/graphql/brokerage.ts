@@ -45,7 +45,7 @@ export const GET_BROKERAGE_HOLDINGS = gql`
       marketValue
       currency
       accountId
-      lastUpdated
+      lastTradedAt
     }
   }
 `;
@@ -141,7 +141,7 @@ export const REFRESH_BROKERAGE_HOLDINGS = gql`
       marketValue
       currency
       accountId
-      lastUpdated
+      lastTradedAt
     }
   }
 `;

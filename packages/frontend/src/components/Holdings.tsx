@@ -117,10 +117,10 @@ const compareHoldingRowsByField = (
         left.holding.marketValue,
         right.holding.marketValue,
       );
-    case 'lastUpdated':
+    case 'lastTradedAt':
       return compareNumericValues(
-        new Date(left.holding.lastUpdated).getTime(),
-        new Date(right.holding.lastUpdated).getTime(),
+        new Date(left.holding.lastTradedAt).getTime(),
+        new Date(right.holding.lastTradedAt).getTime(),
       );
     case 'tags':
       return compareLocalizedStrings(
@@ -154,8 +154,8 @@ export const Holdings: React.FC = () => {
   const [syncingAll, setSyncingAll] = useState(false);
   const [holdingSortConfig, setHoldingSortConfig] =
     useState<HoldingSortConfig>({
-      field: 'account',
-      direction: 'asc',
+      field: 'lastTradedAt',
+      direction: 'desc',
     });
 
   const {

@@ -99,7 +99,7 @@ type Holding {
   currency: String!
   currentPrice: Decimal!
   id: ID!
-  lastUpdated: DateTime!
+  lastTradedAt: DateTime!
   market: String
   marketValue: Decimal!
   name: String!

@@ -307,7 +307,7 @@ describe('HoldingsService', () => {
       currentPrice: 412.35,
       marketValue: 824.7,
       currency: 'USD',
-      lastUpdated: new Date('2024-01-02T00:00:00Z'),
+      lastTradedAt: new Date('2024-01-02T00:00:00Z'),
       createdAt: new Date('2024-01-01T00:00:00Z'),
       updatedAt: new Date('2024-01-02T00:00:00Z'),
     };
@@ -363,7 +363,7 @@ describe('HoldingsService', () => {
           currentPrice: quote.price,
           marketValue: Number(input.quantity) * Number(quote.price),
           currency: quote.currency,
-          lastUpdated: quote.lastUpdated,
+          lastTradedAt: expect.any(Date),
         },
       });
       expect(result.marketValue).toBeCloseTo(
@@ -403,7 +403,7 @@ describe('HoldingsService', () => {
           currentPrice: quote.price,
           marketValue: 0,
           currency: quote.currency,
-          lastUpdated: quote.lastUpdated,
+          lastTradedAt: expect.any(Date),
         },
       });
       expect(result.marketValue).toBe(0);
@@ -445,7 +445,7 @@ describe('HoldingsService', () => {
         marketValue: Number(manualHolding.currentPrice) * 2,
         currency: manualHolding.currency,
         name: manualHolding.name,
-        lastUpdated: manualHolding.lastUpdated,
+        lastTradedAt: manualHolding.lastTradedAt,
         createdAt: manualHolding.createdAt,
         updatedAt: manualHolding.updatedAt,
       });
@@ -474,6 +474,7 @@ describe('HoldingsService', () => {
         data: {
           quantity: 5,
           marketValue: Number(manualHolding.currentPrice) * 5,
+          lastTradedAt: expect.any(Date),
         },
       });
       expect(result.quantity).toBe(5);
@@ -517,7 +518,7 @@ describe('HoldingsService', () => {
         marketValue: Number(manualHolding.currentPrice) * 2,
         currency: manualHolding.currency,
         name: manualHolding.name,
-        lastUpdated: manualHolding.lastUpdated,
+        lastTradedAt: manualHolding.lastTradedAt,
         createdAt: manualHolding.createdAt,
         updatedAt: manualHolding.updatedAt,
       });
@@ -540,6 +541,7 @@ describe('HoldingsService', () => {
       expect(updateArgs.data.marketValue).toBeCloseTo(
         Number(manualHolding.currentPrice) * Number(input.quantity),
       );
+      expect(updateArgs.data.lastTradedAt).toBeInstanceOf(Date);
       expect(result.quantity).toBe(input.quantity);
     });
 
@@ -575,7 +577,7 @@ describe('HoldingsService', () => {
         marketValue: manualHolding.marketValue,
         currency: manualHolding.currency,
         name: manualHolding.name,
-        lastUpdated: manualHolding.lastUpdated,
+        lastTradedAt: manualHolding.lastTradedAt,
         createdAt: manualHolding.createdAt,
         updatedAt: manualHolding.updatedAt,
       });
@@ -624,7 +626,7 @@ describe('HoldingsService', () => {
         marketValue: manualHolding.marketValue,
         currency: manualHolding.currency,
         name: manualHolding.name,
-        lastUpdated: manualHolding.lastUpdated,
+        lastTradedAt: manualHolding.lastTradedAt,
         createdAt: manualHolding.createdAt,
         updatedAt: manualHolding.updatedAt,
       });
@@ -652,7 +654,7 @@ describe('HoldingsService', () => {
         marketValue: 300 * Number(manualHolding.quantity),
         currency: manualHolding.currency,
         name: manualHolding.name,
-        lastUpdated: manualHolding.lastUpdated,
+        lastTradedAt: manualHolding.lastTradedAt,
         createdAt: manualHolding.createdAt,
         updatedAt: manualHolding.updatedAt,
       });
@@ -665,7 +667,6 @@ describe('HoldingsService', () => {
         ...manualHolding,
         currentPrice: 500,
         marketValue: Number(manualHolding.quantity) * 500,
-        lastUpdated: new Date('2024-01-03T00:00:00Z'),
       });
 
       const result = await service.syncManualHoldingPrice(USER_ID, identifier);
@@ -693,7 +694,6 @@ describe('HoldingsService', () => {
           marketValue: Number(manualHolding.quantity) * 500,
           name: quote.name,
           currency: quote.currency,
-          lastUpdated: new Date('2024-01-03T00:00:00Z'),
         },
       });
       expect(result.currentPrice).toBe(500);
@@ -725,7 +725,7 @@ describe('HoldingsService', () => {
         marketValue: manualHolding.marketValue,
         currency: manualHolding.currency,
         name: manualHolding.name,
-        lastUpdated: manualHolding.lastUpdated,
+        lastTradedAt: manualHolding.lastTradedAt,
         createdAt: manualHolding.createdAt,
         updatedAt: manualHolding.updatedAt,
       });

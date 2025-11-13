@@ -66,7 +66,7 @@ const createManualHolding = (overrides: Partial<Holding> = {}): Holding => ({
   currentPrice: 410.2,
   marketValue: 1230.6,
   currency: 'USD',
-  lastUpdated: new Date('2024-01-03T00:00:00Z'),
+  lastTradedAt: new Date('2024-01-03T00:00:00Z'),
   createdAt: new Date('2024-01-01T00:00:00Z'),
   updatedAt: new Date('2024-01-03T00:00:00Z'),
   ...overrides,
@@ -318,7 +318,7 @@ describe('GraphQL API (e2e)', () => {
         currentPrice: 410.2,
         marketValue: 1230.6,
         currency: 'USD',
-        lastUpdated: new Date('2024-01-03T00:00:00Z'),
+        lastTradedAt: new Date('2024-01-03T00:00:00Z'),
         createdAt: new Date('2024-01-01T00:00:00Z'),
         updatedAt: new Date('2024-01-03T00:00:00Z'),
       } as Holding,
@@ -337,7 +337,7 @@ describe('GraphQL API (e2e)', () => {
           currentPrice
           marketValue
           currency
-          lastUpdated
+          lastTradedAt
         }
       }
     `;
@@ -358,7 +358,7 @@ describe('GraphQL API (e2e)', () => {
           currentPrice: 410.2,
           marketValue: 1230.6,
           currency: 'USD',
-          lastUpdated: '2024-01-03T00:00:00.000Z',
+          lastTradedAt: '2024-01-03T00:00:00.000Z',
         },
       ],
     });
@@ -373,7 +373,7 @@ describe('GraphQL API (e2e)', () => {
       quantity: 2,
       currentPrice: 430.4,
       marketValue: 860.8,
-      lastUpdated: new Date('2024-01-04T00:00:00Z'),
+      lastTradedAt: new Date('2024-01-04T00:00:00Z'),
       createdAt: new Date('2024-01-04T00:00:00Z'),
       updatedAt: new Date('2024-01-04T00:00:00Z'),
     });
@@ -426,7 +426,7 @@ describe('GraphQL API (e2e)', () => {
       quantity: 4,
       currentPrice: 412.35,
       marketValue: 1649.4,
-      lastUpdated: new Date('2024-01-05T00:00:00Z'),
+      lastTradedAt: new Date('2024-01-05T00:00:00Z'),
       createdAt: new Date('2024-01-03T00:00:00Z'),
       updatedAt: new Date('2024-01-05T00:00:00Z'),
     });
@@ -477,7 +477,7 @@ describe('GraphQL API (e2e)', () => {
       quantity: 5,
       currentPrice: 360.1,
       marketValue: 1800.5,
-      lastUpdated: new Date('2024-01-06T00:00:00Z'),
+      lastTradedAt: new Date('2024-01-06T00:00:00Z'),
       createdAt: new Date('2024-01-05T00:00:00Z'),
       updatedAt: new Date('2024-01-06T00:00:00Z'),
     });
@@ -557,7 +557,7 @@ describe('GraphQL API (e2e)', () => {
       quantity: 3,
       currentPrice: 418.2,
       marketValue: 1254.6,
-      lastUpdated: new Date('2024-01-07T00:00:00Z'),
+      lastTradedAt: new Date('2024-01-07T00:00:00Z'),
       createdAt: new Date('2024-01-03T00:00:00Z'),
       updatedAt: new Date('2024-01-07T00:00:00Z'),
     });
