@@ -61,7 +61,8 @@ const SortButton = styled.button<{ $active: boolean }>`
   width: 100%;
   border: none;
   background: transparent;
-  color: ${({ $active }) => ($active ? '#ffffff' : 'rgba(255, 255, 255, 0.85)')};
+  color: ${({ $active }) =>
+    $active ? '#ffffff' : 'rgba(255, 255, 255, 0.85)'};
   font: inherit;
   font-weight: ${({ theme, $active }) =>
     $active

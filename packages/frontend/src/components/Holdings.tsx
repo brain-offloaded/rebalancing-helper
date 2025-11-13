@@ -59,8 +59,6 @@ interface ManualQuantityState {
   mode: ManualQuantityMode;
 }
 
-type HoldingSortMode = 'default' | 'account';
-
 const compareLocalizedStrings = (left: string, right: string) =>
   left.localeCompare(right, 'ko', {
     sensitivity: 'base',
@@ -106,7 +104,10 @@ const compareHoldingRowsByField = (
     case 'displayName':
       return compareLocalizedStrings(left.displayName, right.displayName);
     case 'quantity':
-      return compareDecimalInputs(left.holding.quantity, right.holding.quantity);
+      return compareDecimalInputs(
+        left.holding.quantity,
+        right.holding.quantity,
+      );
     case 'currentPrice':
       return compareDecimalInputs(
         left.holding.currentPrice,
@@ -152,11 +153,12 @@ export const Holdings: React.FC = () => {
   const [manualQuantity, setManualQuantity] = useState('');
   const [manualAccountId, setManualAccountId] = useState('');
   const [syncingAll, setSyncingAll] = useState(false);
-  const [holdingSortConfig, setHoldingSortConfig] =
-    useState<HoldingSortConfig>({
+  const [holdingSortConfig, setHoldingSortConfig] = useState<HoldingSortConfig>(
+    {
       field: 'lastTradedAt',
       direction: 'desc',
-    });
+    },
+  );
 
   const {
     data: holdingsData,
