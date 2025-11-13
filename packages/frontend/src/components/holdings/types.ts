@@ -42,3 +42,5 @@ export interface HoldingTagLink {
   holdingSymbol: string;
   tagId: string;
 }
+
+export type HoldingSortMode = 'default' | 'account';

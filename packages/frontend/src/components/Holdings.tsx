@@ -31,6 +31,7 @@ import { formatMarketWithSymbol } from './holdings/formatters';
 import type {
   Holding,
   HoldingTagLink,
+  HoldingSortMode,
   ManualAccount,
   MarketOption,
   Tag,
@@ -56,6 +57,14 @@ interface ManualQuantityState {
   mode: ManualQuantityMode;
 }
 
+type HoldingSortMode = 'default' | 'account';
+
+const compareLocalizedStrings = (left: string, right: string) =>
+  left.localeCompare(right, 'ko', {
+    sensitivity: 'base',
+    numeric: true,
+  });
+
 const ZERO_DELTA_THRESHOLD = createDecimal('0.0000001');
 
 export const Holdings: React.FC = () => {
@@ -76,6 +85,8 @@ export const Holdings: React.FC = () => {
   const [manualQuantity, setManualQuantity] = useState('');
   const [manualAccountId, setManualAccountId] = useState('');
   const [syncingAll, setSyncingAll] = useState(false);
+  const [holdingSortMode, setHoldingSortMode] =
+    useState<HoldingSortMode>('default');
 
   const {
     data: holdingsData,
@@ -161,6 +172,10 @@ export const Holdings: React.FC = () => {
         : [],
     [selectedHolding, holdingTagsBySymbol],
   );
+
+  const handleSortModeChange = useCallback((mode: HoldingSortMode) => {
+    setHoldingSortMode(mode);
+  }, []);
 
   const manualQuantityState = useMemo<ManualQuantityState>(() => {
     if (!selectedHolding || selectedHolding.source !== 'MANUAL') {
@@ -332,7 +347,7 @@ export const Holdings: React.FC = () => {
   }, [tags, selectedTagIds]);
 
   const holdingRows = useMemo(() => {
-    return holdings.map((holding) => {
+    const rows = holdings.map((holding) => {
       const tagIds = holdingTagsBySymbol.get(holding.symbol) ?? [];
       const rowTags = tagIds
         .map((tagId) => tagById.get(tagId))
@@ -356,7 +371,22 @@ export const Holdings: React.FC = () => {
         tags: rowTags,
       };
     });
-  }, [accountNameById, holdingTagsBySymbol, holdings, tagById]);
+
+    if (holdingSortMode === 'account') {
+      return [...rows].sort((left, right) => {
+        const accountCompare = compareLocalizedStrings(
+          left.accountName,
+          right.accountName,
+        );
+        if (accountCompare !== 0) {
+          return accountCompare;
+        }
+        return compareLocalizedStrings(left.displayName, right.displayName);
+      });
+    }
+
+    return rows;
+  }, [accountNameById, holdingSortMode, holdingTagsBySymbol, holdings, tagById]);
 
   const formatQuantityInputValue = useCallback(
     (value: Decimal) => formatDecimal(value, { trimTrailingZeros: true }),
@@ -815,6 +845,8 @@ export const Holdings: React.FC = () => {
         manualHoldingsCount={manualHoldings.length}
         syncingAll={syncingAll}
         onSyncAll={handleManualSyncAll}
+        sortMode={holdingSortMode}
+        onSortModeChange={handleSortModeChange}
       />
 
       <HoldingsTable

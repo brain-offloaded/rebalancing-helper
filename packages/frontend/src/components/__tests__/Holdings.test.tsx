@@ -1,7 +1,7 @@
 /// <reference types="@testing-library/jest-dom" />
 
 import userEvent from '@testing-library/user-event';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDecimal } from '@rebalancing-helper/common';
 import { renderWithProviders } from '../../test-utils/render';
@@ -192,6 +192,61 @@ describe('Holdings', () => {
     expect(screen.getByText('US · VOO')).toBeInTheDocument();
     expect(screen.getByText('Vanguard S&P 500 ETF')).toBeInTheDocument();
     expect(screen.getByText('$412.35')).toBeInTheDocument();
+  });
+
+  it('정렬 기준을 계좌로 바꾸면 계좌명 순서로 정렬한다', async () => {
+    const user = userEvent.setup();
+    brokerageAccountsDataState = [
+      {
+        id: 'acc-1',
+        name: 'Account B',
+        brokerId: 'broker-api',
+        syncMode: 'API',
+        broker: null,
+        description: null,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: 'manual-account-1',
+        name: 'Account A',
+        brokerId: 'broker-manual',
+        syncMode: 'MANUAL',
+        broker: null,
+        description: null,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+
+    holdingsData = [
+      createHolding({
+        id: 'holding-b',
+        accountId: 'acc-1',
+        symbol: 'BBB',
+        name: 'Broker B',
+      }),
+      createHolding({
+        id: 'holding-a',
+        accountId: 'manual-account-1',
+        source: 'MANUAL',
+        market: 'US',
+        symbol: 'AAA',
+        name: 'Manual A',
+      }),
+    ];
+
+    renderWithProviders(<Holdings />, { withApollo: false });
+
+    const rows = screen.getAllByRole('row');
+    expect(within(rows[1]).getByText('Account B')).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText('정렬 기준'), 'account');
+
+    const sortedRows = screen.getAllByRole('row');
+    expect(within(sortedRows[1]).getByText('Account A')).toBeInTheDocument();
   });
 
   it('태그 관리 모달에서 태그를 갱신한다', async () => {
