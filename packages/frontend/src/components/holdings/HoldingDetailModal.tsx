@@ -247,8 +247,8 @@ export const HoldingDetailModal: React.FC<HoldingDetailModalProps> = ({
               {syncingHoldingId === holding.id ? '···' : '↻'}
             </IconButton>
           ) : null}
-          <InlineLabel>마지막 업데이트</InlineLabel>
-          <ValueBadge>{formatLastUpdated(holding.lastUpdated)}</ValueBadge>
+          <InlineLabel>마지막 매매</InlineLabel>
+          <ValueBadge>{formatLastUpdated(holding.lastTradedAt)}</ValueBadge>
         </ModalRow>
       </ModalSection>
     </Modal>

@@ -413,7 +413,7 @@ export class BrokerageService {
           currentPrice: holding.currentPrice,
           marketValue: holding.marketValue,
           currency: holding.currency,
-          lastUpdated: new Date(),
+          lastTradedAt: new Date(),
         })),
       }),
     ]);

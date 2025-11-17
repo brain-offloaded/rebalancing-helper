@@ -1,7 +1,7 @@
 /// <reference types="@testing-library/jest-dom" />
 
 import userEvent from '@testing-library/user-event';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDecimal } from '@rebalancing-helper/common';
 import { renderWithProviders } from '../../test-utils/render';
@@ -37,7 +37,7 @@ const createHolding = (overrides: Partial<Record<string, unknown>> = {}) => ({
   currentPrice: createDecimal(100),
   marketValue: createDecimal(100),
   currency: 'USD',
-  lastUpdated: new Date().toISOString(),
+  lastTradedAt: new Date().toISOString(),
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   ...overrides,
@@ -192,6 +192,95 @@ describe('Holdings', () => {
     expect(screen.getByText('US · VOO')).toBeInTheDocument();
     expect(screen.getByText('Vanguard S&P 500 ETF')).toBeInTheDocument();
     expect(screen.getByText('$412.35')).toBeInTheDocument();
+  });
+
+  it('계좌 헤더를 클릭하면 계좌명 기준 정렬이 순환한다', async () => {
+    const user = userEvent.setup();
+    brokerageAccountsDataState = [
+      {
+        id: 'acc-1',
+        name: 'Account B',
+        brokerId: 'broker-api',
+        syncMode: 'API',
+        broker: null,
+        description: null,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: 'manual-account-1',
+        name: 'Account A',
+        brokerId: 'broker-manual',
+        syncMode: 'MANUAL',
+        broker: null,
+        description: null,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: 'acc-2',
+        name: 'Account C',
+        brokerId: 'broker-api',
+        syncMode: 'API',
+        broker: null,
+        description: null,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+
+    holdingsData = [
+      createHolding({
+        id: 'holding-b',
+        accountId: 'acc-1',
+        symbol: 'BBB',
+        name: 'Broker B',
+        lastTradedAt: '2024-01-02T00:00:00.000Z',
+      }),
+      createHolding({
+        id: 'holding-a',
+        accountId: 'manual-account-1',
+        source: 'MANUAL',
+        market: 'US',
+        symbol: 'AAA',
+        name: 'Manual A',
+        lastTradedAt: '2024-01-01T00:00:00.000Z',
+      }),
+      createHolding({
+        id: 'holding-c',
+        accountId: 'acc-2',
+        symbol: 'CCC',
+        name: 'Broker C',
+        lastTradedAt: '2024-01-03T00:00:00.000Z',
+      }),
+    ];
+
+    renderWithProviders(<Holdings />, { withApollo: false });
+
+    let rows = screen.getAllByRole('row');
+    expect(within(rows[1]).getByText('Account C')).toBeInTheDocument();
+
+    const accountHeaderButton = screen.getByRole('button', {
+      name: '계좌 정렬',
+    });
+
+    await user.click(accountHeaderButton);
+
+    rows = screen.getAllByRole('row');
+    expect(within(rows[1]).getByText('Account A')).toBeInTheDocument();
+
+    await user.click(accountHeaderButton);
+
+    rows = screen.getAllByRole('row');
+    expect(within(rows[1]).getByText('Account C')).toBeInTheDocument();
+
+    await user.click(accountHeaderButton);
+
+    rows = screen.getAllByRole('row');
+    expect(within(rows[1]).getByText('Account B')).toBeInTheDocument();
   });
 
   it('태그 관리 모달에서 태그를 갱신한다', async () => {

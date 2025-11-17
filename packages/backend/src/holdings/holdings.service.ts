@@ -320,7 +320,7 @@ export class HoldingsService {
         currentPrice: priceDecimal.toNumber(),
         marketValue: marketValueDecimal.toNumber(),
         currency: quote.currency,
-        lastUpdated: quote.lastUpdated,
+        lastTradedAt: new Date(),
       },
     });
 
@@ -347,6 +347,7 @@ export class HoldingsService {
       data: {
         quantity: nextQuantity.toNumber(),
         marketValue: marketValue.toNumber(),
+        lastTradedAt: new Date(),
       },
     });
 
@@ -369,6 +370,7 @@ export class HoldingsService {
       data: {
         quantity: quantityDecimal.toNumber(),
         marketValue: marketValue.toNumber(),
+        lastTradedAt: new Date(),
       },
     });
 
@@ -422,7 +424,7 @@ export class HoldingsService {
         marketValue: marketValue.toNumber(),
         name: quote.name,
         currency: quote.currency,
-        lastUpdated: quote.lastUpdated,
+        // Price sync should not mutate trade timestamp
       },
     });
 

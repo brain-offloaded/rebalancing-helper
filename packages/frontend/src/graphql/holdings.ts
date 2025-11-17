@@ -65,7 +65,7 @@ export const GET_HOLDINGS = gql`
       currentPrice
       marketValue
       currency
-      lastUpdated
+      lastTradedAt
       createdAt
       updatedAt
     }
@@ -86,7 +86,7 @@ export const CREATE_MANUAL_HOLDING = gql`
       currentPrice
       marketValue
       currency
-      lastUpdated
+      lastTradedAt
       createdAt
       updatedAt
     }
@@ -107,7 +107,7 @@ export const INCREASE_MANUAL_HOLDING = gql`
       currentPrice
       marketValue
       currency
-      lastUpdated
+      lastTradedAt
       createdAt
       updatedAt
     }
@@ -128,7 +128,7 @@ export const SET_MANUAL_HOLDING_QUANTITY = gql`
       currentPrice
       marketValue
       currency
-      lastUpdated
+      lastTradedAt
       createdAt
       updatedAt
     }
@@ -153,7 +153,7 @@ export const SYNC_MANUAL_HOLDING_PRICE = gql`
       alias
       currentPrice
       marketValue
-      lastUpdated
+      lastTradedAt
       quantity
       currency
       createdAt
@@ -176,7 +176,7 @@ export const SET_HOLDING_ALIAS = gql`
       currentPrice
       marketValue
       currency
-      lastUpdated
+      lastTradedAt
       createdAt
       updatedAt
     }

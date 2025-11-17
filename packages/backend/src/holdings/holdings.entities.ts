@@ -62,7 +62,7 @@ export class Holding {
   currency: string;
 
   @Field(() => Date)
-  lastUpdated: Date;
+  lastTradedAt: Date;
 
   @Field(() => Date)
   createdAt: Date;
@@ -98,7 +98,7 @@ export class EnrichedHolding {
   accountId: string;
 
   @Field(() => Date)
-  lastUpdated: Date;
+  lastTradedAt: Date;
 
   @Field(() => [String])
   tags: string[];

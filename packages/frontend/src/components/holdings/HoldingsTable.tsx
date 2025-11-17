@@ -1,4 +1,5 @@
 import type { MouseEvent } from 'react';
+import styled from 'styled-components';
 import { IconButton } from '../ui/Button';
 import { Table, TableCell, TableHeadCell, TableRow } from '../ui/Table';
 import { TagBadge } from '../ui/Tag';
@@ -7,7 +8,12 @@ import {
   formatLastUpdated,
   formatQuantityValue,
 } from './formatters';
-import type { Holding, Tag } from './types';
+import type {
+  Holding,
+  HoldingSortConfig,
+  HoldingSortField,
+  Tag,
+} from './types';
 import {
   CellContent,
   PriceWrapper,
@@ -26,6 +32,51 @@ export interface HoldingRowData {
   tags: Tag[];
 }
 
+type TableColumn = {
+  field: HoldingSortField;
+  label: string;
+};
+
+const tableColumns: TableColumn[] = [
+  { field: 'account', label: '계좌' },
+  { field: 'displayName', label: '종목' },
+  { field: 'quantity', label: '수량' },
+  { field: 'currentPrice', label: '현재가' },
+  { field: 'marketValue', label: '평가액' },
+  { field: 'lastTradedAt', label: '최근 매매' },
+  { field: 'tags', label: '태그' },
+];
+
+const SortableHeadCell = styled(TableHeadCell)<{ $active: boolean }>`
+  background-color: ${({ theme, $active }) =>
+    $active ? theme.colors.dark : theme.colors.primary};
+  transition: background-color 0.2s ease;
+`;
+
+const SortButton = styled.button<{ $active: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: ${({ theme }) => theme.spacing.xs};
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: ${({ $active }) =>
+    $active ? '#ffffff' : 'rgba(255, 255, 255, 0.85)'};
+  font: inherit;
+  font-weight: ${({ theme, $active }) =>
+    $active
+      ? theme.typography.fontWeight.bold
+      : theme.typography.fontWeight.semibold};
+  cursor: pointer;
+  white-space: nowrap;
+`;
+
+const SortIndicator = styled.span<{ $active: boolean }>`
+  font-size: 0.75rem;
+  opacity: ${({ $active }) => ($active ? 1 : 0.75)};
+`;
+
 interface HoldingsTableProps {
   rows: HoldingRowData[];
   syncingHoldingId: string | null;
@@ -34,6 +85,8 @@ interface HoldingsTableProps {
     holding: Holding,
     event?: MouseEvent<HTMLButtonElement>,
   ) => void;
+  sortConfig: HoldingSortConfig;
+  onSortRequest: (field: HoldingSortField) => void;
 }
 
 export const HoldingsTable: React.FC<HoldingsTableProps> = ({
@@ -41,17 +94,42 @@ export const HoldingsTable: React.FC<HoldingsTableProps> = ({
   syncingHoldingId,
   onRowClick,
   onManualSync,
+  sortConfig,
+  onSortRequest,
 }) => (
   <Table>
     <thead>
       <tr>
-        <TableHeadCell>계좌</TableHeadCell>
-        <TableHeadCell>종목</TableHeadCell>
-        <TableHeadCell>수량</TableHeadCell>
-        <TableHeadCell>현재가</TableHeadCell>
-        <TableHeadCell>평가금액</TableHeadCell>
-        <TableHeadCell>마지막 업데이트</TableHeadCell>
-        <TableHeadCell>태그</TableHeadCell>
+        {tableColumns.map(({ field, label }) => (
+          <SortableHeadCell
+            key={field}
+            aria-sort={
+              sortConfig.field === field
+                ? sortConfig.direction === 'asc'
+                  ? 'ascending'
+                  : 'descending'
+                : 'none'
+            }
+            $active={sortConfig.field === field}
+          >
+            <SortButton
+              type="button"
+              onClick={() => onSortRequest(field)}
+              aria-label={`${label} 정렬`}
+              aria-pressed={sortConfig.field === field}
+              $active={sortConfig.field === field}
+            >
+              {label}
+              <SortIndicator $active={sortConfig.field === field}>
+                {sortConfig.field !== field
+                  ? '↕'
+                  : sortConfig.direction === 'asc'
+                    ? '▲'
+                    : '▼'}
+              </SortIndicator>
+            </SortButton>
+          </SortableHeadCell>
+        ))}
       </tr>
     </thead>
     <tbody>
@@ -117,7 +195,7 @@ export const HoldingsTable: React.FC<HoldingsTableProps> = ({
               <TableCell>
                 <CellContent>
                   <PrimaryText>
-                    {formatLastUpdated(holding.lastUpdated)}
+                    {formatLastUpdated(holding.lastTradedAt)}
                   </PrimaryText>
                 </CellContent>
               </TableCell>
