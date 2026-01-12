@@ -4,7 +4,7 @@ import type {
   QuoteResponseArray,
   QuoteResponseMap,
   QuoteResponseObject,
-} from 'yahoo-finance2/dist/esm/src/modules/quote';
+} from 'yahoo-finance2/esm/src/modules/quote';
 
 export type YahooFinanceQuote = Quote;
 export type YahooFinanceQuoteOptions = QuoteOptions;
