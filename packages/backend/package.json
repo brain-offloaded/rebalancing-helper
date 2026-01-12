@@ -31,7 +31,6 @@
     "gql:schema": "ENV_FILE=../../.env.example nest start --entryFile src/generate-schema"
   },
   "dependencies": {
-    "@rebalancing-helper/common": "workspace:*",
     "@apollo/server": "^4.12.2",
     "@nestjs/apollo": "^13.1.0",
     "@nestjs/axios": "^4.0.1",
@@ -43,11 +42,12 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
     "@prisma/client": "^6.16.1",
+    "@rebalancing-helper/common": "workspace:*",
     "axios": "^1.12.2",
     "bcryptjs": "^3.0.2",
-    "dotenv": "^16.4.5",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
+    "dotenv": "^16.4.5",
     "graphql": "^16.11.0",
     "iconv-lite": "0.6.3",
     "joi": "^17.13.3",
@@ -56,7 +56,7 @@
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "yahoo-finance2": "^2.13.2"
+    "yahoo-finance2": "^3.11.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
