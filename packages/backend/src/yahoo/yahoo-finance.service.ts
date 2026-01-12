@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import yahooFinance from 'yahoo-finance2';
+import { Injectable, Logger } from '@nestjs/common';
+import YahooFinance from 'yahoo-finance2';
 import type {
   YahooFinanceQuote,
   YahooFinanceQuoteOptions,
@@ -7,15 +7,25 @@ import type {
 
 @Injectable()
 export class YahooFinanceService {
+  private readonly logger = new Logger(YahooFinanceService.name);
+  private readonly yf: InstanceType<typeof YahooFinance>;
+
   constructor() {
-    yahooFinance.suppressNotices?.(['yahooSurvey']);
+    this.yf = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
   }
 
   async getQuote(
     symbol: string,
     options?: YahooFinanceQuoteOptions,
   ): Promise<YahooFinanceQuote | null> {
-    const result = await yahooFinance.quote(symbol, options);
-    return result ?? null;
+    try {
+      const result = await this.yf.quote(symbol, options);
+      return result ?? null;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to fetch quote for ${symbol}: ${(error as Error).message}`,
+      );
+      return null;
+    }
   }
 }

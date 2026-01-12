@@ -1,28 +1,23 @@
-import type { YahooFinanceQuote } from '../yahoo/yahoo-finance.types';
-
-type QuoteFields = Pick<
-  YahooFinanceQuote,
-  | 'symbol'
-  | 'longName'
-  | 'shortName'
-  | 'regularMarketPrice'
-  | 'currency'
-  | 'financialCurrency'
-  | 'market'
-  | 'fullExchangeName'
-  | 'exchange'
-  | 'regularMarketTime'
->;
+export interface MarketQuoteSource {
+  symbol?: string;
+  longName?: string;
+  shortName?: string;
+  regularMarketPrice?: number;
+  currency?: string;
+  financialCurrency?: string;
+  market?: string;
+  fullExchangeName?: string;
+  exchange?: string;
+  regularMarketTime?: Date | number;
+}
 
 export interface MarketQuote {
   symbol: string;
-  displaySymbol: QuoteFields['symbol'];
+  displaySymbol: string;
   name: string;
-  price: NonNullable<QuoteFields['regularMarketPrice']>;
-  currency: NonNullable<QuoteFields['currency']>;
+  price: number;
+  currency: string;
   market: string;
-  exchange: NonNullable<QuoteFields['fullExchangeName']>;
+  exchange: string;
   lastUpdated: Date;
 }
-
-export type MarketQuoteSource = QuoteFields;
