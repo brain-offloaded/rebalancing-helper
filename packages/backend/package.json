@@ -31,7 +31,7 @@
     "gql:schema": "ENV_FILE=../../.env.example nest start --entryFile src/generate-schema"
   },
   "dependencies": {
-    "@apollo/server": "^4.12.2",
+    "@apollo/server": "^5.4.0",
     "@nestjs/apollo": "^13.1.0",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/common": "^11.1.6",
