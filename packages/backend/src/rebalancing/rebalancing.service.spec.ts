@@ -1013,6 +1013,66 @@ describe('RebalancingService', () => {
     ]);
   });
 
+  it('calculateInvestmentRecommendation는 환율 조회 실패 시 가격을 미제공으로 표시한다', async () => {
+    const analysis = {
+      groupId: 'group-1',
+      groupName: '해외 포트폴리오',
+      totalValue: 0,
+      baseCurrency: 'USD',
+      lastUpdated: baseDate,
+      allocations: [
+        {
+          tagId: 'tag-1',
+          tagName: '해외 ETF',
+          tagColor: '#ff0000',
+          currentValue: 0,
+          currentPercentage: 0,
+          targetPercentage: 100,
+          difference: 100,
+        },
+      ],
+    };
+    jest
+      .spyOn(service, 'getRebalancingAnalysis')
+      .mockResolvedValue(analysis as never);
+    holdingsServiceMock.getHoldings.mockResolvedValue([
+      {
+        id: 'holding-ewy',
+        source: HoldingSource.BROKERAGE,
+        accountId: 'acc-1',
+        market: 'KR',
+        symbol: 'EWY',
+        name: 'EWY',
+        alias: null,
+        quantity: 1,
+        currentPrice: 100000,
+        marketValue: 100000,
+        currency: 'KRW',
+        lastTradedAt: baseDate,
+        createdAt: baseDate,
+        updatedAt: baseDate,
+      },
+    ]);
+    holdingsServiceMock.getHoldingsForTag.mockResolvedValue(['EWY']);
+    currencyConversionServiceMock.getRate.mockRejectedValue(
+      new Error('fx unavailable'),
+    );
+
+    const recommendations = await service.calculateInvestmentRecommendation(
+      USER_ID,
+      { groupId: 'group-1', investmentAmount: 100 },
+    );
+
+    expect(recommendations[0].symbolQuotes).toEqual([
+      {
+        symbol: 'EWY',
+        unitPriceInBaseCurrency: 0,
+        baseCurrency: 'USD',
+        priceAvailable: false,
+      },
+    ]);
+  });
+
   it('calculateInvestmentRecommendation는 투자금이 0이면 비율을 0으로 만든다', async () => {
     const analysis = {
       groupId: 'group-1',

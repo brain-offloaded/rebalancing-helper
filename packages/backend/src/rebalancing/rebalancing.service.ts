@@ -65,7 +65,9 @@ export class RebalancingService {
   private async getConversionRates(
     currencies: Iterable<string>,
     baseCurrency: string,
+    options?: { fallbackOnError?: boolean },
   ): Promise<Map<string, Decimal>> {
+    const fallbackOnError = options?.fallbackOnError ?? true;
     const conversionRates = new Map<string, Decimal>();
 
     for (const rawCurrency of currencies) {
@@ -86,7 +88,9 @@ export class RebalancingService {
             error instanceof Error ? error.message : String(error)
           }`,
         );
-        conversionRates.set(currency, ONE);
+        if (fallbackOnError) {
+          conversionRates.set(currency, ONE);
+        }
       }
     }
 
@@ -123,14 +127,20 @@ export class RebalancingService {
     const conversionRates = await this.getConversionRates(
       Array.from(latestHoldingBySymbol.values()).map((item) => item.currency),
       baseCurrency,
+      { fallbackOnError: false },
     );
     const unitPriceBySymbol = new Map<string, Decimal>();
 
     for (const [symbol, holding] of latestHoldingBySymbol) {
-      const rate =
-        holding.currency === baseCurrency
-          ? ONE
-          : (conversionRates.get(holding.currency) ?? ONE);
+      if (holding.currency === baseCurrency) {
+        unitPriceBySymbol.set(symbol, holding.currentPrice);
+        continue;
+      }
+
+      const rate = conversionRates.get(holding.currency);
+      if (!rate) {
+        continue;
+      }
 
       unitPriceBySymbol.set(symbol, holding.currentPrice.times(rate));
     }
