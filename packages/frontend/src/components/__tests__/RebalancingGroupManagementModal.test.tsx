@@ -152,6 +152,38 @@ describe('RebalancingGroupManagementModal', () => {
     expect((input as HTMLInputElement).value).toBe('');
   });
 
+  it('분석과 추천 조회는 network-only 정책을 사용한다', () => {
+    renderWithProviders(
+      <RebalancingGroupManagementModal
+        open
+        groupId="group-1"
+        onClose={vi.fn()}
+      />,
+      { withApollo: false },
+    );
+
+    expect(mockUseGetRebalancingAnalysisQuery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        variables: { groupId: 'group-1' },
+        skip: false,
+        fetchPolicy: 'network-only',
+      }),
+    );
+
+    expect(mockUseGetInvestmentRecommendationQuery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skip: false,
+        fetchPolicy: 'network-only',
+        variables: {
+          input: {
+            groupId: 'group-1',
+            investmentAmount: 1000,
+          },
+        },
+      }),
+    );
+  });
+
   it('저장 버튼을 클릭하면 그룹 정보와 목표 비율을 저장하고 성공 알림을 표시한다', async () => {
     const onClose = vi.fn();
 
