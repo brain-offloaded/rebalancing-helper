@@ -717,6 +717,21 @@ describe('GraphQL API (e2e)', () => {
         recommendedAmount: 600,
         recommendedPercentage: 0.6,
         suggestedSymbols: ['SPY', 'QQQ'],
+        baseCurrency: 'USD',
+        symbolQuotes: [
+          {
+            symbol: 'SPY',
+            unitPriceInBaseCurrency: 500,
+            baseCurrency: 'USD',
+            priceAvailable: true,
+          },
+          {
+            symbol: 'QQQ',
+            unitPriceInBaseCurrency: 450,
+            baseCurrency: 'USD',
+            priceAvailable: true,
+          },
+        ],
       },
     ];
     rebalancingServiceMock.calculateInvestmentRecommendation.mockResolvedValue(

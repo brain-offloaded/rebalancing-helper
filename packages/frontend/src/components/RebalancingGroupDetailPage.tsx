@@ -67,7 +67,15 @@ interface InvestmentRecommendation {
   recommendedAmount: number;
   recommendedPercentage: number;
   suggestedSymbols: string[];
+  symbolQuotes: RecommendationSymbolQuote[];
   baseCurrency: string;
+}
+
+interface RecommendationSymbolQuote {
+  symbol: string;
+  unitPriceInBaseCurrency: number;
+  baseCurrency: string;
+  priceAvailable: boolean;
 }
 
 interface RebalancingAnalysis {
@@ -168,6 +176,18 @@ const RADIAN = Math.PI / 180;
 
 const ZERO_DECIMAL_CURRENCIES = new Set(['KRW', 'JPY']);
 
+const getRecommendationSymbolKey = (tagId: string, symbol: string) =>
+  `${tagId}:${symbol}`;
+
+const parseQuantityInput = (value: string): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 0;
+  }
+
+  return Math.floor(parsed);
+};
+
 const getReadableTextColor = (hexColor: string) => {
   const fallback = '#1f2933';
   if (!hexColor) {
@@ -247,10 +267,13 @@ export const RebalancingGroupDetailPage: React.FC<
     | RebalancingAnalysis
     | undefined;
 
-  const recommendations =
-    (recommendationData?.investmentRecommendation as
-      | InvestmentRecommendation[]
-      | undefined) ?? [];
+  const recommendations = useMemo(
+    () =>
+      (recommendationData?.investmentRecommendation as
+        | InvestmentRecommendation[]
+        | undefined) ?? [],
+    [recommendationData?.investmentRecommendation],
+  );
 
   const baseCurrency =
     analysis?.baseCurrency ?? recommendations[0]?.baseCurrency ?? 'USD';
@@ -285,6 +308,9 @@ export const RebalancingGroupDetailPage: React.FC<
   const [targetAllocations, setTargetAllocations] = useState<
     Record<string, number>
   >({});
+  const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>(
+    {},
+  );
 
   useEffect(() => {
     if (!group) {
@@ -338,6 +364,37 @@ export const RebalancingGroupDetailPage: React.FC<
       return unchanged ? prev : next;
     });
   }, [analysis, selectedTagIds]);
+
+  useEffect(() => {
+    setQuantityInputs({});
+  }, [groupId]);
+
+  useEffect(() => {
+    if (recommendations.length === 0) {
+      return;
+    }
+
+    setQuantityInputs((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      for (const recommendation of recommendations) {
+        for (const symbolQuote of recommendation.symbolQuotes) {
+          const key = getRecommendationSymbolKey(
+            recommendation.tagId,
+            symbolQuote.symbol,
+          );
+
+          if (!(key in next)) {
+            next[key] = '0';
+            changed = true;
+          }
+        }
+      }
+
+      return changed ? next : prev;
+    });
+  }, [recommendations]);
 
   const handleSaveBasicInfo = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
@@ -474,6 +531,8 @@ export const RebalancingGroupDetailPage: React.FC<
   }, [group, deleteGroupMutation, refetchGroups, onClose]);
 
   const handleClose = useCallback(() => {
+    setQuantityInputs({});
+
     if (window.opener && !window.opener.closed) {
       window.close();
       return;
@@ -481,6 +540,45 @@ export const RebalancingGroupDetailPage: React.FC<
 
     onClose();
   }, [onClose]);
+
+  const recommendationSymbolRows = useMemo(() => {
+    return recommendations.flatMap((recommendation) => {
+      const tagColor =
+        tagsData?.tags?.find((tag: Tag) => tag.id === recommendation.tagId)
+          ?.color ?? '#ccc';
+
+      return recommendation.symbolQuotes.map((symbolQuote) => ({
+        key: getRecommendationSymbolKey(
+          recommendation.tagId,
+          symbolQuote.symbol,
+        ),
+        tagId: recommendation.tagId,
+        tagName: recommendation.tagName,
+        tagColor,
+        symbol: symbolQuote.symbol,
+        unitPriceInBaseCurrency: symbolQuote.unitPriceInBaseCurrency,
+        priceAvailable: symbolQuote.priceAvailable,
+      }));
+    });
+  }, [recommendations, tagsData?.tags]);
+
+  const totalRecommendedAmount = useMemo(() => {
+    return recommendations.reduce(
+      (sum, recommendation) => sum + recommendation.recommendedAmount,
+      0,
+    );
+  }, [recommendations]);
+
+  const totalEstimatedAmount = useMemo(() => {
+    return recommendationSymbolRows.reduce((sum, row) => {
+      if (!row.priceAvailable) {
+        return sum;
+      }
+
+      const quantity = parseQuantityInput(quantityInputs[row.key] ?? '0');
+      return sum + quantity * row.unitPriceInBaseCurrency;
+    }, 0);
+  }, [recommendationSymbolRows, quantityInputs]);
 
   const chartData = useMemo(() => {
     if (!analysis) {
@@ -925,36 +1023,128 @@ export const RebalancingGroupDetailPage: React.FC<
           ) : null}
 
           {recommendations.length > 0 && (
-            <AllocationTable>
-              <thead>
-                <tr>
-                  <Th>태그</Th>
-                  <Th>추천 투자액</Th>
-                  <Th>투자 비율</Th>
-                  <Th>추천 종목</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {recommendations.map((rec) => (
-                  <tr key={rec.tagId}>
-                    <Td>
-                      <TagChip
-                        color={
-                          tagsData?.tags?.find(
-                            (tag: Tag) => tag.id === rec.tagId,
-                          )?.color ?? '#ccc'
-                        }
-                      >
-                        {rec.tagName}
-                      </TagChip>
-                    </Td>
-                    <Td>{currencyFormatter.format(rec.recommendedAmount)}</Td>
-                    <Td>{rec.recommendedPercentage.toFixed(1)}%</Td>
-                    <Td>{rec.suggestedSymbols.join(', ') || '-'}</Td>
+            <>
+              <AllocationTable>
+                <thead>
+                  <tr>
+                    <Th>태그</Th>
+                    <Th>추천 투자액</Th>
+                    <Th>투자 비율</Th>
+                    <Th>추천 종목</Th>
                   </tr>
-                ))}
-              </tbody>
-            </AllocationTable>
+                </thead>
+                <tbody>
+                  {recommendations.map((rec) => (
+                    <tr key={rec.tagId}>
+                      <Td>
+                        <TagChip
+                          color={
+                            tagsData?.tags?.find(
+                              (tag: Tag) => tag.id === rec.tagId,
+                            )?.color ?? '#ccc'
+                          }
+                        >
+                          {rec.tagName}
+                        </TagChip>
+                      </Td>
+                      <Td>{currencyFormatter.format(rec.recommendedAmount)}</Td>
+                      <Td>{rec.recommendedPercentage.toFixed(1)}%</Td>
+                      <Td>{rec.suggestedSymbols.join(', ') || '-'}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </AllocationTable>
+
+              <FieldLabel as="h5">종목별 매수 수량 계산</FieldLabel>
+              {recommendationSymbolRows.length === 0 ? (
+                <HelperText>추천 종목이 없습니다.</HelperText>
+              ) : (
+                <AllocationTable>
+                  <thead>
+                    <tr>
+                      <Th>태그</Th>
+                      <Th>종목</Th>
+                      <Th>기준통화 단가 ({currencySymbol})</Th>
+                      <Th>매수 수량</Th>
+                      <Th>예상 투자액</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recommendationSymbolRows.map((row) => {
+                      const quantityKey = row.key;
+                      const quantityInput = quantityInputs[quantityKey] ?? '0';
+                      const quantity = parseQuantityInput(quantityInput);
+                      const estimatedAmount = row.priceAvailable
+                        ? quantity * row.unitPriceInBaseCurrency
+                        : null;
+
+                      return (
+                        <tr key={row.key}>
+                          <Td>
+                            <TagChip color={row.tagColor}>
+                              {row.tagName}
+                            </TagChip>
+                          </Td>
+                          <Td>{row.symbol}</Td>
+                          <Td>
+                            {row.priceAvailable
+                              ? currencyFormatter.format(
+                                  row.unitPriceInBaseCurrency,
+                                )
+                              : '-'}
+                          </Td>
+                          <Td>
+                            <TextInput
+                              aria-label={`${row.symbol} 매수 수량`}
+                              type="number"
+                              inputMode="numeric"
+                              min="0"
+                              step="1"
+                              value={quantityInput}
+                              disabled={!row.priceAvailable}
+                              onChange={(event) => {
+                                const normalized = String(
+                                  parseQuantityInput(event.target.value),
+                                );
+                                setQuantityInputs((prev) => {
+                                  if (prev[quantityKey] === normalized) {
+                                    return prev;
+                                  }
+
+                                  return { ...prev, [quantityKey]: normalized };
+                                });
+                              }}
+                            />
+                          </Td>
+                          <Td>
+                            {estimatedAmount === null
+                              ? '-'
+                              : currencyFormatter.format(estimatedAmount)}
+                          </Td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </AllocationTable>
+              )}
+
+              <SummaryBadges>
+                <InlineLabel>총 추천 투자액</InlineLabel>
+                <ValueBadge>
+                  {currencyFormatter.format(totalRecommendedAmount)}
+                </ValueBadge>
+                <InlineLabel>총 입력 예상 투자액</InlineLabel>
+                <ValueBadge>
+                  {currencyFormatter.format(totalEstimatedAmount)}
+                </ValueBadge>
+                <InlineLabel>차이 (입력-추천)</InlineLabel>
+                <ValueBadge>
+                  {currencyFormatter.format(
+                    totalEstimatedAmount - totalRecommendedAmount,
+                  )}
+                </ValueBadge>
+              </SummaryBadges>
+            </>
           )}
         </ModalSection>
 

@@ -104,6 +104,20 @@ const defaultRecommendation = {
       recommendedAmount: 600,
       recommendedPercentage: 60,
       suggestedSymbols: ['AAPL', 'MSFT'],
+      symbolQuotes: [
+        {
+          symbol: 'AAPL',
+          unitPriceInBaseCurrency: 200,
+          baseCurrency: 'USD',
+          priceAvailable: true,
+        },
+        {
+          symbol: 'MSFT',
+          unitPriceInBaseCurrency: 300,
+          baseCurrency: 'USD',
+          priceAvailable: true,
+        },
+      ],
       baseCurrency: 'USD',
     },
     {
@@ -112,6 +126,14 @@ const defaultRecommendation = {
       recommendedAmount: 400,
       recommendedPercentage: 40,
       suggestedSymbols: ['KO'],
+      symbolQuotes: [
+        {
+          symbol: 'KO',
+          unitPriceInBaseCurrency: 50,
+          baseCurrency: 'USD',
+          priceAvailable: true,
+        },
+      ],
       baseCurrency: 'USD',
     },
   ],
@@ -246,6 +268,25 @@ describe('RebalancingGroupDetailPage', () => {
     await user.clear(amountInput);
 
     expect((amountInput as HTMLInputElement).value).toBe('');
+  });
+
+  it('추천 종목 수량 입력값으로 예상 투자액을 계산한다', async () => {
+    setupMocks();
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <RebalancingGroupDetailPage groupId="group-1" onClose={vi.fn()} />,
+      { withApollo: false },
+    );
+
+    const quantityInput = (await screen.findByLabelText(
+      'AAPL 매수 수량',
+    )) as HTMLInputElement;
+    await user.clear(quantityInput);
+    await user.type(quantityInput, '3');
+
+    expect(quantityInput.value).toBe('3');
+    expect(quantityInput.closest('tr')).toHaveTextContent('600');
   });
 
   it('대시보드로 돌아가기 버튼을 클릭하면 onClose를 호출한다', async () => {
