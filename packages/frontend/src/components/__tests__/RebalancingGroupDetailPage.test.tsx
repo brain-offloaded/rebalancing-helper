@@ -255,6 +255,45 @@ describe('RebalancingGroupDetailPage', () => {
     expect(screen.getByText('AAPL, MSFT')).toBeInTheDocument();
   });
 
+  it('분석과 추천 조회는 network-only 정책을 사용한다', () => {
+    setupMocks();
+
+    renderWithProviders(
+      <RebalancingGroupDetailPage groupId="group-1" onClose={vi.fn()} />,
+      { withApollo: false },
+    );
+
+    const analysisCall = mockUseQuery.mock.calls.find(
+      ([document]) => document === GetRebalancingAnalysisDocument,
+    );
+    const recommendationCall = mockUseQuery.mock.calls.find(
+      ([document]) => document === GetInvestmentRecommendationDocument,
+    );
+
+    expect(analysisCall).toBeDefined();
+    expect(analysisCall?.[1]).toEqual(
+      expect.objectContaining({
+        variables: { groupId: 'group-1' },
+        skip: false,
+        fetchPolicy: 'network-only',
+      }),
+    );
+
+    expect(recommendationCall).toBeDefined();
+    expect(recommendationCall?.[1]).toEqual(
+      expect.objectContaining({
+        skip: false,
+        fetchPolicy: 'network-only',
+        variables: {
+          input: {
+            groupId: 'group-1',
+            investmentAmount: 1000,
+          },
+        },
+      }),
+    );
+  });
+
   it('투자 예정 금액 입력을 비워도 빈 값으로 유지한다', async () => {
     setupMocks();
     const user = userEvent.setup();

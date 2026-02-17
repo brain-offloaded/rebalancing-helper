@@ -227,6 +227,7 @@ export const RebalancingGroupDetailPage: React.FC<
   } = useGetRebalancingAnalysisQuery({
     variables: { groupId },
     skip: !groupId,
+    fetchPolicy: 'network-only',
   });
 
   const [investmentAmountInput, setInvestmentAmountInput] = useState('1000');
@@ -249,6 +250,7 @@ export const RebalancingGroupDetailPage: React.FC<
       },
     },
     skip: shouldSkipRecommendation,
+    fetchPolicy: 'network-only',
   });
 
   const [setTargetAllocationsMutation, { loading: savingTargets }] =
