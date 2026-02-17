@@ -133,6 +133,7 @@ type InvestmentRecommendation {
   recommendedAmount: Float!
   recommendedPercentage: Float!
   suggestedSymbols: [String!]!
+  symbolQuotes: [RecommendationSymbolQuote!]!
   tagId: String!
   tagName: String!
 }
@@ -224,6 +225,13 @@ type RebalancingGroup {
   name: String!
   tagIds: [String!]!
   updatedAt: DateTime!
+}
+
+type RecommendationSymbolQuote {
+  baseCurrency: String!
+  priceAvailable: Boolean!
+  symbol: String!
+  unitPriceInBaseCurrency: Float!
 }
 
 input RegisterInput {

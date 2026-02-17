@@ -224,6 +224,12 @@ describe('RebalancingGroupManagementModal', () => {
             recommendedAmount: number;
             recommendedPercentage: number;
             suggestedSymbols: string[];
+            symbolQuotes: Array<{
+              symbol: string;
+              unitPriceInBaseCurrency: number;
+              baseCurrency: string;
+              priceAvailable: boolean;
+            }>;
             baseCurrency: string;
           }>;
         };
@@ -241,6 +247,14 @@ describe('RebalancingGroupManagementModal', () => {
                 recommendedAmount: 500,
                 recommendedPercentage: 55,
                 suggestedSymbols: ['AAPL'],
+                symbolQuotes: [
+                  {
+                    symbol: 'AAPL',
+                    unitPriceInBaseCurrency: 250,
+                    baseCurrency: 'USD',
+                    priceAvailable: true,
+                  },
+                ],
                 baseCurrency: 'USD',
               },
             ],
@@ -300,6 +314,87 @@ describe('RebalancingGroupManagementModal', () => {
     expect(
       screen.queryByText('투자 금액을 입력하면 추천 결과가 표시됩니다.'),
     ).not.toBeInTheDocument();
+  });
+
+  it('추천 종목 수량을 입력하면 예상 투자액이 계산된다', async () => {
+    mockUseGetInvestmentRecommendationQuery.mockReturnValue({
+      data: {
+        investmentRecommendation: [
+          {
+            tagId: 'tag-1',
+            tagName: '성장주',
+            recommendedAmount: 500,
+            recommendedPercentage: 50,
+            suggestedSymbols: ['AAPL'],
+            symbolQuotes: [
+              {
+                symbol: 'AAPL',
+                unitPriceInBaseCurrency: 250,
+                baseCurrency: 'USD',
+                priceAvailable: true,
+              },
+            ],
+            baseCurrency: 'USD',
+          },
+        ],
+      },
+      loading: false,
+    });
+
+    renderWithProviders(
+      <RebalancingGroupManagementModal
+        open
+        groupId="group-1"
+        onClose={vi.fn()}
+      />,
+      { withApollo: false },
+    );
+
+    const quantityInput = (await screen.findByLabelText(
+      'AAPL 매수 수량',
+    )) as HTMLInputElement;
+    await userEvent.clear(quantityInput);
+    await userEvent.type(quantityInput, '2');
+
+    expect(quantityInput.value).toBe('2');
+    expect(quantityInput.closest('tr')).toHaveTextContent('500');
+  });
+
+  it('가격 정보가 없는 추천 종목은 수량 입력이 비활성화된다', async () => {
+    mockUseGetInvestmentRecommendationQuery.mockReturnValue({
+      data: {
+        investmentRecommendation: [
+          {
+            tagId: 'tag-1',
+            tagName: '성장주',
+            recommendedAmount: 500,
+            recommendedPercentage: 50,
+            suggestedSymbols: ['AAPL'],
+            symbolQuotes: [
+              {
+                symbol: 'AAPL',
+                unitPriceInBaseCurrency: 0,
+                baseCurrency: 'USD',
+                priceAvailable: false,
+              },
+            ],
+            baseCurrency: 'USD',
+          },
+        ],
+      },
+      loading: false,
+    });
+
+    renderWithProviders(
+      <RebalancingGroupManagementModal
+        open
+        groupId="group-1"
+        onClose={vi.fn()}
+      />,
+      { withApollo: false },
+    );
+
+    expect(await screen.findByLabelText('AAPL 매수 수량')).toBeDisabled();
   });
 
   it('삭제 버튼을 클릭하면 확인 후 그룹을 삭제하고 닫기 콜백을 호출한다', async () => {

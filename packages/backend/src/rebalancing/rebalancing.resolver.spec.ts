@@ -61,6 +61,14 @@ const createRecommendation = (
   recommendedAmount: overrides.recommendedAmount ?? 100,
   recommendedPercentage: overrides.recommendedPercentage ?? 50,
   suggestedSymbols: overrides.suggestedSymbols ?? ['SPY'],
+  symbolQuotes: overrides.symbolQuotes ?? [
+    {
+      symbol: 'SPY',
+      unitPriceInBaseCurrency: 450,
+      baseCurrency: 'USD',
+      priceAvailable: true,
+    },
+  ],
   baseCurrency: overrides.baseCurrency ?? 'USD',
 });
 

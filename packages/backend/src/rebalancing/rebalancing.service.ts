@@ -13,6 +13,7 @@ import {
   RebalancingAnalysis,
   TagAllocation,
   InvestmentRecommendation,
+  RecommendationSymbolQuote,
 } from './rebalancing.entities';
 import {
   CreateRebalancingGroupInput,
@@ -59,6 +60,92 @@ export class RebalancingService {
 
   private clampToZero(value: Decimal): Decimal {
     return value.isNegative() ? createDecimal(0) : value;
+  }
+
+  private async getConversionRates(
+    currencies: Iterable<string>,
+    baseCurrency: string,
+    options?: { fallbackOnError?: boolean },
+  ): Promise<Map<string, Decimal>> {
+    const fallbackOnError = options?.fallbackOnError ?? true;
+    const conversionRates = new Map<string, Decimal>();
+
+    for (const rawCurrency of currencies) {
+      const currency = rawCurrency.toUpperCase();
+      if (currency === baseCurrency || conversionRates.has(currency)) {
+        continue;
+      }
+
+      try {
+        const rate = await this.currencyConversionService.getRate(
+          currency,
+          baseCurrency,
+        );
+        conversionRates.set(currency, rate);
+      } catch (error: unknown) {
+        this.logger.warn(
+          `환율 정보를 가져오지 못했습니다 (${currency}->${baseCurrency}): ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        if (fallbackOnError) {
+          conversionRates.set(currency, ONE);
+        }
+      }
+    }
+
+    return conversionRates;
+  }
+
+  private async getUnitPriceBySymbolInBaseCurrency(
+    userId: string,
+    baseCurrency: string,
+  ): Promise<Map<string, Decimal>> {
+    const holdings = await this.holdingsService.getHoldings(userId);
+    const latestHoldingBySymbol = new Map<
+      string,
+      { currentPrice: Decimal; currency: string; lastTradedAt: Date }
+    >();
+
+    for (const holding of holdings) {
+      const currency = (holding.currency ?? baseCurrency).toUpperCase();
+      const current = {
+        currentPrice: this.toDecimal(holding.currentPrice),
+        currency,
+        lastTradedAt: holding.lastTradedAt,
+      };
+      const existing = latestHoldingBySymbol.get(holding.symbol);
+
+      if (
+        !existing ||
+        current.lastTradedAt.getTime() >= existing.lastTradedAt.getTime()
+      ) {
+        latestHoldingBySymbol.set(holding.symbol, current);
+      }
+    }
+
+    const conversionRates = await this.getConversionRates(
+      Array.from(latestHoldingBySymbol.values()).map((item) => item.currency),
+      baseCurrency,
+      { fallbackOnError: false },
+    );
+    const unitPriceBySymbol = new Map<string, Decimal>();
+
+    for (const [symbol, holding] of latestHoldingBySymbol) {
+      if (holding.currency === baseCurrency) {
+        unitPriceBySymbol.set(symbol, holding.currentPrice);
+        continue;
+      }
+
+      const rate = conversionRates.get(holding.currency);
+      if (!rate) {
+        continue;
+      }
+
+      unitPriceBySymbol.set(symbol, holding.currentPrice.times(rate));
+    }
+
+    return unitPriceBySymbol;
   }
 
   private async assertTagsBelongToUser(
@@ -371,23 +458,10 @@ export class RebalancingService {
       }
     }
 
-    const conversionRates = new Map<string, Decimal>();
-    for (const currency of currenciesToConvert) {
-      try {
-        const rate = await this.currencyConversionService.getRate(
-          currency,
-          this.baseCurrency,
-        );
-        conversionRates.set(currency, rate);
-      } catch (error: unknown) {
-        this.logger.warn(
-          `환율 정보를 가져오지 못했습니다 (${currency}->${this.baseCurrency}): ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-        conversionRates.set(currency, ONE);
-      }
-    }
+    const conversionRates = await this.getConversionRates(
+      currenciesToConvert,
+      this.baseCurrency,
+    );
 
     for (const holding of holdingsForValue) {
       const currentValue =
@@ -481,6 +555,10 @@ export class RebalancingService {
 
     const recommendations: InvestmentRecommendation[] = [];
     let remainingAmount = investmentBudget;
+    const unitPriceBySymbol = await this.getUnitPriceBySymbolInBaseCurrency(
+      userId,
+      analysis.baseCurrency,
+    );
 
     for (let index = 0; index < allocationNeeds.length; index++) {
       const { allocation, neededValue } = allocationNeeds[index];
@@ -515,6 +593,18 @@ export class RebalancingService {
         userId,
         allocation.tagId,
       );
+      const symbolQuotes: RecommendationSymbolQuote[] = suggestedSymbols.map(
+        (symbol) => {
+          const unitPrice = unitPriceBySymbol.get(symbol);
+
+          return {
+            symbol,
+            unitPriceInBaseCurrency: unitPrice ? this.toNumber(unitPrice) : 0,
+            baseCurrency: analysis.baseCurrency,
+            priceAvailable: Boolean(unitPrice),
+          };
+        },
+      );
 
       recommendations.push({
         tagId: allocation.tagId,
@@ -522,6 +612,7 @@ export class RebalancingService {
         recommendedAmount: this.toNumber(recommendedAmount),
         recommendedPercentage: this.toNumber(recommendedPercentage),
         suggestedSymbols,
+        symbolQuotes,
         baseCurrency: analysis.baseCurrency,
       });
     }

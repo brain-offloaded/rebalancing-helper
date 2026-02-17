@@ -43,6 +43,12 @@ export const GET_INVESTMENT_RECOMMENDATION = gql`
       recommendedPercentage
       suggestedSymbols
       baseCurrency
+      symbolQuotes {
+        symbol
+        unitPriceInBaseCurrency
+        baseCurrency
+        priceAvailable
+      }
     }
   }
 `;

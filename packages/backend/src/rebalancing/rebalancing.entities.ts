@@ -67,6 +67,21 @@ export class RebalancingAnalysis {
 }
 
 @ObjectType()
+export class RecommendationSymbolQuote {
+  @Field(() => String)
+  symbol: string;
+
+  @Field(() => Float)
+  unitPriceInBaseCurrency: number;
+
+  @Field(() => String)
+  baseCurrency: string;
+
+  @Field(() => Boolean)
+  priceAvailable: boolean;
+}
+
+@ObjectType()
 export class InvestmentRecommendation {
   @Field(() => String)
   tagId: string;
@@ -85,4 +100,7 @@ export class InvestmentRecommendation {
 
   @Field(() => [String])
   suggestedSymbols: string[];
+
+  @Field(() => [RecommendationSymbolQuote])
+  symbolQuotes: RecommendationSymbolQuote[];
 }

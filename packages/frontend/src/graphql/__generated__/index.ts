@@ -162,6 +162,7 @@ export type InvestmentRecommendation = {
   recommendedAmount: Scalars['Float']['output'];
   recommendedPercentage: Scalars['Float']['output'];
   suggestedSymbols: Array<Scalars['String']['output']>;
+  symbolQuotes: Array<RecommendationSymbolQuote>;
   tagId: Scalars['String']['output'];
   tagName: Scalars['String']['output'];
 };
@@ -411,6 +412,14 @@ export type RebalancingGroup = {
   name: Scalars['String']['output'];
   tagIds: Array<Scalars['String']['output']>;
   updatedAt: Scalars['DateTime']['output'];
+};
+
+export type RecommendationSymbolQuote = {
+  __typename?: 'RecommendationSymbolQuote';
+  baseCurrency: Scalars['String']['output'];
+  priceAvailable: Scalars['Boolean']['output'];
+  symbol: Scalars['String']['output'];
+  unitPriceInBaseCurrency: Scalars['Float']['output'];
 };
 
 export type RegisterInput = {
@@ -1051,6 +1060,13 @@ export type GetInvestmentRecommendationQuery = {
     recommendedPercentage: number;
     suggestedSymbols: Array<string>;
     baseCurrency: string;
+    symbolQuotes: Array<{
+      __typename?: 'RecommendationSymbolQuote';
+      symbol: string;
+      unitPriceInBaseCurrency: number;
+      baseCurrency: string;
+      priceAvailable: boolean;
+    }>;
   }>;
 };
 
@@ -3134,6 +3150,12 @@ export const GetInvestmentRecommendationDocument = gql`
       recommendedPercentage
       suggestedSymbols
       baseCurrency
+      symbolQuotes {
+        symbol
+        unitPriceInBaseCurrency
+        baseCurrency
+        priceAvailable
+      }
     }
   }
 `;
