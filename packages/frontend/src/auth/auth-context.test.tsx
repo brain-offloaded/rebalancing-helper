@@ -83,9 +83,35 @@ describe('AuthProvider', () => {
     expect(mockApollo.query).toHaveBeenCalledTimes(1);
   });
 
-  it('사용자 정보 조회가 실패하면 토큰을 초기화한다', async () => {
+  it('사용자 정보 조회가 네트워크 오류면 토큰을 유지한다', async () => {
     localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'token');
-    mockApollo.query.mockRejectedValue(new Error('network error'));
+    mockApollo.query.mockRejectedValue(new ApolloError({}));
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => expect(result.current.initializing).toBe(false));
+    expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBe('token');
+    expect(result.current.user).toBeNull();
+    expect(consoleErrorSpy).toHaveBeenCalled();
+  });
+
+  it('사용자 정보 조회가 인증 오류면 토큰을 초기화한다', async () => {
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'token');
+    mockApollo.query.mockRejectedValue(
+      new ApolloError({
+        graphQLErrors: [
+          new GraphQLError(
+            'Unauthorized',
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            { code: 'UNAUTHENTICATED' },
+          ),
+        ],
+      }),
+    );
 
     const { result } = renderHook(() => useAuth(), { wrapper });
 

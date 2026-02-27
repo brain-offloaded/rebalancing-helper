@@ -25,6 +25,17 @@ import {
   type User,
 } from './auth-context.shared';
 
+const CURRENT_USER_RETRY_MS = 3_000;
+const UNAUTHENTICATED_ERROR_CODE = 'UNAUTHENTICATED';
+
+type NetworkErrorWithStatus = {
+  statusCode?: number;
+  status?: number;
+  response?: {
+    status?: number;
+  };
+};
+
 const readStoredToken = (): string | null => {
   if (typeof window === 'undefined') {
     return null;
@@ -63,6 +74,39 @@ const getErrorMessage = (error: unknown): string => {
   return '알 수 없는 오류가 발생했습니다.';
 };
 
+const includesUnauthorized = (message: string): boolean =>
+  message.toLowerCase().includes('unauthorized');
+
+const isAuthenticationError = (error: unknown): boolean => {
+  if (!(error instanceof ApolloError)) {
+    return false;
+  }
+
+  const hasGraphqlAuthError = error.graphQLErrors.some((graphQLError) => {
+    const code = graphQLError.extensions?.code;
+
+    return (
+      code === UNAUTHENTICATED_ERROR_CODE ||
+      includesUnauthorized(graphQLError.message)
+    );
+  });
+
+  if (hasGraphqlAuthError) {
+    return true;
+  }
+
+  const networkError = error.networkError as NetworkErrorWithStatus | null;
+  if (!networkError) {
+    return false;
+  }
+
+  return (
+    networkError.statusCode === 401 ||
+    networkError.status === 401 ||
+    networkError.response?.status === 401
+  );
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setTokenState] = useState<string | null>(() =>
     readStoredToken(),
@@ -77,6 +121,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
     const fetchCurrentUser = async (): Promise<void> => {
       if (!token) {
@@ -104,8 +149,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error('Failed to fetch current user', error);
         if (!cancelled) {
-          setToken(null);
+          if (isAuthenticationError(error)) {
+            setToken(null);
+            setUser(null);
+            return;
+          }
+
           setUser(null);
+          if (!retryTimer) {
+            retryTimer = setTimeout(() => {
+              retryTimer = null;
+              void fetchCurrentUser();
+            }, CURRENT_USER_RETRY_MS);
+          }
         }
       } finally {
         if (!cancelled) {
@@ -118,6 +174,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       cancelled = true;
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+      }
     };
   }, [token, setToken, user]);
 
