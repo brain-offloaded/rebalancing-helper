@@ -4,11 +4,29 @@ import react from '@vitejs/plugin-react';
 import { configDefaults } from 'vitest/config';
 
 const backendEnvDir = fileURLToPath(new URL('../backend', import.meta.url));
+const DEFAULT_BACKEND_PORT = '3000';
+
+const getBackendPort = (mode: string): string => {
+  const previousPort = process.env.PORT;
+
+  try {
+    // Ignore unrelated shell/CI PORT values and load backend port from backend env files.
+    delete process.env.PORT;
+    const backendEnv = loadEnv(mode, backendEnvDir, '');
+
+    return backendEnv.PORT || DEFAULT_BACKEND_PORT;
+  } finally {
+    if (previousPort === undefined) {
+      delete process.env.PORT;
+    } else {
+      process.env.PORT = previousPort;
+    }
+  }
+};
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  const backendEnv = loadEnv(mode, backendEnvDir, '');
-  const backendPort = backendEnv.PORT || '3000';
+  const backendPort = getBackendPort(mode);
 
   return {
     plugins: [react()],
