@@ -25,7 +25,8 @@ import {
   type User,
 } from './auth-context.shared';
 
-const CURRENT_USER_RETRY_MS = 3_000;
+const CURRENT_USER_RETRY_BASE_MS = 3_000;
+const CURRENT_USER_RETRY_MAX_MS = 30_000;
 const UNAUTHENTICATED_ERROR_CODE = 'UNAUTHENTICATED';
 
 type NetworkErrorWithStatus = {
@@ -74,8 +75,24 @@ const getErrorMessage = (error: unknown): string => {
   return '알 수 없는 오류가 발생했습니다.';
 };
 
-const includesUnauthorized = (message: string): boolean =>
-  message.toLowerCase().includes('unauthorized');
+const includesUnauthorized = (message: string): boolean => {
+  const normalized = message.trim().toLowerCase();
+
+  return (
+    normalized === 'unauthorized' ||
+    normalized === 'unauthenticated' ||
+    normalized === 'not authenticated' ||
+    normalized === 'not authorized' ||
+    normalized.startsWith('unauthorized:') ||
+    normalized.startsWith('unauthenticated:')
+  );
+};
+
+const getRetryDelayMs = (retryAttempt: number): number => {
+  const exponentialDelay = CURRENT_USER_RETRY_BASE_MS * 2 ** (retryAttempt - 1);
+
+  return Math.min(exponentialDelay, CURRENT_USER_RETRY_MAX_MS);
+};
 
 const isAuthenticationError = (error: unknown): boolean => {
   if (!(error instanceof ApolloError)) {
@@ -122,6 +139,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let cancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let retryAttempt = 0;
 
     const fetchCurrentUser = async (): Promise<void> => {
       if (!token) {
@@ -136,6 +154,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       setInitializing(true);
+      let shouldKeepInitializing = false;
 
       try {
         const { data } = await apolloClient.query<MeQuery, MeQueryVariables>({
@@ -144,6 +163,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
 
         if (!cancelled) {
+          retryAttempt = 0;
           setUser(data.me as User);
         }
       } catch (error) {
@@ -157,14 +177,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
           setUser(null);
           if (!retryTimer) {
+            shouldKeepInitializing = true;
+            retryAttempt += 1;
+            const retryDelay = getRetryDelayMs(retryAttempt);
             retryTimer = setTimeout(() => {
               retryTimer = null;
               void fetchCurrentUser();
-            }, CURRENT_USER_RETRY_MS);
+            }, retryDelay);
           }
         }
       } finally {
-        if (!cancelled) {
+        if (!cancelled && !shouldKeepInitializing) {
           setInitializing(false);
         }
       }

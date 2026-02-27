@@ -33,6 +33,15 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   <AuthProvider>{children}</AuthProvider>
 );
 
+const flushAsyncEffects = async (): Promise<void> => {
+  await act(async () => {
+    await Promise.resolve();
+  });
+  await act(async () => {
+    await Promise.resolve();
+  });
+};
+
 describe('AuthProvider', () => {
   const consoleErrorSpy = vi
     .spyOn(console, 'error')
@@ -42,6 +51,7 @@ describe('AuthProvider', () => {
     .mockImplementation(() => undefined);
 
   beforeEach(() => {
+    vi.useRealTimers();
     localStorage.clear();
     mockApollo.query.mockReset();
     mockApollo.mutate.mockReset();
@@ -49,6 +59,7 @@ describe('AuthProvider', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     consoleErrorSpy.mockClear();
     consoleWarnSpy.mockClear();
   });
@@ -83,14 +94,100 @@ describe('AuthProvider', () => {
     expect(mockApollo.query).toHaveBeenCalledTimes(1);
   });
 
-  it('사용자 정보 조회가 네트워크 오류면 토큰을 유지한다', async () => {
+  it('사용자 정보 조회가 네트워크 오류면 초기화 상태를 유지하고 재시도한다', async () => {
+    const user = {
+      id: 'user-1',
+      email: 'demo@example.com',
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+    };
+
+    vi.useFakeTimers();
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'token');
+    mockApollo.query
+      .mockRejectedValueOnce(new ApolloError({}))
+      .mockResolvedValueOnce({ data: { me: user } });
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await flushAsyncEffects();
+    expect(mockApollo.query).toHaveBeenCalledTimes(1);
+    expect(result.current.initializing).toBe(true);
+    expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBe('token');
+
+    act(() => {
+      vi.advanceTimersByTime(2_999);
+    });
+    expect(mockApollo.query).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+
+    await flushAsyncEffects();
+    expect(mockApollo.query).toHaveBeenCalledTimes(2);
+    expect(result.current.user).toEqual(user);
+    expect(result.current.initializing).toBe(false);
+  });
+
+  it('네트워크 오류 재시도는 지수 백오프 간격을 적용한다', async () => {
+    vi.useFakeTimers();
     localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'token');
     mockApollo.query.mockRejectedValue(new ApolloError({}));
+
+    renderHook(() => useAuth(), { wrapper });
+
+    await flushAsyncEffects();
+    expect(mockApollo.query).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      vi.advanceTimersByTime(3_000);
+    });
+    await flushAsyncEffects();
+    expect(mockApollo.query).toHaveBeenCalledTimes(2);
+
+    act(() => {
+      vi.advanceTimersByTime(5_999);
+    });
+    expect(mockApollo.query).toHaveBeenCalledTimes(2);
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    await flushAsyncEffects();
+    expect(mockApollo.query).toHaveBeenCalledTimes(3);
+  });
+
+  it('사용자 조회 재시도 타이머는 언마운트 시 정리한다', async () => {
+    vi.useFakeTimers();
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'token');
+    mockApollo.query.mockRejectedValue(new ApolloError({}));
+
+    const { unmount } = renderHook(() => useAuth(), { wrapper });
+    await flushAsyncEffects();
+    expect(mockApollo.query).toHaveBeenCalledTimes(1);
+
+    unmount();
+
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+
+    expect(mockApollo.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('사용자 정보 조회가 unauthorized 메시지면 토큰을 초기화한다', async () => {
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'token');
+    mockApollo.query.mockRejectedValue(
+      new ApolloError({
+        graphQLErrors: [new GraphQLError('Unauthorized: expired token')],
+      }),
+    );
 
     const { result } = renderHook(() => useAuth(), { wrapper });
 
     await waitFor(() => expect(result.current.initializing).toBe(false));
-    expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBe('token');
+    expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBeNull();
     expect(result.current.user).toBeNull();
     expect(consoleErrorSpy).toHaveBeenCalled();
   });
@@ -110,6 +207,26 @@ describe('AuthProvider', () => {
             { code: 'UNAUTHENTICATED' },
           ),
         ],
+      }),
+    );
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => expect(result.current.initializing).toBe(false));
+    expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBeNull();
+    expect(result.current.user).toBeNull();
+    expect(consoleErrorSpy).toHaveBeenCalled();
+  });
+
+  it('사용자 정보 조회가 401 네트워크 오류면 토큰을 초기화한다', async () => {
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'token');
+    mockApollo.query.mockRejectedValue(
+      new ApolloError({
+        networkError: {
+          name: 'ServerError',
+          message: 'Unauthorized',
+          statusCode: 401,
+        } as Error & { statusCode: number },
       }),
     );
 
