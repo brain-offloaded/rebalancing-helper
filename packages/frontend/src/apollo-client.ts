@@ -6,8 +6,10 @@ import {
 } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 
+const GRAPHQL_API_URL = import.meta.env.VITE_GRAPHQL_API_URL ?? '/graphql';
+
 const httpLink = createHttpLink({
-  uri: 'http://localhost:3000/graphql',
+  uri: GRAPHQL_API_URL,
 });
 
 export const AUTH_TOKEN_STORAGE_KEY = 'rebalancing-helper.authToken';
