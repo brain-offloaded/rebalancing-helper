@@ -52,6 +52,16 @@ rebalancing-helper/
 
 ## 🚀 실행 방법
 
+### 환경변수 설정
+```bash
+cp packages/backend/.env.example packages/backend/.env
+```
+
+포트 변경이 필요하면 `packages/backend/.env`에서 아래 값만 수정하면 됩니다.
+
+- `PORT` (백엔드 서버 포트)
+- `CORS_ORIGIN` (프론트 개발 서버 origin)
+
 ### 전체 애플리케이션 실행
 ```bash
 pnpm install
@@ -99,8 +109,8 @@ pnpm test:cov
 ## 📡 API 엔드포인트
 
 - **Frontend**: http://localhost:5173
-- **Backend GraphQL**: http://localhost:3000/graphql
-- **GraphQL Playground**: http://localhost:3000/graphql
+- **Backend GraphQL**: `packages/backend/.env`의 `PORT` 기준 (`http://localhost:<PORT>/graphql`)
+- **GraphQL Playground**: `packages/backend/.env`의 `PORT` 기준 (`http://localhost:<PORT>/graphql`)
 
 ## 🔧 주요 GraphQL 스키마
 

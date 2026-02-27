@@ -5,15 +5,16 @@ import { TypedConfigService } from './typed-config';
 
 export async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(TypedConfigService);
+  const corsOrigin = configService.get('CORS_ORIGIN');
   app.enableCors({
-    origin: ['http://localhost:5173'],
+    origin: [corsOrigin],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
     methods: ['GET', 'POST', 'OPTIONS'],
   });
   const prismaService = app.get(PrismaService);
   prismaService.enableShutdownHooks(app);
-  const configService = app.get(TypedConfigService);
   const port = configService.get('PORT');
   await app.listen(port);
 }

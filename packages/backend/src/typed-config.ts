@@ -6,6 +6,7 @@ const schema = {
     .valid('development', 'test', 'production', 'staging')
     .default('development'),
   PORT: Joi.number().port().default(3000),
+  CORS_ORIGIN: Joi.string().min(1).default('http://localhost:5173'),
   DATABASE_URL: Joi.string().min(1).default('file:./prisma/dev.db'),
   JWT_SECRET: Joi.string().min(1).default('local-dev-secret'),
   BROKER_CREDENTIAL_ENCRYPTION_KEY: Joi.string().min(1).required(),

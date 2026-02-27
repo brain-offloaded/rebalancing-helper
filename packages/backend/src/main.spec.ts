@@ -22,7 +22,17 @@ describe('bootstrap', () => {
   beforeEach(() => {
     enableCors.mockClear();
     listen.mockClear();
-    configGet.mockReset().mockReturnValue(3000);
+    configGet.mockReset().mockImplementation((key: string) => {
+      if (key === 'PORT') {
+        return 3000;
+      }
+
+      if (key === 'CORS_ORIGIN') {
+        return 'http://localhost:5173';
+      }
+
+      return undefined;
+    });
     get.mockReset().mockImplementation((token: unknown) => {
       if (token === PrismaService) {
         return { enableShutdownHooks };
@@ -62,9 +72,25 @@ describe('bootstrap', () => {
   });
 
   it('PORT 환경변수가 있으면 해당 포트로 리슨한다', async () => {
-    configGet.mockReturnValueOnce(4000);
+    configGet.mockImplementation((key: string) =>
+      key === 'PORT' ? 4000 : 'http://localhost:5173',
+    );
     await bootstrap();
 
     expect(listen).toHaveBeenCalledWith(4000);
+  });
+
+  it('CORS_ORIGIN 환경변수가 있으면 해당 origin을 허용한다', async () => {
+    configGet.mockImplementation((key: string) =>
+      key === 'CORS_ORIGIN' ? 'http://localhost:5174' : 3000,
+    );
+    await bootstrap();
+
+    expect(enableCors).toHaveBeenCalledWith({
+      origin: ['http://localhost:5174'],
+      credentials: true,
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      methods: ['GET', 'POST', 'OPTIONS'],
+    });
   });
 });
