@@ -43,7 +43,7 @@
     "@nestjs/platform-express": "^11.0.1",
     "@prisma/client": "^6.16.1",
     "@rebalancing-helper/common": "workspace:*",
-    "axios": "^1.12.2",
+    "axios": "^1.13.5",
     "bcryptjs": "^3.0.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
