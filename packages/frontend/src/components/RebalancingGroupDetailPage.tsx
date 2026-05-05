@@ -557,7 +557,7 @@ export const RebalancingGroupDetailPage: React.FC<
       }
 
       const confirmed = window.confirm(
-        `${displayName} 종목을 이 그룹에서 제외하시겠습니까? 이 그룹에 포함된 태그가 해당 종목에서 해제됩니다.`,
+        `${displayName} 종목에서 이 그룹에 포함된 태그를 해제하시겠습니까? 같은 태그를 쓰는 다른 그룹에서도 제외될 수 있습니다.`,
       );
 
       if (!confirmed) {

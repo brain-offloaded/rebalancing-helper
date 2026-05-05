@@ -429,7 +429,7 @@ describe('RebalancingGroupDetailPage', () => {
     await waitFor(() => expect(excludeSymbol).toHaveBeenCalled());
 
     expect(confirmSpy).toHaveBeenCalledWith(
-      '0072R0 종목을 이 그룹에서 제외하시겠습니까? 이 그룹에 포함된 태그가 해당 종목에서 해제됩니다.',
+      '0072R0 종목에서 이 그룹에 포함된 태그를 해제하시겠습니까? 같은 태그를 쓰는 다른 그룹에서도 제외될 수 있습니다.',
     );
     expect(excludeSymbol).toHaveBeenCalledWith({
       variables: {
