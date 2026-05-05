@@ -8,6 +8,7 @@ import { RebalancingGroupManagementModal } from '../RebalancingGroupManagementMo
 const mockUseGetRebalancingGroupsQuery = vi.fn();
 const mockUseGetTagsQuery = vi.fn();
 const mockUseGetHoldingsQuery = vi.fn();
+const mockUseGetSecurityAliasesQuery = vi.fn();
 const mockUseGetRebalancingAnalysisQuery = vi.fn();
 const mockUseGetInvestmentRecommendationQuery = vi.fn();
 const mockUseSetTargetAllocationsMutation = vi.fn();
@@ -40,6 +41,8 @@ vi.mock('../../graphql/__generated__', () => ({
     mockUseGetRebalancingGroupsQuery(...args),
   useGetTagsQuery: (...args: unknown[]) => mockUseGetTagsQuery(...args),
   useGetHoldingsQuery: (...args: unknown[]) => mockUseGetHoldingsQuery(...args),
+  useGetSecurityAliasesQuery: (...args: unknown[]) =>
+    mockUseGetSecurityAliasesQuery(...args),
   useGetRebalancingAnalysisQuery: (...args: unknown[]) =>
     mockUseGetRebalancingAnalysisQuery(...args),
   useGetInvestmentRecommendationQuery: (...args: unknown[]) =>
@@ -111,6 +114,10 @@ describe('RebalancingGroupManagementModal', () => {
           },
         ],
       },
+      loading: false,
+    });
+    mockUseGetSecurityAliasesQuery.mockReturnValue({
+      data: { securityAliases: [] },
       loading: false,
     });
     mockUseGetRebalancingAnalysisQuery.mockReturnValue({
@@ -523,6 +530,57 @@ describe('RebalancingGroupManagementModal', () => {
     expect(refetchAnalysis).toHaveBeenCalled();
     expect(refetchRecommendation).toHaveBeenCalled();
     expect(window.alert).toHaveBeenCalledWith('종목을 그룹에서 제외했습니다.');
+  });
+
+  it('미보유 추천 종목에도 저장된 종목 표시 이름을 적용한다', async () => {
+    mockUseGetHoldingsQuery.mockReturnValue({
+      data: { holdings: [] },
+      loading: false,
+    });
+    mockUseGetSecurityAliasesQuery.mockReturnValue({
+      data: {
+        securityAliases: [
+          {
+            id: 'alias-0072r0',
+            market: null,
+            symbol: '0072R0',
+            alias: '금 현물 권리',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ],
+      },
+      loading: false,
+    });
+    mockUseGetInvestmentRecommendationQuery.mockReturnValue({
+      data: {
+        investmentRecommendation: [
+          {
+            tagId: 'tag-1',
+            tagName: '성장주',
+            recommendedAmount: 500,
+            recommendedPercentage: 50,
+            suggestedSymbols: ['0072R0'],
+            symbolQuotes: [],
+            baseCurrency: 'USD',
+          },
+        ],
+      },
+      loading: false,
+      refetch: refetchRecommendation,
+    });
+
+    renderWithProviders(
+      <RebalancingGroupManagementModal
+        open
+        groupId="group-1"
+        onClose={vi.fn()}
+      />,
+      { withApollo: false },
+    );
+
+    expect(await screen.findByText('금 현물 권리')).toBeInTheDocument();
+    expect(screen.getAllByText('0072R0').length).toBeGreaterThan(0);
   });
 
   it('삭제 버튼을 클릭하면 확인 후 그룹을 삭제하고 닫기 콜백을 호출한다', async () => {

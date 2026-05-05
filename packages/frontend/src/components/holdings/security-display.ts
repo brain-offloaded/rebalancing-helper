@@ -13,6 +13,12 @@ type HoldingDisplaySource = Pick<
   'alias' | 'lastTradedAt' | 'market' | 'name' | 'symbol'
 >;
 
+type AliasDisplaySource = {
+  alias: string;
+  market?: string | null;
+  symbol: string;
+};
+
 const normalizeSymbolKey = (symbol: string) => symbol.trim().toUpperCase();
 
 const getHoldingDisplayScore = (holding: HoldingDisplaySource) => {
@@ -29,6 +35,7 @@ const getHoldingDisplayScore = (holding: HoldingDisplaySource) => {
 
 export const buildSecurityDisplayMap = (
   holdings: HoldingDisplaySource[],
+  aliases: AliasDisplaySource[] = [],
 ): Map<string, SecurityDisplayInfo> => {
   const ranked = new Map<
     string,
@@ -64,6 +71,31 @@ export const buildSecurityDisplayMap = (
         displayName,
         baseName,
         subtitle: formatMarketWithSymbol(holding.market, symbol),
+      },
+    });
+  }
+
+  for (const alias of aliases) {
+    const symbol = normalizeSymbolKey(alias.symbol);
+    const displayName = alias.alias.trim();
+    if (symbol.length === 0 || displayName.length === 0) {
+      continue;
+    }
+
+    const score = 5 + (alias.market ? 1 : 0);
+    const current = ranked.get(symbol);
+    if (current && current.score > score) {
+      continue;
+    }
+
+    ranked.set(symbol, {
+      score,
+      lastTradedAt: Number.MAX_SAFE_INTEGER,
+      info: {
+        symbol,
+        displayName,
+        baseName: displayName,
+        subtitle: formatMarketWithSymbol(alias.market ?? null, symbol),
       },
     });
   }

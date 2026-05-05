@@ -25,6 +25,7 @@ import {
   useGetInvestmentRecommendationQuery,
   useGetTagsQuery,
   useGetHoldingsQuery,
+  useGetSecurityAliasesQuery,
   useSetTargetAllocationsMutation,
   useUpdateRebalancingGroupMutation,
   useDeleteRebalancingGroupMutation,
@@ -235,6 +236,9 @@ export const RebalancingGroupManagementModal: React.FC<
   } = useGetRebalancingGroupsQuery({ skip: !open });
   const { data: tagsData } = useGetTagsQuery({ skip: !open });
   const { data: holdingsData } = useGetHoldingsQuery({ skip: !open });
+  const { data: securityAliasesData } = useGetSecurityAliasesQuery({
+    skip: !open,
+  });
   const {
     data: analysisData,
     loading: analysisLoading,
@@ -284,8 +288,12 @@ export const RebalancingGroupManagementModal: React.FC<
     [groupsData?.rebalancingGroups, groupId],
   );
   const securityDisplayBySymbol = useMemo(
-    () => buildSecurityDisplayMap(holdingsData?.holdings ?? []),
-    [holdingsData?.holdings],
+    () =>
+      buildSecurityDisplayMap(
+        holdingsData?.holdings ?? [],
+        securityAliasesData?.securityAliases ?? [],
+      ),
+    [holdingsData?.holdings, securityAliasesData?.securityAliases],
   );
 
   const analysis = analysisData?.rebalancingAnalysis as
