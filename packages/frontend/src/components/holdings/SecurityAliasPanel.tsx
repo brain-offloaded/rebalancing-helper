@@ -70,7 +70,9 @@ export const SecurityAliasPanel: FC<SecurityAliasPanelProps> = ({
                   ) : null}
                 </CellContent>
               </TableCell>
-              <TableCell>{row.holdingCount}</TableCell>
+              <TableCell>
+                {row.holdingCount > 0 ? row.holdingCount : '미보유'}
+              </TableCell>
               <TableCell>
                 <TextInput
                   aria-label={`${row.symbol} 종목 표시 이름`}

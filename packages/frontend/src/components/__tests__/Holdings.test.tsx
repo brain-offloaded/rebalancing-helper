@@ -262,6 +262,50 @@ describe('Holdings', () => {
     expect(securityAliasesRefetchFn).toHaveBeenCalled();
   });
 
+  it('종목 표시 이름 영역에 태그로 참조된 미보유 종목을 표시한다', async () => {
+    const user = userEvent.setup();
+    holdingTagsListState = [
+      {
+        id: 'holding-tag-1',
+        holdingSymbol: '0072R0',
+        tagId: 'tag-gold',
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    const setSecurityAlias = vi.fn().mockResolvedValue({});
+    mockUseMutation.mockImplementation((document) => {
+      if (document === SetSecurityAliasDocument) {
+        return [setSecurityAlias, { loading: false }];
+      }
+      return [vi.fn(), { loading: false }];
+    });
+
+    renderWithProviders(<Holdings />, { withApollo: false });
+
+    const input = screen.getByLabelText('0072R0 종목 표시 이름');
+    expect(input).toBeInTheDocument();
+    expect(screen.getByText('미보유')).toBeInTheDocument();
+
+    await user.type(input, '금 현물 권리');
+    const row = input.closest('tr');
+    if (!row) {
+      throw new Error('미보유 종목 표시 이름 행을 찾지 못했습니다.');
+    }
+    await user.click(within(row).getByRole('button', { name: '저장' }));
+
+    await waitFor(() => {
+      expect(setSecurityAlias).toHaveBeenCalledWith({
+        variables: {
+          input: {
+            market: null,
+            symbol: '0072R0',
+            alias: '금 현물 권리',
+          },
+        },
+      });
+    });
+  });
+
   it('계좌 헤더를 클릭하면 계좌명 기준 정렬이 순환한다', async () => {
     const user = userEvent.setup();
     brokerageAccountsDataState = [

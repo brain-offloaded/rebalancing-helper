@@ -488,6 +488,9 @@ export const Holdings: React.FC = () => {
       ]),
     );
     const rowByKey = new Map<string, SecurityAliasRow>();
+    const heldSymbols = new Set(
+      holdings.map((holding) => holding.symbol.trim().toUpperCase()),
+    );
 
     for (const holding of holdings) {
       const key = getSecurityAliasKey(holding.market, holding.symbol);
@@ -528,10 +531,31 @@ export const Holdings: React.FC = () => {
       });
     }
 
+    for (const link of holdingTags) {
+      const symbol = link.holdingSymbol.trim().toUpperCase();
+      if (symbol.length === 0 || heldSymbols.has(symbol)) {
+        continue;
+      }
+
+      const key = getSecurityAliasKey(null, symbol);
+      if (rowByKey.has(key)) {
+        continue;
+      }
+
+      rowByKey.set(key, {
+        key,
+        market: null,
+        symbol,
+        name: symbol,
+        holdingCount: 0,
+        savedAlias: savedAliasByKey.get(key) ?? '',
+      });
+    }
+
     return Array.from(rowByKey.values()).sort((left, right) =>
       compareLocalizedStrings(left.symbol, right.symbol),
     );
-  }, [holdings, securityAliases]);
+  }, [holdingTags, holdings, securityAliases]);
 
   const sortedHoldingRows = useMemo(() => {
     if (!holdingSortConfig.field) {
