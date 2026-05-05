@@ -5,9 +5,15 @@ import {
   Holding as PrismaHolding,
   HoldingAccount as PrismaHoldingAccount,
   HoldingAccountSyncMode as PrismaHoldingAccountSyncMode,
+  SecurityAlias as PrismaSecurityAlias,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { HoldingTag, Holding, HoldingSource } from './holdings.entities';
+import {
+  HoldingTag,
+  Holding,
+  HoldingSource,
+  SecurityAlias,
+} from './holdings.entities';
 import { Decimal } from '@prisma/client/runtime/library';
 import {
   AddHoldingTagInput,
@@ -18,6 +24,7 @@ import {
   SetManualHoldingQuantityInput,
   ManualHoldingIdentifierInput,
   SetHoldingAliasInput,
+  SetSecurityAliasInput,
 } from './holdings.dto';
 import { MarketDataService } from './market-data.service';
 import { PrismaDecimalService } from '../prisma/prisma-decimal.service';
@@ -30,12 +37,42 @@ export class HoldingsService {
     private readonly marketDataService: MarketDataService,
   ) {}
 
-  private mapHolding(holding: PrismaHolding): Holding {
+  private normalizeMarketKey(market?: string | null): string {
+    return market?.trim().toUpperCase() ?? '';
+  }
+
+  private normalizeSymbol(symbol: string): string {
+    return symbol.trim().toUpperCase();
+  }
+
+  private getSecurityAliasKey(
+    market: string | null | undefined,
+    symbol: string,
+  ) {
+    return `${this.normalizeMarketKey(market)}:${this.normalizeSymbol(symbol)}`;
+  }
+
+  private mapSecurityAlias(alias: PrismaSecurityAlias): SecurityAlias {
+    return {
+      id: alias.id,
+      market: alias.market.length > 0 ? alias.market : null,
+      symbol: alias.symbol,
+      alias: alias.alias,
+      createdAt: alias.createdAt,
+      updatedAt: alias.updatedAt,
+    };
+  }
+
+  private mapHolding(
+    holding: PrismaHolding,
+    aliasOverride?: string | null,
+  ): Holding {
     const { quantity, currentPrice, marketValue, source, ...rest } = holding;
 
     return {
       ...rest,
       source: source as HoldingSource,
+      alias: aliasOverride ?? null,
       quantity: this.toNumber(quantity),
       currentPrice: this.toNumber(currentPrice),
       marketValue: this.toNumber(marketValue),
@@ -54,8 +91,55 @@ export class HoldingsService {
     return typeof value === 'number' ? value : value.toNumber();
   }
 
-  private mapHoldings(holdings: PrismaHolding[]): Holding[] {
-    return holdings.map((holding) => this.mapHolding(holding));
+  private mapHoldings(
+    holdings: PrismaHolding[],
+    aliasBySecurity = new Map<string, string>(),
+  ): Holding[] {
+    return holdings.map((holding) =>
+      this.mapHolding(
+        holding,
+        aliasBySecurity.get(
+          this.getSecurityAliasKey(holding.market, holding.symbol),
+        ) ?? null,
+      ),
+    );
+  }
+
+  private async getSecurityAliasMapForHoldings(
+    userId: string,
+    holdings: PrismaHolding[],
+  ): Promise<Map<string, string>> {
+    if (holdings.length === 0) {
+      return new Map();
+    }
+
+    const aliases = await this.prisma.securityAlias.findMany({
+      where: { userId },
+    });
+
+    return new Map(
+      aliases.map((alias) => [
+        this.getSecurityAliasKey(alias.market, alias.symbol),
+        alias.alias,
+      ]),
+    );
+  }
+
+  private async getAliasForHolding(
+    userId: string,
+    holding: PrismaHolding,
+  ): Promise<string | null> {
+    const alias = await this.prisma.securityAlias.findUnique({
+      where: {
+        user_market_symbol: {
+          userId,
+          market: this.normalizeMarketKey(holding.market),
+          symbol: this.normalizeSymbol(holding.symbol),
+        },
+      },
+    });
+
+    return alias?.alias ?? null;
   }
 
   private async getAccountOrThrow(
@@ -282,8 +366,12 @@ export class HoldingsService {
       where,
       orderBy,
     });
+    const aliasBySecurity = await this.getSecurityAliasMapForHoldings(
+      userId,
+      results,
+    );
 
-    return this.mapHoldings(results);
+    return this.mapHoldings(results, aliasBySecurity);
   }
 
   getManualHoldings(userId: string): Promise<Holding[]> {
@@ -324,7 +412,10 @@ export class HoldingsService {
       },
     });
 
-    return this.mapHolding(created);
+    return this.mapHolding(
+      created,
+      await this.getAliasForHolding(userId, created),
+    );
   }
 
   async increaseManualHolding(
@@ -351,7 +442,10 @@ export class HoldingsService {
       },
     });
 
-    return this.mapHolding(updated);
+    return this.mapHolding(
+      updated,
+      await this.getAliasForHolding(userId, updated),
+    );
   }
 
   async setManualHoldingQuantity(
@@ -374,7 +468,10 @@ export class HoldingsService {
       },
     });
 
-    return this.mapHolding(updated);
+    return this.mapHolding(
+      updated,
+      await this.getAliasForHolding(userId, updated),
+    );
   }
 
   async deleteManualHolding(
@@ -428,7 +525,10 @@ export class HoldingsService {
       },
     });
 
-    return this.mapHolding(updated);
+    return this.mapHolding(
+      updated,
+      await this.getAliasForHolding(userId, updated),
+    );
   }
 
   async setHoldingAlias(
@@ -436,15 +536,65 @@ export class HoldingsService {
     input: SetHoldingAliasInput,
   ): Promise<Holding> {
     const holding = await this.getHoldingByIdOrThrow(userId, input.holdingId);
+    return this.setSecurityAliasForHolding(userId, holding, input.alias);
+  }
 
+  async getSecurityAliases(userId: string): Promise<SecurityAlias[]> {
+    const aliases = await this.prisma.securityAlias.findMany({
+      where: { userId },
+      orderBy: [{ symbol: 'asc' }, { market: 'asc' }],
+    });
+
+    return aliases.map((alias) => this.mapSecurityAlias(alias));
+  }
+
+  async setSecurityAlias(
+    userId: string,
+    input: SetSecurityAliasInput,
+  ): Promise<SecurityAlias | null> {
+    const market = this.normalizeMarketKey(input.market);
+    const symbol = this.normalizeSymbol(input.symbol);
     const trimmedAlias = input.alias?.trim();
     const normalizedAlias = trimmedAlias ? trimmedAlias : null;
 
-    const updated = await this.prisma.holding.update({
-      where: { id: holding.id },
-      data: { alias: normalizedAlias },
+    if (!normalizedAlias) {
+      await this.prisma.securityAlias.deleteMany({
+        where: { userId, market, symbol },
+      });
+      return null;
+    }
+
+    const alias = await this.prisma.securityAlias.upsert({
+      where: {
+        user_market_symbol: {
+          userId,
+          market,
+          symbol,
+        },
+      },
+      update: { alias: normalizedAlias },
+      create: {
+        userId,
+        market,
+        symbol,
+        alias: normalizedAlias,
+      },
     });
 
-    return this.mapHolding(updated);
+    return this.mapSecurityAlias(alias);
+  }
+
+  private async setSecurityAliasForHolding(
+    userId: string,
+    holding: PrismaHolding,
+    alias: string | null,
+  ): Promise<Holding> {
+    await this.setSecurityAlias(userId, {
+      market: holding.market,
+      symbol: holding.symbol,
+      alias,
+    });
+
+    return this.mapHolding(holding, alias?.trim() || null);
   }
 }

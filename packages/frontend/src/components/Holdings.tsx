@@ -12,10 +12,12 @@ import {
   useGetHoldingTagsQuery,
   useGetHoldingsQuery,
   useGetMarketsQuery,
+  useGetSecurityAliasesQuery,
   useGetTagsQuery,
   useSetHoldingAliasMutation,
   useSetHoldingTagsMutation,
   useSetManualHoldingQuantityMutation,
+  useSetSecurityAliasMutation,
   useSyncManualHoldingPriceMutation,
 } from '../graphql/__generated__';
 import {
@@ -28,6 +30,10 @@ import { HoldingsTable, type HoldingRowData } from './holdings/HoldingsTable';
 import { HoldingsToolbar } from './holdings/HoldingsToolbar';
 import { ManualHoldingForm } from './holdings/ManualHoldingForm';
 import { HoldingDetailModal } from './holdings/HoldingDetailModal';
+import {
+  SecurityAliasPanel,
+  type SecurityAliasRow,
+} from './holdings/SecurityAliasPanel';
 import { formatMarketWithSymbol } from './holdings/formatters';
 import type {
   Holding,
@@ -135,6 +141,9 @@ const compareHoldingRowsByField = (
 
 const ZERO_DELTA_THRESHOLD = createDecimal('0.0000001');
 
+const getSecurityAliasKey = (market: string | null, symbol: string) =>
+  `${market?.trim().toUpperCase() ?? ''}:${symbol.trim().toUpperCase()}`;
+
 export const Holdings: React.FC = () => {
   const [selectedHoldingId, setSelectedHoldingId] = useState<string | null>(
     null,
@@ -153,6 +162,12 @@ export const Holdings: React.FC = () => {
   const [manualQuantity, setManualQuantity] = useState('');
   const [manualAccountId, setManualAccountId] = useState('');
   const [syncingAll, setSyncingAll] = useState(false);
+  const [securityAliasInputs, setSecurityAliasInputs] = useState<
+    Record<string, string>
+  >({});
+  const [savingSecurityAliasKey, setSavingSecurityAliasKey] = useState<
+    string | null
+  >(null);
   const [holdingSortConfig, setHoldingSortConfig] = useState<HoldingSortConfig>(
     {
       field: 'lastTradedAt',
@@ -174,6 +189,8 @@ export const Holdings: React.FC = () => {
   } = useGetHoldingTagsQuery();
   const { data: brokerageAccountsData, loading: brokerageAccountsLoading } =
     useGetBrokerageAccountsQuery();
+  const { data: securityAliasesData, refetch: refetchSecurityAliases } =
+    useGetSecurityAliasesQuery();
 
   const [setHoldingTags] = useSetHoldingTagsMutation();
   const [createManualHolding, { loading: creatingManualHolding }] =
@@ -182,8 +199,13 @@ export const Holdings: React.FC = () => {
   const [deleteManualHolding] = useDeleteManualHoldingMutation();
   const [syncManualHoldingPrice] = useSyncManualHoldingPriceMutation();
   const [setHoldingAlias] = useSetHoldingAliasMutation();
+  const [setSecurityAlias] = useSetSecurityAliasMutation();
 
   const holdings = useMemo(() => holdingsData?.holdings ?? [], [holdingsData]);
+  const securityAliases = useMemo(
+    () => securityAliasesData?.securityAliases ?? [],
+    [securityAliasesData?.securityAliases],
+  );
   const manualHoldings = useMemo(
     () => holdings.filter((holding) => holding.source === 'MANUAL'),
     [holdings],
@@ -458,6 +480,59 @@ export const Holdings: React.FC = () => {
     return rows;
   }, [accountNameById, holdingTagsBySymbol, holdings, tagById]);
 
+  const securityAliasRows = useMemo<SecurityAliasRow[]>(() => {
+    const savedAliasByKey = new Map(
+      securityAliases.map((alias) => [
+        getSecurityAliasKey(alias.market ?? null, alias.symbol),
+        alias.alias,
+      ]),
+    );
+    const rowByKey = new Map<string, SecurityAliasRow>();
+
+    for (const holding of holdings) {
+      const key = getSecurityAliasKey(holding.market, holding.symbol);
+      const existing = rowByKey.get(key);
+      const savedAlias = savedAliasByKey.get(key) ?? holding.alias ?? '';
+
+      if (existing) {
+        existing.holdingCount += 1;
+        if (savedAlias.length > 0) {
+          existing.savedAlias = savedAlias;
+        }
+        continue;
+      }
+
+      rowByKey.set(key, {
+        key,
+        market: holding.market,
+        symbol: holding.symbol,
+        name: holding.name,
+        holdingCount: 1,
+        savedAlias,
+      });
+    }
+
+    for (const alias of securityAliases) {
+      const key = getSecurityAliasKey(alias.market ?? null, alias.symbol);
+      if (rowByKey.has(key)) {
+        continue;
+      }
+
+      rowByKey.set(key, {
+        key,
+        market: alias.market ?? null,
+        symbol: alias.symbol,
+        name: alias.symbol,
+        holdingCount: 0,
+        savedAlias: alias.alias,
+      });
+    }
+
+    return Array.from(rowByKey.values()).sort((left, right) =>
+      compareLocalizedStrings(left.symbol, right.symbol),
+    );
+  }, [holdings, securityAliases]);
+
   const sortedHoldingRows = useMemo(() => {
     if (!holdingSortConfig.field) {
       return holdingRows;
@@ -553,6 +628,24 @@ export const Holdings: React.FC = () => {
       setIsAddingTag(false);
     }
   }, [availableTagsForSelection.length, isAddingTag]);
+
+  useEffect(() => {
+    setSecurityAliasInputs((previous) => {
+      const next: Record<string, string> = {};
+
+      for (const row of securityAliasRows) {
+        next[row.key] = row.savedAlias;
+      }
+
+      const previousKeys = Object.keys(previous);
+      const nextKeys = Object.keys(next);
+      const unchanged =
+        previousKeys.length === nextKeys.length &&
+        nextKeys.every((key) => previous[key] === next[key]);
+
+      return unchanged ? previous : next;
+    });
+  }, [securityAliasRows]);
 
   const handleManualSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
@@ -863,13 +956,41 @@ export const Holdings: React.FC = () => {
         });
       }
 
-      await Promise.all([refetchHoldings(), refetchHoldingTags()]);
+      await Promise.all([
+        refetchHoldings(),
+        refetchHoldingTags(),
+        refetchSecurityAliases(),
+      ]);
       handleModalClose();
     } catch (error) {
       console.error('보유 종목 저장 실패:', error);
       alert('변경 사항을 저장하지 못했습니다. 다시 시도해주세요.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSecurityAliasSave = async (row: SecurityAliasRow) => {
+    const aliasInput = securityAliasInputs[row.key] ?? row.savedAlias;
+    const trimmedAlias = aliasInput.trim();
+
+    try {
+      setSavingSecurityAliasKey(row.key);
+      await setSecurityAlias({
+        variables: {
+          input: {
+            market: row.market,
+            symbol: row.symbol,
+            alias: trimmedAlias.length > 0 ? trimmedAlias : null,
+          },
+        },
+      });
+      await Promise.all([refetchHoldings(), refetchSecurityAliases()]);
+    } catch (error) {
+      console.error('종목 표시 이름 저장 실패:', error);
+      alert('종목 표시 이름을 저장하지 못했습니다. 다시 시도해주세요.');
+    } finally {
+      setSavingSecurityAliasKey(null);
     }
   };
 
@@ -941,6 +1062,26 @@ export const Holdings: React.FC = () => {
         sortConfig={holdingSortConfig}
         onSortRequest={handleSortRequest}
       />
+
+      <Section>
+        <SectionTitle>종목 표시 이름</SectionTitle>
+        <SectionDescription>
+          같은 시장과 종목 코드를 가진 보유 종목은 여기서 설정한 표시 이름을
+          함께 사용합니다.
+        </SectionDescription>
+        <SecurityAliasPanel
+          rows={securityAliasRows}
+          aliasInputs={securityAliasInputs}
+          savingKey={savingSecurityAliasKey}
+          onAliasChange={(key, value) =>
+            setSecurityAliasInputs((previous) => ({
+              ...previous,
+              [key]: value,
+            }))
+          }
+          onAliasSave={handleSecurityAliasSave}
+        />
+      </Section>
 
       <Section>
         <SectionTitle>수동 보유 종목</SectionTitle>

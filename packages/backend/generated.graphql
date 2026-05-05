@@ -182,6 +182,7 @@ type Mutation {
   setHoldingAlias(input: SetHoldingAliasInput!): Holding!
   setHoldingTags(input: SetHoldingTagsInput!): [HoldingTag!]!
   setManualHoldingQuantity(input: SetManualHoldingQuantityInput!): Holding!
+  setSecurityAlias(input: SetSecurityAliasInput!): SecurityAlias
   setTargetAllocations(input: SetTargetAllocationsInput!): Boolean!
   syncManualHoldingPrice(input: ManualHoldingIdentifierInput!): Holding!
   updateBroker(input: UpdateBrokerInput!): Broker!
@@ -204,6 +205,7 @@ type Query {
   rebalancingAnalysis(groupId: String!): RebalancingAnalysis!
   rebalancingGroup(id: String!): RebalancingGroup
   rebalancingGroups: [RebalancingGroup!]!
+  securityAliases: [SecurityAlias!]!
   tag(id: String!): Tag
   tags: [Tag!]!
   tagsForHolding(holdingSymbol: String!): [String!]!
@@ -254,6 +256,15 @@ input RenameRebalancingGroupInput {
   name: String!
 }
 
+type SecurityAlias {
+  alias: String!
+  createdAt: DateTime!
+  id: ID!
+  market: String
+  symbol: String!
+  updatedAt: DateTime!
+}
+
 input SetHoldingAliasInput {
   alias: String
   holdingId: String!
@@ -268,6 +279,12 @@ input SetManualHoldingQuantityInput {
   accountId: String!
   market: String!
   quantity: Decimal!
+  symbol: String!
+}
+
+input SetSecurityAliasInput {
+  alias: String
+  market: String
   symbol: String!
 }
 

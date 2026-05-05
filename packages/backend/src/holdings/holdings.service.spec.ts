@@ -44,6 +44,12 @@ type MockedPrisma = {
     update: jest.Mock;
     delete: jest.Mock;
   };
+  securityAlias: {
+    findMany: jest.Mock;
+    findUnique: jest.Mock;
+    upsert: jest.Mock;
+    deleteMany: jest.Mock;
+  };
   $transaction: jest.Mock;
 };
 
@@ -78,6 +84,12 @@ describe('HoldingsService', () => {
         create: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
+      },
+      securityAlias: {
+        findMany: jest.fn().mockResolvedValue([]),
+        findUnique: jest.fn().mockResolvedValue(null),
+        upsert: jest.fn(),
+        deleteMany: jest.fn(),
       },
       $transaction: jest.fn(),
     };
@@ -273,6 +285,47 @@ describe('HoldingsService', () => {
       },
       orderBy: [{ symbol: 'asc' }, { market: 'asc' }],
     });
+    expect(prismaMock.securityAlias.findMany).not.toHaveBeenCalled();
+  });
+
+  it('getHoldings는 종목 별칭을 보유 종목에 반영한다', async () => {
+    const now = new Date('2024-01-01T00:00:00Z');
+    prismaMock.holding.findMany.mockResolvedValue([
+      {
+        id: 'holding-1',
+        userId: USER_ID,
+        source: PrismaHoldingSource.BROKERAGE,
+        accountId: 'acc-1',
+        market: 'us',
+        symbol: 'voo',
+        name: 'Vanguard S&P 500 ETF',
+        quantity: 1,
+        currentPrice: 400,
+        marketValue: 400,
+        currency: 'USD',
+        lastTradedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    prismaMock.securityAlias.findMany.mockResolvedValue([
+      {
+        id: 'alias-1',
+        userId: USER_ID,
+        market: 'US',
+        symbol: 'VOO',
+        alias: '미국 대표 ETF',
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    const result = await service.getHoldings(USER_ID);
+
+    expect(prismaMock.securityAlias.findMany).toHaveBeenCalledWith({
+      where: { userId: USER_ID },
+    });
+    expect(result[0].alias).toBe('미국 대표 ETF');
   });
 
   it('소유하지 않은 태그에 접근하면 NotFoundException을 던진다', async () => {
@@ -325,6 +378,10 @@ describe('HoldingsService', () => {
       prismaMock.holding.update.mockReset();
       prismaMock.holding.delete.mockReset();
       prismaMock.holding.findMany.mockReset();
+      prismaMock.securityAlias.findMany.mockReset().mockResolvedValue([]);
+      prismaMock.securityAlias.findUnique.mockReset().mockResolvedValue(null);
+      prismaMock.securityAlias.upsert.mockReset();
+      prismaMock.securityAlias.deleteMany.mockReset();
       marketDataServiceMock.getQuote.mockReset();
     });
 
@@ -750,9 +807,14 @@ describe('HoldingsService', () => {
         userId: USER_ID,
         source: PrismaHoldingSource.MANUAL,
       });
-      prismaMock.holding.update.mockResolvedValue({
-        ...manualHolding,
+      prismaMock.securityAlias.upsert.mockResolvedValue({
+        id: 'alias-1',
+        userId: USER_ID,
+        market: 'US',
+        symbol: 'VOO',
         alias: '나의 ETF',
+        createdAt: new Date('2024-01-01T00:00:00Z'),
+        updatedAt: new Date('2024-01-02T00:00:00Z'),
       });
 
       const result = await service.setHoldingAlias(USER_ID, input);
@@ -760,10 +822,23 @@ describe('HoldingsService', () => {
       expect(prismaMock.holding.findFirst).toHaveBeenCalledWith({
         where: { id: manualHolding.id, userId: USER_ID },
       });
-      expect(prismaMock.holding.update).toHaveBeenCalledWith({
-        where: { id: manualHolding.id },
-        data: { alias: '나의 ETF' },
+      expect(prismaMock.securityAlias.upsert).toHaveBeenCalledWith({
+        where: {
+          user_market_symbol: {
+            userId: USER_ID,
+            market: 'US',
+            symbol: 'VOO',
+          },
+        },
+        update: { alias: '나의 ETF' },
+        create: {
+          userId: USER_ID,
+          market: 'US',
+          symbol: 'VOO',
+          alias: '나의 ETF',
+        },
       });
+      expect(prismaMock.holding.update).not.toHaveBeenCalled();
       expect(result.alias).toBe('나의 ETF');
     });
 
@@ -777,18 +852,49 @@ describe('HoldingsService', () => {
         userId: USER_ID,
         source: PrismaHoldingSource.MANUAL,
       });
-      prismaMock.holding.update.mockResolvedValue({
-        ...manualHolding,
-        alias: null,
-      });
 
       const result = await service.setHoldingAlias(USER_ID, input);
 
-      expect(prismaMock.holding.update).toHaveBeenCalledWith({
-        where: { id: manualHolding.id },
-        data: { alias: null },
+      expect(prismaMock.securityAlias.deleteMany).toHaveBeenCalledWith({
+        where: {
+          userId: USER_ID,
+          market: 'US',
+          symbol: 'VOO',
+        },
       });
+      expect(prismaMock.holding.update).not.toHaveBeenCalled();
       expect(result.alias).toBeNull();
+    });
+
+    it('getSecurityAliases는 사용자 종목 별칭 목록을 반환한다', async () => {
+      prismaMock.securityAlias.findMany.mockResolvedValue([
+        {
+          id: 'alias-1',
+          userId: USER_ID,
+          market: 'US',
+          symbol: 'VOO',
+          alias: '나의 ETF',
+          createdAt: new Date('2024-01-01T00:00:00Z'),
+          updatedAt: new Date('2024-01-02T00:00:00Z'),
+        },
+      ]);
+
+      const result = await service.getSecurityAliases(USER_ID);
+
+      expect(prismaMock.securityAlias.findMany).toHaveBeenCalledWith({
+        where: { userId: USER_ID },
+        orderBy: [{ symbol: 'asc' }, { market: 'asc' }],
+      });
+      expect(result).toEqual([
+        {
+          id: 'alias-1',
+          market: 'US',
+          symbol: 'VOO',
+          alias: '나의 ETF',
+          createdAt: new Date('2024-01-01T00:00:00Z'),
+          updatedAt: new Date('2024-01-02T00:00:00Z'),
+        },
+      ]);
     });
 
     it('getManualHoldings는 사용자 기준으로 정렬된 내역을 반환한다', async () => {

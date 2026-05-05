@@ -34,16 +34,69 @@ export class BrokerageService {
     private readonly credentialCrypto: CredentialCryptoService,
   ) {}
 
-  private mapHolding(holding: PrismaHolding): Holding {
+  private normalizeMarketKey(market?: string | null): string {
+    return market?.trim().toUpperCase() ?? '';
+  }
+
+  private normalizeSymbol(symbol: string): string {
+    return symbol.trim().toUpperCase();
+  }
+
+  private getSecurityAliasKey(
+    market: string | null | undefined,
+    symbol: string,
+  ) {
+    return `${this.normalizeMarketKey(market)}:${this.normalizeSymbol(symbol)}`;
+  }
+
+  private mapHolding(
+    holding: PrismaHolding,
+    aliasOverride?: string | null,
+  ): Holding {
     const { quantity, currentPrice, marketValue, source, ...rest } = holding;
 
     return {
       ...rest,
       source: source as HoldingSource,
+      alias: aliasOverride ?? null,
       quantity: this.toNumber(quantity),
       currentPrice: this.toNumber(currentPrice),
       marketValue: this.toNumber(marketValue),
     };
+  }
+
+  private mapHoldings(
+    holdings: PrismaHolding[],
+    aliasBySecurity = new Map<string, string>(),
+  ): Holding[] {
+    return holdings.map((holding) =>
+      this.mapHolding(
+        holding,
+        aliasBySecurity.get(
+          this.getSecurityAliasKey(holding.market, holding.symbol),
+        ) ?? null,
+      ),
+    );
+  }
+
+  private async getSecurityAliasMapForHoldings(
+    userId: string,
+    holdings: PrismaHolding[],
+  ): Promise<Map<string, string>> {
+    if (holdings.length === 0) {
+      return new Map();
+    }
+
+    const aliases = await this.prisma.securityAlias.findMany({
+      where: { userId },
+    });
+
+    return new Map(
+      aliases.map((alias) => [
+        this.getSecurityAliasKey(alias.market, alias.symbol),
+        alias.alias,
+      ]),
+    );
   }
 
   private toNumber(value: Decimal | number): number {
@@ -353,7 +406,12 @@ export class BrokerageService {
       orderBy: { symbol: 'asc' },
     });
 
-    return results.map((holding) => this.mapHolding(holding));
+    const aliasBySecurity = await this.getSecurityAliasMapForHoldings(
+      userId,
+      results,
+    );
+
+    return this.mapHoldings(results, aliasBySecurity);
   }
 
   async refreshHoldings(userId: string, accountId: string): Promise<Holding[]> {

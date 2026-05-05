@@ -72,6 +72,19 @@ export const GET_HOLDINGS = gql`
   }
 `;
 
+export const GET_SECURITY_ALIASES = gql`
+  query GetSecurityAliases {
+    securityAliases {
+      id
+      market
+      symbol
+      alias
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 export const CREATE_MANUAL_HOLDING = gql`
   mutation CreateManualHolding($input: CreateManualHoldingInput!) {
     createManualHolding(input: $input) {
@@ -177,6 +190,19 @@ export const SET_HOLDING_ALIAS = gql`
       marketValue
       currency
       lastTradedAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const SET_SECURITY_ALIAS = gql`
+  mutation SetSecurityAlias($input: SetSecurityAliasInput!) {
+    setSecurityAlias(input: $input) {
+      id
+      market
+      symbol
+      alias
       createdAt
       updatedAt
     }

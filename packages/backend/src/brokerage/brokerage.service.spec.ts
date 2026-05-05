@@ -34,6 +34,9 @@ type MockedPrisma = {
     deleteMany: jest.Mock;
     createMany: jest.Mock;
   };
+  securityAlias: {
+    findMany: jest.Mock;
+  };
   $transaction: jest.Mock;
 };
 
@@ -63,6 +66,9 @@ describe('BrokerageService', () => {
         findMany: jest.fn(),
         deleteMany: jest.fn(),
         createMany: jest.fn(),
+      },
+      securityAlias: {
+        findMany: jest.fn(),
       },
       $transaction: jest.fn(),
     };
@@ -417,6 +423,46 @@ describe('BrokerageService', () => {
       },
       orderBy: { symbol: 'asc' },
     });
+  });
+
+  it('getHoldings는 종목 별칭을 보유 종목에 반영한다', async () => {
+    const now = new Date('2024-01-01T00:00:00Z');
+    prismaMock.holding.findMany.mockResolvedValue([
+      {
+        id: 'holding-1',
+        userId: USER_ID,
+        source: PrismaHoldingSource.BROKERAGE,
+        accountId: 'acc-1',
+        market: 'us',
+        symbol: 'voo',
+        name: 'Vanguard S&P 500 ETF',
+        quantity: 1,
+        currentPrice: 400,
+        marketValue: 400,
+        currency: 'USD',
+        lastTradedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    prismaMock.securityAlias.findMany.mockResolvedValue([
+      {
+        id: 'alias-1',
+        userId: USER_ID,
+        market: 'US',
+        symbol: 'VOO',
+        alias: '미국 대표 ETF',
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    const result = await service.getHoldings(USER_ID);
+
+    expect(prismaMock.securityAlias.findMany).toHaveBeenCalledWith({
+      where: { userId: USER_ID },
+    });
+    expect(result[0].alias).toBe('미국 대표 ETF');
   });
 
   it('refreshHoldings는 사용자 계좌가 아니면 예외를 던진다', async () => {
