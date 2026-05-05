@@ -14,7 +14,6 @@ const mockUseGetInvestmentRecommendationQuery = vi.fn();
 const mockUseSetTargetAllocationsMutation = vi.fn();
 const mockUseUpdateRebalancingGroupMutation = vi.fn();
 const mockUseDeleteRebalancingGroupMutation = vi.fn();
-const mockUseExcludeSymbolFromRebalancingGroupMutation = vi.fn();
 
 vi.mock('recharts', () => {
   const MockComponent = ({ children }: { children?: ReactNode }) => (
@@ -53,8 +52,6 @@ vi.mock('../../graphql/__generated__', () => ({
     mockUseUpdateRebalancingGroupMutation(...args),
   useDeleteRebalancingGroupMutation: (...args: unknown[]) =>
     mockUseDeleteRebalancingGroupMutation(...args),
-  useExcludeSymbolFromRebalancingGroupMutation: (...args: unknown[]) =>
-    mockUseExcludeSymbolFromRebalancingGroupMutation(...args),
 }));
 
 describe('RebalancingGroupManagementModal', () => {
@@ -63,7 +60,6 @@ describe('RebalancingGroupManagementModal', () => {
   const updateGroup = vi.fn().mockResolvedValue({});
   const setTargets = vi.fn().mockResolvedValue({});
   const deleteGroup = vi.fn().mockResolvedValue({});
-  const excludeSymbol = vi.fn().mockResolvedValue({});
   const refetchRecommendation = vi.fn();
 
   beforeEach(() => {
@@ -170,12 +166,9 @@ describe('RebalancingGroupManagementModal', () => {
       deleteGroup,
       { loading: false },
     ]);
-    mockUseExcludeSymbolFromRebalancingGroupMutation.mockReturnValue([
-      excludeSymbol,
-      { loading: false },
-    ]);
     window.alert = vi.fn();
     window.confirm = vi.fn(() => true);
+    window.localStorage.clear();
   });
 
   it('목표 비율 입력을 모두 지우면 빈 문자열이 유지된다', async () => {
@@ -477,7 +470,82 @@ describe('RebalancingGroupManagementModal', () => {
     ).toBeDisabled();
   });
 
-  it('추천 종목 목록에서 종목을 그룹에서 제외한다', async () => {
+  it('종목별 매수 수량 계산에서 즐겨찾기를 먼저 정렬한다', async () => {
+    mockUseGetInvestmentRecommendationQuery.mockReturnValue({
+      data: {
+        investmentRecommendation: [
+          {
+            tagId: 'tag-1',
+            tagName: '성장주',
+            recommendedAmount: 500,
+            recommendedPercentage: 50,
+            suggestedSymbols: ['AAPL'],
+            symbolQuotes: [
+              {
+                symbol: 'AAPL',
+                unitPriceInBaseCurrency: 250,
+                baseCurrency: 'USD',
+                priceAvailable: true,
+              },
+            ],
+            baseCurrency: 'USD',
+          },
+          {
+            tagId: 'tag-2',
+            tagName: '배당주',
+            recommendedAmount: 500,
+            recommendedPercentage: 50,
+            suggestedSymbols: ['VOO'],
+            symbolQuotes: [
+              {
+                symbol: 'VOO',
+                unitPriceInBaseCurrency: 500,
+                baseCurrency: 'USD',
+                priceAvailable: true,
+              },
+            ],
+            baseCurrency: 'USD',
+          },
+        ],
+      },
+      loading: false,
+    });
+
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <RebalancingGroupManagementModal
+        open
+        groupId="group-1"
+        onClose={vi.fn()}
+      />,
+      { withApollo: false },
+    );
+
+    expect(
+      (await screen.findAllByLabelText(/매수 수량/))[0],
+    ).toHaveAccessibleName('애플 장기 AAPL 매수 수량');
+
+    await user.click(
+      await screen.findByRole('button', { name: 'VOO 즐겨찾기 추가' }),
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'VOO 즐겨찾기 해제' }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByLabelText(/매수 수량/)[0]).toHaveAccessibleName(
+      'VOO VOO 매수 수량',
+    );
+    expect(
+      JSON.parse(
+        window.localStorage.getItem(
+          'rebalancing-helper:favorite-recommendation-symbols',
+        ) ?? '[]',
+      ),
+    ).toEqual(['VOO']);
+  });
+
+  it('투자 추천 요약에는 추천 종목 칼럼과 그룹 제외 버튼을 표시하지 않는다', async () => {
     mockUseGetHoldingsQuery.mockReturnValue({
       data: { holdings: [] },
       loading: false,
@@ -491,7 +559,14 @@ describe('RebalancingGroupManagementModal', () => {
             recommendedAmount: 500,
             recommendedPercentage: 50,
             suggestedSymbols: ['0072R0'],
-            symbolQuotes: [],
+            symbolQuotes: [
+              {
+                symbol: '0072R0',
+                unitPriceInBaseCurrency: 100,
+                baseCurrency: 'USD',
+                priceAvailable: true,
+              },
+            ],
             baseCurrency: 'USD',
           },
         ],
@@ -509,27 +584,13 @@ describe('RebalancingGroupManagementModal', () => {
       { withApollo: false },
     );
 
-    await userEvent.click(
-      await screen.findByRole('button', { name: '0072R0 그룹에서 제외' }),
-    );
-
-    await waitFor(() => expect(excludeSymbol).toHaveBeenCalled());
-
-    expect(window.confirm).toHaveBeenCalledWith(
-      '0072R0 종목에서 이 그룹에 포함된 태그를 해제하시겠습니까? 같은 태그를 쓰는 다른 그룹에서도 제외될 수 있습니다.',
-    );
-    expect(excludeSymbol).toHaveBeenCalledWith({
-      variables: {
-        input: {
-          groupId: 'group-1',
-          symbol: '0072R0',
-        },
-      },
-    });
-    expect(refetchGroups).toHaveBeenCalled();
-    expect(refetchAnalysis).toHaveBeenCalled();
-    expect(refetchRecommendation).toHaveBeenCalled();
-    expect(window.alert).toHaveBeenCalledWith('종목을 그룹에서 제외했습니다.');
+    expect(await screen.findByText('50.0%')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('columnheader', { name: '추천 종목' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /그룹에서 제외/ }),
+    ).not.toBeInTheDocument();
   });
 
   it('미보유 추천 종목에도 저장된 종목 표시 이름을 적용한다', async () => {
@@ -561,7 +622,14 @@ describe('RebalancingGroupManagementModal', () => {
             recommendedAmount: 500,
             recommendedPercentage: 50,
             suggestedSymbols: ['0072R0'],
-            symbolQuotes: [],
+            symbolQuotes: [
+              {
+                symbol: '0072R0',
+                unitPriceInBaseCurrency: 100,
+                baseCurrency: 'USD',
+                priceAvailable: true,
+              },
+            ],
             baseCurrency: 'USD',
           },
         ],

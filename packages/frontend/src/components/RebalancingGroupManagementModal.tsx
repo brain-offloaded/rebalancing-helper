@@ -29,7 +29,6 @@ import {
   useSetTargetAllocationsMutation,
   useUpdateRebalancingGroupMutation,
   useDeleteRebalancingGroupMutation,
-  useExcludeSymbolFromRebalancingGroupMutation,
 } from '../graphql/__generated__';
 import { Button, ButtonGroup } from './ui/Button';
 import { Form, Field, FieldLabel, TextInput } from './ui/FormControls';
@@ -46,7 +45,7 @@ import {
   ValueBadge,
 } from './holdings/styles';
 import { formatLastUpdated } from './holdings/formatters';
-import { SecurityLabel, SecurityLabelList } from './holdings/SecurityLabel';
+import { SecurityLabel } from './holdings/SecurityLabel';
 import {
   buildSecurityDisplayMap,
   getSecurityDisplayInfo,
@@ -81,7 +80,6 @@ interface InvestmentRecommendation {
   tagName: string;
   recommendedAmount: number;
   recommendedPercentage: number;
-  suggestedSymbols: string[];
   symbolQuotes: RecommendationSymbolQuote[];
   baseCurrency: string;
 }
@@ -190,9 +188,55 @@ const TagSelectionGrid = styled.div`
 const RADIAN = Math.PI / 180;
 
 const ZERO_DECIMAL_CURRENCIES = new Set(['KRW', 'JPY']);
+const FAVORITE_SYMBOLS_STORAGE_KEY =
+  'rebalancing-helper:favorite-recommendation-symbols';
 
 const getRecommendationSymbolKey = (tagId: string, symbol: string) =>
   `${tagId}:${symbol}`;
+
+const normalizeSymbol = (symbol: string) => symbol.trim().toUpperCase();
+
+const loadFavoriteSymbols = () => {
+  if (typeof window === 'undefined') {
+    return new Set<string>();
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(FAVORITE_SYMBOLS_STORAGE_KEY);
+    if (!rawValue) {
+      return new Set<string>();
+    }
+
+    const parsed = JSON.parse(rawValue);
+    if (!Array.isArray(parsed)) {
+      return new Set<string>();
+    }
+
+    return new Set(
+      parsed
+        .filter((value): value is string => typeof value === 'string')
+        .map(normalizeSymbol)
+        .filter((value) => value.length > 0),
+    );
+  } catch {
+    return new Set<string>();
+  }
+};
+
+const saveFavoriteSymbols = (symbols: Set<string>) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      FAVORITE_SYMBOLS_STORAGE_KEY,
+      JSON.stringify(Array.from(symbols).sort()),
+    );
+  } catch {
+    // 즐겨찾기 저장 실패는 추천 계산 사용을 막지 않습니다.
+  }
+};
 
 const parseQuantityInput = (value: string): number => {
   const parsed = Number(value);
@@ -262,17 +306,16 @@ export const RebalancingGroupManagementModal: React.FC<
   const shouldSkipRecommendation =
     !open || !groupId || investmentAmountValue === null;
 
-  const { data: recommendationData, refetch: refetchRecommendation } =
-    useGetInvestmentRecommendationQuery({
-      variables: {
-        input: {
-          groupId: groupId ?? '',
-          investmentAmount: investmentAmountValue ?? 0,
-        },
+  const { data: recommendationData } = useGetInvestmentRecommendationQuery({
+    variables: {
+      input: {
+        groupId: groupId ?? '',
+        investmentAmount: investmentAmountValue ?? 0,
       },
-      skip: shouldSkipRecommendation,
-      fetchPolicy: 'network-only',
-    });
+    },
+    skip: shouldSkipRecommendation,
+    fetchPolicy: 'network-only',
+  });
 
   const [setTargetAllocationsMutation, { loading: savingTargets }] =
     useSetTargetAllocationsMutation();
@@ -280,8 +323,6 @@ export const RebalancingGroupManagementModal: React.FC<
     useUpdateRebalancingGroupMutation();
   const [deleteGroupMutation, { loading: deletingGroup }] =
     useDeleteRebalancingGroupMutation();
-  const [excludeSymbolFromGroupMutation] =
-    useExcludeSymbolFromRebalancingGroupMutation();
 
   const group = useMemo(
     () => groupsData?.rebalancingGroups?.find((item) => item.id === groupId),
@@ -395,9 +436,8 @@ export const RebalancingGroupManagementModal: React.FC<
   const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>(
     {},
   );
-  const [excludingSymbolKey, setExcludingSymbolKey] = useState<string | null>(
-    null,
-  );
+  const [favoriteSymbols, setFavoriteSymbols] =
+    useState<Set<string>>(loadFavoriteSymbols);
 
   useEffect(() => {
     if (!group) {
@@ -454,6 +494,10 @@ export const RebalancingGroupManagementModal: React.FC<
       return unchanged ? prev : next;
     });
   }, [analysis, selectedTagIds]);
+
+  useEffect(() => {
+    saveFavoriteSymbols(favoriteSymbols);
+  }, [favoriteSymbols]);
 
   const saveBasicInfo = useCallback(
     async (options?: { showSuccessAlert?: boolean }) => {
@@ -624,57 +668,11 @@ export const RebalancingGroupManagementModal: React.FC<
     }
   }, [group, saveBasicInfo, saveTags, saveTargets]);
 
-  const handleExcludeSymbol = useCallback(
-    async (symbol: string, displayName: string, rowKey: string) => {
-      if (!group) {
-        return;
-      }
-
-      const confirmed = window.confirm(
-        `${displayName} 종목에서 이 그룹에 포함된 태그를 해제하시겠습니까? 같은 태그를 쓰는 다른 그룹에서도 제외될 수 있습니다.`,
-      );
-
-      if (!confirmed) {
-        return;
-      }
-
-      try {
-        setExcludingSymbolKey(rowKey);
-        await excludeSymbolFromGroupMutation({
-          variables: {
-            input: {
-              groupId: group.id,
-              symbol,
-            },
-          },
-        });
-        await Promise.all([
-          refetchGroups(),
-          refetchAnalysis(),
-          refetchRecommendation(),
-        ]);
-        alert('종목을 그룹에서 제외했습니다.');
-      } catch (error) {
-        console.error('종목 제외 실패:', error);
-        alert('종목을 그룹에서 제외하지 못했습니다. 다시 시도해주세요.');
-      } finally {
-        setExcludingSymbolKey(null);
-      }
-    },
-    [
-      group,
-      excludeSymbolFromGroupMutation,
-      refetchGroups,
-      refetchAnalysis,
-      refetchRecommendation,
-    ],
-  );
-
   const isSaving = updatingGroup || savingTargets;
   const isDeleting = deletingGroup;
 
   const recommendationSymbolRows = useMemo(() => {
-    return recommendations.flatMap((recommendation) => {
+    const rows = recommendations.flatMap((recommendation, tagOrder) => {
       const tagColor =
         tagsData?.tags?.find((tag: Tag) => tag.id === recommendation.tagId)
           ?.color ?? '#ccc';
@@ -687,12 +685,47 @@ export const RebalancingGroupManagementModal: React.FC<
         tagId: recommendation.tagId,
         tagName: recommendation.tagName,
         tagColor,
+        tagOrder,
         symbol: symbolQuote.symbol,
+        normalizedSymbol: normalizeSymbol(symbolQuote.symbol),
         unitPriceInBaseCurrency: symbolQuote.unitPriceInBaseCurrency,
         priceAvailable: symbolQuote.priceAvailable,
+        isFavorite: favoriteSymbols.has(normalizeSymbol(symbolQuote.symbol)),
       }));
     });
-  }, [recommendations, tagsData?.tags]);
+
+    return rows.sort((left, right) => {
+      if (left.isFavorite !== right.isFavorite) {
+        return left.isFavorite ? -1 : 1;
+      }
+
+      if (left.tagOrder !== right.tagOrder) {
+        return left.tagOrder - right.tagOrder;
+      }
+
+      return left.normalizedSymbol.localeCompare(right.normalizedSymbol, 'ko', {
+        sensitivity: 'base',
+        numeric: true,
+      });
+    });
+  }, [favoriteSymbols, recommendations, tagsData?.tags]);
+
+  const handleToggleFavoriteSymbol = useCallback((symbol: string) => {
+    const normalizedSymbol = normalizeSymbol(symbol);
+    if (normalizedSymbol.length === 0) {
+      return;
+    }
+
+    setFavoriteSymbols((previous) => {
+      const next = new Set(previous);
+      if (next.has(normalizedSymbol)) {
+        next.delete(normalizedSymbol);
+      } else {
+        next.add(normalizedSymbol);
+      }
+      return next;
+    });
+  }, []);
 
   const totalRecommendedAmount = useMemo(() => {
     return recommendations.reduce(
@@ -1197,7 +1230,6 @@ export const RebalancingGroupManagementModal: React.FC<
                     <Th>태그</Th>
                     <Th>추천 투자액</Th>
                     <Th>투자 비율</Th>
-                    <Th>추천 종목</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1216,52 +1248,6 @@ export const RebalancingGroupManagementModal: React.FC<
                       </Td>
                       <Td>{currencyFormatter.format(rec.recommendedAmount)}</Td>
                       <Td>{rec.recommendedPercentage.toFixed(1)}%</Td>
-                      <Td>
-                        {rec.suggestedSymbols.length === 0 ? (
-                          '-'
-                        ) : (
-                          <SecurityLabelList>
-                            {rec.suggestedSymbols.map((symbol) => {
-                              const securityDisplayInfo =
-                                getSecurityDisplayInfo(
-                                  securityDisplayBySymbol,
-                                  symbol,
-                                );
-                              const excludeKey = getRecommendationSymbolKey(
-                                rec.tagId,
-                                symbol,
-                              );
-                              const excludeButtonLabel =
-                                securityDisplayInfo.displayName === symbol
-                                  ? `${symbol} 그룹에서 제외`
-                                  : `${securityDisplayInfo.displayName} ${symbol} 그룹에서 제외`;
-
-                              return (
-                                <React.Fragment key={`${rec.tagId}-${symbol}`}>
-                                  <SecurityLabel info={securityDisplayInfo} />
-                                  <Button
-                                    type="button"
-                                    variant="secondary"
-                                    aria-label={excludeButtonLabel}
-                                    disabled={excludingSymbolKey === excludeKey}
-                                    onClick={() =>
-                                      handleExcludeSymbol(
-                                        symbol,
-                                        securityDisplayInfo.displayName,
-                                        excludeKey,
-                                      )
-                                    }
-                                  >
-                                    {excludingSymbolKey === excludeKey
-                                      ? '제외 중...'
-                                      : '그룹에서 제외'}
-                                  </Button>
-                                </React.Fragment>
-                              );
-                            })}
-                          </SecurityLabelList>
-                        )}
-                      </Td>
                     </tr>
                   ))}
                 </tbody>
@@ -1274,12 +1260,12 @@ export const RebalancingGroupManagementModal: React.FC<
                 <AllocationTable>
                   <thead>
                     <tr>
+                      <Th>즐겨찾기</Th>
                       <Th>태그</Th>
                       <Th>종목</Th>
                       <Th>기준통화 단가 ({currencySymbol})</Th>
                       <Th>매수 수량</Th>
                       <Th>예상 투자액</Th>
-                      <Th>관리</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1294,13 +1280,27 @@ export const RebalancingGroupManagementModal: React.FC<
                         securityDisplayBySymbol,
                         row.symbol,
                       );
-                      const excludeButtonLabel =
+                      const favoriteButtonLabel =
                         securityDisplayInfo.displayName === row.symbol
-                          ? `${row.symbol} 그룹에서 제외`
-                          : `${securityDisplayInfo.displayName} ${row.symbol} 그룹에서 제외`;
+                          ? `${row.symbol} 즐겨찾기 ${row.isFavorite ? '해제' : '추가'}`
+                          : `${securityDisplayInfo.displayName} ${row.symbol} 즐겨찾기 ${row.isFavorite ? '해제' : '추가'}`;
 
                       return (
                         <tr key={row.key}>
+                          <Td>
+                            <Button
+                              type="button"
+                              variant={row.isFavorite ? 'primary' : 'secondary'}
+                              size="sm"
+                              aria-label={favoriteButtonLabel}
+                              aria-pressed={row.isFavorite}
+                              onClick={() =>
+                                handleToggleFavoriteSymbol(row.symbol)
+                              }
+                            >
+                              {row.isFavorite ? '★' : '☆'}
+                            </Button>
+                          </Td>
                           <Td>
                             <TagChip color={row.tagColor}>
                               {row.tagName}
@@ -1343,25 +1343,6 @@ export const RebalancingGroupManagementModal: React.FC<
                             {estimatedAmount === null
                               ? '-'
                               : currencyFormatter.format(estimatedAmount)}
-                          </Td>
-                          <Td>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              aria-label={excludeButtonLabel}
-                              disabled={excludingSymbolKey === row.key}
-                              onClick={() =>
-                                handleExcludeSymbol(
-                                  row.symbol,
-                                  securityDisplayInfo.displayName,
-                                  row.key,
-                                )
-                              }
-                            >
-                              {excludingSymbolKey === row.key
-                                ? '제외 중...'
-                                : '그룹에서 제외'}
-                            </Button>
                           </Td>
                         </tr>
                       );
