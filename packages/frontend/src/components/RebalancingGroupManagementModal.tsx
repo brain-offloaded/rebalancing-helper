@@ -28,6 +28,7 @@ import {
   useSetTargetAllocationsMutation,
   useUpdateRebalancingGroupMutation,
   useDeleteRebalancingGroupMutation,
+  useExcludeSymbolFromRebalancingGroupMutation,
 } from '../graphql/__generated__';
 import { Button, ButtonGroup } from './ui/Button';
 import { Form, Field, FieldLabel, TextInput } from './ui/FormControls';
@@ -257,16 +258,17 @@ export const RebalancingGroupManagementModal: React.FC<
   const shouldSkipRecommendation =
     !open || !groupId || investmentAmountValue === null;
 
-  const { data: recommendationData } = useGetInvestmentRecommendationQuery({
-    variables: {
-      input: {
-        groupId: groupId ?? '',
-        investmentAmount: investmentAmountValue ?? 0,
+  const { data: recommendationData, refetch: refetchRecommendation } =
+    useGetInvestmentRecommendationQuery({
+      variables: {
+        input: {
+          groupId: groupId ?? '',
+          investmentAmount: investmentAmountValue ?? 0,
+        },
       },
-    },
-    skip: shouldSkipRecommendation,
-    fetchPolicy: 'network-only',
-  });
+      skip: shouldSkipRecommendation,
+      fetchPolicy: 'network-only',
+    });
 
   const [setTargetAllocationsMutation, { loading: savingTargets }] =
     useSetTargetAllocationsMutation();
@@ -274,6 +276,8 @@ export const RebalancingGroupManagementModal: React.FC<
     useUpdateRebalancingGroupMutation();
   const [deleteGroupMutation, { loading: deletingGroup }] =
     useDeleteRebalancingGroupMutation();
+  const [excludeSymbolFromGroupMutation] =
+    useExcludeSymbolFromRebalancingGroupMutation();
 
   const group = useMemo(
     () => groupsData?.rebalancingGroups?.find((item) => item.id === groupId),
@@ -382,6 +386,9 @@ export const RebalancingGroupManagementModal: React.FC<
   >({});
   const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>(
     {},
+  );
+  const [excludingSymbolKey, setExcludingSymbolKey] = useState<string | null>(
+    null,
   );
 
   useEffect(() => {
@@ -608,6 +615,52 @@ export const RebalancingGroupManagementModal: React.FC<
       alert('리밸런싱 그룹 정보를 저장했습니다.');
     }
   }, [group, saveBasicInfo, saveTags, saveTargets]);
+
+  const handleExcludeSymbol = useCallback(
+    async (symbol: string, displayName: string, rowKey: string) => {
+      if (!group) {
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `${displayName} 종목에서 이 그룹에 포함된 태그를 해제하시겠습니까? 같은 태그를 쓰는 다른 그룹에서도 제외될 수 있습니다.`,
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        setExcludingSymbolKey(rowKey);
+        await excludeSymbolFromGroupMutation({
+          variables: {
+            input: {
+              groupId: group.id,
+              symbol,
+            },
+          },
+        });
+        await Promise.all([
+          refetchGroups(),
+          refetchAnalysis(),
+          refetchRecommendation(),
+        ]);
+        alert('종목을 그룹에서 제외했습니다.');
+      } catch (error) {
+        console.error('종목 제외 실패:', error);
+        alert('종목을 그룹에서 제외하지 못했습니다. 다시 시도해주세요.');
+      } finally {
+        setExcludingSymbolKey(null);
+      }
+    },
+    [
+      group,
+      excludeSymbolFromGroupMutation,
+      refetchGroups,
+      refetchAnalysis,
+      refetchRecommendation,
+    ],
+  );
 
   const isSaving = updatingGroup || savingTargets;
   const isDeleting = deletingGroup;
@@ -1160,15 +1213,44 @@ export const RebalancingGroupManagementModal: React.FC<
                           '-'
                         ) : (
                           <SecurityLabelList>
-                            {rec.suggestedSymbols.map((symbol) => (
-                              <SecurityLabel
-                                key={`${rec.tagId}-${symbol}`}
-                                info={getSecurityDisplayInfo(
+                            {rec.suggestedSymbols.map((symbol) => {
+                              const securityDisplayInfo =
+                                getSecurityDisplayInfo(
                                   securityDisplayBySymbol,
                                   symbol,
-                                )}
-                              />
-                            ))}
+                                );
+                              const excludeKey = getRecommendationSymbolKey(
+                                rec.tagId,
+                                symbol,
+                              );
+                              const excludeButtonLabel =
+                                securityDisplayInfo.displayName === symbol
+                                  ? `${symbol} 그룹에서 제외`
+                                  : `${securityDisplayInfo.displayName} ${symbol} 그룹에서 제외`;
+
+                              return (
+                                <React.Fragment key={`${rec.tagId}-${symbol}`}>
+                                  <SecurityLabel info={securityDisplayInfo} />
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    aria-label={excludeButtonLabel}
+                                    disabled={excludingSymbolKey === excludeKey}
+                                    onClick={() =>
+                                      handleExcludeSymbol(
+                                        symbol,
+                                        securityDisplayInfo.displayName,
+                                        excludeKey,
+                                      )
+                                    }
+                                  >
+                                    {excludingSymbolKey === excludeKey
+                                      ? '제외 중...'
+                                      : '그룹에서 제외'}
+                                  </Button>
+                                </React.Fragment>
+                              );
+                            })}
                           </SecurityLabelList>
                         )}
                       </Td>
@@ -1189,6 +1271,7 @@ export const RebalancingGroupManagementModal: React.FC<
                       <Th>기준통화 단가 ({currencySymbol})</Th>
                       <Th>매수 수량</Th>
                       <Th>예상 투자액</Th>
+                      <Th>관리</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1203,6 +1286,10 @@ export const RebalancingGroupManagementModal: React.FC<
                         securityDisplayBySymbol,
                         row.symbol,
                       );
+                      const excludeButtonLabel =
+                        securityDisplayInfo.displayName === row.symbol
+                          ? `${row.symbol} 그룹에서 제외`
+                          : `${securityDisplayInfo.displayName} ${row.symbol} 그룹에서 제외`;
 
                       return (
                         <tr key={row.key}>
@@ -1248,6 +1335,25 @@ export const RebalancingGroupManagementModal: React.FC<
                             {estimatedAmount === null
                               ? '-'
                               : currencyFormatter.format(estimatedAmount)}
+                          </Td>
+                          <Td>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              aria-label={excludeButtonLabel}
+                              disabled={excludingSymbolKey === row.key}
+                              onClick={() =>
+                                handleExcludeSymbol(
+                                  row.symbol,
+                                  securityDisplayInfo.displayName,
+                                  row.key,
+                                )
+                              }
+                            >
+                              {excludingSymbolKey === row.key
+                                ? '제외 중...'
+                                : '그룹에서 제외'}
+                            </Button>
                           </Td>
                         </tr>
                       );

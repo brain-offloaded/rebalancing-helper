@@ -13,6 +13,7 @@ const mockUseGetInvestmentRecommendationQuery = vi.fn();
 const mockUseSetTargetAllocationsMutation = vi.fn();
 const mockUseUpdateRebalancingGroupMutation = vi.fn();
 const mockUseDeleteRebalancingGroupMutation = vi.fn();
+const mockUseExcludeSymbolFromRebalancingGroupMutation = vi.fn();
 
 vi.mock('recharts', () => {
   const MockComponent = ({ children }: { children?: ReactNode }) => (
@@ -49,6 +50,8 @@ vi.mock('../../graphql/__generated__', () => ({
     mockUseUpdateRebalancingGroupMutation(...args),
   useDeleteRebalancingGroupMutation: (...args: unknown[]) =>
     mockUseDeleteRebalancingGroupMutation(...args),
+  useExcludeSymbolFromRebalancingGroupMutation: (...args: unknown[]) =>
+    mockUseExcludeSymbolFromRebalancingGroupMutation(...args),
 }));
 
 describe('RebalancingGroupManagementModal', () => {
@@ -57,6 +60,8 @@ describe('RebalancingGroupManagementModal', () => {
   const updateGroup = vi.fn().mockResolvedValue({});
   const setTargets = vi.fn().mockResolvedValue({});
   const deleteGroup = vi.fn().mockResolvedValue({});
+  const excludeSymbol = vi.fn().mockResolvedValue({});
+  const refetchRecommendation = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -144,6 +149,7 @@ describe('RebalancingGroupManagementModal', () => {
     mockUseGetInvestmentRecommendationQuery.mockReturnValue({
       data: { investmentRecommendation: [] },
       loading: false,
+      refetch: refetchRecommendation,
     });
     mockUseUpdateRebalancingGroupMutation.mockReturnValue([
       updateGroup,
@@ -155,6 +161,10 @@ describe('RebalancingGroupManagementModal', () => {
     ]);
     mockUseDeleteRebalancingGroupMutation.mockReturnValue([
       deleteGroup,
+      { loading: false },
+    ]);
+    mockUseExcludeSymbolFromRebalancingGroupMutation.mockReturnValue([
+      excludeSymbol,
       { loading: false },
     ]);
     window.alert = vi.fn();
@@ -458,6 +468,61 @@ describe('RebalancingGroupManagementModal', () => {
     expect(
       await screen.findByLabelText('애플 장기 AAPL 매수 수량'),
     ).toBeDisabled();
+  });
+
+  it('추천 종목 목록에서 종목을 그룹에서 제외한다', async () => {
+    mockUseGetHoldingsQuery.mockReturnValue({
+      data: { holdings: [] },
+      loading: false,
+    });
+    mockUseGetInvestmentRecommendationQuery.mockReturnValue({
+      data: {
+        investmentRecommendation: [
+          {
+            tagId: 'tag-1',
+            tagName: '성장주',
+            recommendedAmount: 500,
+            recommendedPercentage: 50,
+            suggestedSymbols: ['0072R0'],
+            symbolQuotes: [],
+            baseCurrency: 'USD',
+          },
+        ],
+      },
+      loading: false,
+      refetch: refetchRecommendation,
+    });
+
+    renderWithProviders(
+      <RebalancingGroupManagementModal
+        open
+        groupId="group-1"
+        onClose={vi.fn()}
+      />,
+      { withApollo: false },
+    );
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: '0072R0 그룹에서 제외' }),
+    );
+
+    await waitFor(() => expect(excludeSymbol).toHaveBeenCalled());
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      '0072R0 종목에서 이 그룹에 포함된 태그를 해제하시겠습니까? 같은 태그를 쓰는 다른 그룹에서도 제외될 수 있습니다.',
+    );
+    expect(excludeSymbol).toHaveBeenCalledWith({
+      variables: {
+        input: {
+          groupId: 'group-1',
+          symbol: '0072R0',
+        },
+      },
+    });
+    expect(refetchGroups).toHaveBeenCalled();
+    expect(refetchAnalysis).toHaveBeenCalled();
+    expect(refetchRecommendation).toHaveBeenCalled();
+    expect(window.alert).toHaveBeenCalledWith('종목을 그룹에서 제외했습니다.');
   });
 
   it('삭제 버튼을 클릭하면 확인 후 그룹을 삭제하고 닫기 콜백을 호출한다', async () => {
