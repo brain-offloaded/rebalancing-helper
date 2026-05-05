@@ -119,6 +119,14 @@ export const REMOVE_TAGS_FROM_REBALANCING_GROUP = gql`
   }
 `;
 
+export const EXCLUDE_SYMBOL_FROM_REBALANCING_GROUP = gql`
+  mutation ExcludeSymbolFromRebalancingGroup(
+    $input: ExcludeSymbolFromRebalancingGroupInput!
+  ) {
+    excludeSymbolFromRebalancingGroup(input: $input)
+  }
+`;
+
 export const RENAME_REBALANCING_GROUP = gql`
   mutation RenameRebalancingGroup($input: RenameRebalancingGroupInput!) {
     renameRebalancingGroup(input: $input) {

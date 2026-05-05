@@ -13,6 +13,7 @@ import {
   SetTargetAllocationsDocument,
   UpdateRebalancingGroupDocument,
   DeleteRebalancingGroupDocument,
+  ExcludeSymbolFromRebalancingGroupDocument,
 } from '../../graphql/__generated__';
 
 const mockUseQuery = vi.fn();
@@ -194,9 +195,11 @@ const setupMocks = ({
 } = {}) => {
   const refetchGroups = vi.fn();
   const refetchAnalysis = vi.fn();
+  const refetchRecommendation = vi.fn();
   const setTargets = vi.fn().mockResolvedValue({});
   const updateGroup = vi.fn().mockResolvedValue({});
   const deleteGroup = vi.fn().mockResolvedValue({});
+  const excludeSymbol = vi.fn().mockResolvedValue({});
 
   mockUseQuery.mockImplementation((document, options) => {
     if (document === GetRebalancingGroupsDocument) {
@@ -236,7 +239,11 @@ const setupMocks = ({
         return { data: undefined, loading: false };
       }
 
-      return { data: recommendation, loading: false };
+      return {
+        data: recommendation,
+        loading: false,
+        refetch: refetchRecommendation,
+      };
     }
 
     throw new Error('예상치 못한 쿼리 호출');
@@ -252,6 +259,9 @@ const setupMocks = ({
     if (document === DeleteRebalancingGroupDocument) {
       return [deleteGroup, { loading: false }];
     }
+    if (document === ExcludeSymbolFromRebalancingGroupDocument) {
+      return [excludeSymbol, { loading: false }];
+    }
 
     return [vi.fn(), { loading: false }];
   });
@@ -259,9 +269,11 @@ const setupMocks = ({
   return {
     refetchGroups,
     refetchAnalysis,
+    refetchRecommendation,
     setTargets,
     updateGroup,
     deleteGroup,
+    excludeSymbol,
   };
 };
 
@@ -370,6 +382,70 @@ describe('RebalancingGroupDetailPage', () => {
 
     expect(quantityInput.value).toBe('3');
     expect(quantityInput.closest('tr')).toHaveTextContent('600');
+  });
+
+  it('추천 종목을 그룹에서 제외하면 종목 태그 연결을 제거하고 새로고침한다', async () => {
+    const recommendation = {
+      investmentRecommendation: [
+        {
+          tagId: 'tag-1',
+          tagName: '성장주',
+          recommendedAmount: 100,
+          recommendedPercentage: 100,
+          suggestedSymbols: ['0072R0'],
+          symbolQuotes: [
+            {
+              symbol: '0072R0',
+              unitPriceInBaseCurrency: 0,
+              baseCurrency: 'USD',
+              priceAvailable: false,
+            },
+          ],
+          baseCurrency: 'USD',
+        },
+      ],
+    };
+    const {
+      excludeSymbol,
+      refetchGroups,
+      refetchAnalysis,
+      refetchRecommendation,
+    } = setupMocks({ recommendation, holdings: [] });
+    const user = userEvent.setup();
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const alertSpy = vi
+      .spyOn(window, 'alert')
+      .mockImplementation(() => undefined);
+
+    renderWithProviders(
+      <RebalancingGroupDetailPage groupId="group-1" onClose={vi.fn()} />,
+      { withApollo: false },
+    );
+
+    await user.click(
+      screen.getByRole('button', { name: '0072R0 그룹에서 제외' }),
+    );
+
+    await waitFor(() => expect(excludeSymbol).toHaveBeenCalled());
+
+    expect(confirmSpy).toHaveBeenCalledWith(
+      '0072R0 종목을 이 그룹에서 제외하시겠습니까? 이 그룹에 포함된 태그가 해당 종목에서 해제됩니다.',
+    );
+    expect(excludeSymbol).toHaveBeenCalledWith({
+      variables: {
+        input: {
+          groupId: 'group-1',
+          symbol: '0072R0',
+        },
+      },
+    });
+    expect(refetchGroups).toHaveBeenCalled();
+    expect(refetchAnalysis).toHaveBeenCalled();
+    expect(refetchRecommendation).toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith('종목을 그룹에서 제외했습니다.');
+
+    confirmSpy.mockRestore();
+    alertSpy.mockRestore();
   });
 
   it('대시보드로 돌아가기 버튼을 클릭하면 onClose를 호출한다', async () => {

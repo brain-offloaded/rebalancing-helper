@@ -121,6 +121,11 @@ export type CreateTagInput = {
   name: Scalars['String']['input'];
 };
 
+export type ExcludeSymbolFromRebalancingGroupInput = {
+  groupId: Scalars['String']['input'];
+  symbol: Scalars['String']['input'];
+};
+
 export type Holding = {
   __typename?: 'Holding';
   accountId: Scalars['String']['output'];
@@ -203,6 +208,7 @@ export type Mutation = {
   deleteManualHolding: Scalars['Boolean']['output'];
   deleteRebalancingGroup: Scalars['Boolean']['output'];
   deleteTag: Scalars['Boolean']['output'];
+  excludeSymbolFromRebalancingGroup: Scalars['Boolean']['output'];
   increaseManualHolding: Holding;
   login: AuthPayload;
   refreshBrokerageHoldings: Array<Holding>;
@@ -268,6 +274,10 @@ export type MutationDeleteRebalancingGroupArgs = {
 
 export type MutationDeleteTagArgs = {
   id: Scalars['String']['input'];
+};
+
+export type MutationExcludeSymbolFromRebalancingGroupArgs = {
+  input: ExcludeSymbolFromRebalancingGroupInput;
 };
 
 export type MutationIncreaseManualHoldingArgs = {
@@ -1208,6 +1218,15 @@ export type RemoveTagsFromRebalancingGroupMutation = {
     createdAt: string;
     updatedAt: string;
   };
+};
+
+export type ExcludeSymbolFromRebalancingGroupMutationVariables = Exact<{
+  input: ExcludeSymbolFromRebalancingGroupInput;
+}>;
+
+export type ExcludeSymbolFromRebalancingGroupMutation = {
+  __typename?: 'Mutation';
+  excludeSymbolFromRebalancingGroup: boolean;
 };
 
 export type RenameRebalancingGroupMutationVariables = Exact<{
@@ -3744,6 +3763,58 @@ export type RemoveTagsFromRebalancingGroupMutationOptions =
   Apollo.BaseMutationOptions<
     RemoveTagsFromRebalancingGroupMutation,
     RemoveTagsFromRebalancingGroupMutationVariables
+  >;
+export const ExcludeSymbolFromRebalancingGroupDocument = gql`
+  mutation ExcludeSymbolFromRebalancingGroup(
+    $input: ExcludeSymbolFromRebalancingGroupInput!
+  ) {
+    excludeSymbolFromRebalancingGroup(input: $input)
+  }
+`;
+export type ExcludeSymbolFromRebalancingGroupMutationFn =
+  Apollo.MutationFunction<
+    ExcludeSymbolFromRebalancingGroupMutation,
+    ExcludeSymbolFromRebalancingGroupMutationVariables
+  >;
+
+/**
+ * __useExcludeSymbolFromRebalancingGroupMutation__
+ *
+ * To run a mutation, you first call `useExcludeSymbolFromRebalancingGroupMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useExcludeSymbolFromRebalancingGroupMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [excludeSymbolFromRebalancingGroupMutation, { data, loading, error }] = useExcludeSymbolFromRebalancingGroupMutation({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useExcludeSymbolFromRebalancingGroupMutation(
+  baseOptions?: Apollo.MutationHookOptions<
+    ExcludeSymbolFromRebalancingGroupMutation,
+    ExcludeSymbolFromRebalancingGroupMutationVariables
+  >,
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return Apollo.useMutation<
+    ExcludeSymbolFromRebalancingGroupMutation,
+    ExcludeSymbolFromRebalancingGroupMutationVariables
+  >(ExcludeSymbolFromRebalancingGroupDocument, options);
+}
+export type ExcludeSymbolFromRebalancingGroupMutationHookResult = ReturnType<
+  typeof useExcludeSymbolFromRebalancingGroupMutation
+>;
+export type ExcludeSymbolFromRebalancingGroupMutationResult =
+  Apollo.MutationResult<ExcludeSymbolFromRebalancingGroupMutation>;
+export type ExcludeSymbolFromRebalancingGroupMutationOptions =
+  Apollo.BaseMutationOptions<
+    ExcludeSymbolFromRebalancingGroupMutation,
+    ExcludeSymbolFromRebalancingGroupMutationVariables
   >;
 export const RenameRebalancingGroupDocument = gql`
   mutation RenameRebalancingGroup($input: RenameRebalancingGroupInput!) {
