@@ -393,14 +393,7 @@ describe('RebalancingGroupDetailPage', () => {
           recommendedAmount: 100,
           recommendedPercentage: 100,
           suggestedSymbols: ['0072R0'],
-          symbolQuotes: [
-            {
-              symbol: '0072R0',
-              unitPriceInBaseCurrency: 0,
-              baseCurrency: 'USD',
-              priceAvailable: false,
-            },
-          ],
+          symbolQuotes: [],
           baseCurrency: 'USD',
         },
       ],

@@ -1120,15 +1120,44 @@ export const RebalancingGroupDetailPage: React.FC<
                           '-'
                         ) : (
                           <SecurityLabelList>
-                            {rec.suggestedSymbols.map((symbol) => (
-                              <SecurityLabel
-                                key={`${rec.tagId}-${symbol}`}
-                                info={getSecurityDisplayInfo(
+                            {rec.suggestedSymbols.map((symbol) => {
+                              const securityDisplayInfo =
+                                getSecurityDisplayInfo(
                                   securityDisplayBySymbol,
                                   symbol,
-                                )}
-                              />
-                            ))}
+                                );
+                              const excludeKey = getRecommendationSymbolKey(
+                                rec.tagId,
+                                symbol,
+                              );
+                              const excludeButtonLabel =
+                                securityDisplayInfo.displayName === symbol
+                                  ? `${symbol} 그룹에서 제외`
+                                  : `${securityDisplayInfo.displayName} ${symbol} 그룹에서 제외`;
+
+                              return (
+                                <React.Fragment key={`${rec.tagId}-${symbol}`}>
+                                  <SecurityLabel info={securityDisplayInfo} />
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    aria-label={excludeButtonLabel}
+                                    disabled={excludingSymbolKey === excludeKey}
+                                    onClick={() =>
+                                      handleExcludeSymbol(
+                                        symbol,
+                                        securityDisplayInfo.displayName,
+                                        excludeKey,
+                                      )
+                                    }
+                                  >
+                                    {excludingSymbolKey === excludeKey
+                                      ? '제외 중...'
+                                      : '그룹에서 제외'}
+                                  </Button>
+                                </React.Fragment>
+                              );
+                            })}
                           </SecurityLabelList>
                         )}
                       </Td>
