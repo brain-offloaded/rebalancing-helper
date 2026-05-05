@@ -6,6 +6,7 @@ import { renderWithProviders } from '../../test-utils/render';
 import { RebalancingGroupDetailPage } from '../RebalancingGroupDetailPage';
 import {
   GetInvestmentRecommendationDocument,
+  GetHoldingsDocument,
   GetRebalancingAnalysisDocument,
   GetRebalancingGroupsDocument,
   GetTagsDocument,
@@ -139,11 +140,47 @@ const defaultRecommendation = {
   ],
 };
 
+const defaultHoldings = [
+  {
+    id: 'holding-aapl',
+    source: 'MANUAL',
+    accountId: 'account-1',
+    market: 'US',
+    symbol: 'AAPL',
+    name: 'Apple Inc.',
+    alias: '애플 장기',
+    quantity: '10',
+    currentPrice: '200',
+    marketValue: '2000',
+    currency: 'USD',
+    lastTradedAt: new Date('2024-01-02T00:00:00Z').toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'holding-msft',
+    source: 'MANUAL',
+    accountId: 'account-1',
+    market: 'US',
+    symbol: 'MSFT',
+    name: 'Microsoft Corp.',
+    alias: null,
+    quantity: '5',
+    currentPrice: '300',
+    marketValue: '1500',
+    currency: 'USD',
+    lastTradedAt: new Date('2024-01-01T00:00:00Z').toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
 const setupMocks = ({
   groups = defaultGroups,
   tags = defaultTags,
   analysis = defaultAnalysis,
   recommendation = defaultRecommendation,
+  holdings = defaultHoldings,
   groupsLoading = false,
   analysisLoading = false,
 }: {
@@ -151,6 +188,7 @@ const setupMocks = ({
   tags?: typeof defaultTags;
   analysis?: typeof defaultAnalysis;
   recommendation?: typeof defaultRecommendation;
+  holdings?: typeof defaultHoldings;
   groupsLoading?: boolean;
   analysisLoading?: boolean;
 } = {}) => {
@@ -171,6 +209,10 @@ const setupMocks = ({
 
     if (document === GetTagsDocument) {
       return { data: { tags }, loading: false };
+    }
+
+    if (document === GetHoldingsDocument) {
+      return { data: { holdings }, loading: false };
     }
 
     if (document === GetRebalancingAnalysisDocument) {
@@ -252,7 +294,9 @@ describe('RebalancingGroupDetailPage', () => {
     expect(screen.getByText('성장 전략 소개')).toBeInTheDocument();
     expect(screen.getByText('총 평가 금액')).toBeInTheDocument();
     expect(screen.getByText('투자 추천')).toBeInTheDocument();
-    expect(screen.getByText('AAPL, MSFT')).toBeInTheDocument();
+    expect(screen.getAllByText('애플 장기').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Apple Inc.').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Microsoft Corp.').length).toBeGreaterThan(0);
   });
 
   it('분석과 추천 조회는 network-only 정책을 사용한다', () => {
@@ -319,7 +363,7 @@ describe('RebalancingGroupDetailPage', () => {
     );
 
     const quantityInput = (await screen.findByLabelText(
-      'AAPL 매수 수량',
+      '애플 장기 AAPL 매수 수량',
     )) as HTMLInputElement;
     await user.clear(quantityInput);
     await user.type(quantityInput, '3');

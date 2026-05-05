@@ -24,6 +24,7 @@ import {
   useGetRebalancingAnalysisQuery,
   useGetInvestmentRecommendationQuery,
   useGetTagsQuery,
+  useGetHoldingsQuery,
   useSetTargetAllocationsMutation,
   useUpdateRebalancingGroupMutation,
   useDeleteRebalancingGroupMutation,
@@ -43,6 +44,11 @@ import {
   ValueBadge,
 } from './holdings/styles';
 import { formatLastUpdated } from './holdings/formatters';
+import { SecurityLabel, SecurityLabelList } from './holdings/SecurityLabel';
+import {
+  buildSecurityDisplayMap,
+  getSecurityDisplayInfo,
+} from './holdings/security-display';
 
 type ChartMode = 'percentage' | 'value';
 
@@ -227,6 +233,7 @@ export const RebalancingGroupManagementModal: React.FC<
     refetch: refetchGroups,
   } = useGetRebalancingGroupsQuery({ skip: !open });
   const { data: tagsData } = useGetTagsQuery({ skip: !open });
+  const { data: holdingsData } = useGetHoldingsQuery({ skip: !open });
   const {
     data: analysisData,
     loading: analysisLoading,
@@ -271,6 +278,10 @@ export const RebalancingGroupManagementModal: React.FC<
   const group = useMemo(
     () => groupsData?.rebalancingGroups?.find((item) => item.id === groupId),
     [groupsData?.rebalancingGroups, groupId],
+  );
+  const securityDisplayBySymbol = useMemo(
+    () => buildSecurityDisplayMap(holdingsData?.holdings ?? []),
+    [holdingsData?.holdings],
   );
 
   const analysis = analysisData?.rebalancingAnalysis as
@@ -1144,7 +1155,23 @@ export const RebalancingGroupManagementModal: React.FC<
                       </Td>
                       <Td>{currencyFormatter.format(rec.recommendedAmount)}</Td>
                       <Td>{rec.recommendedPercentage.toFixed(1)}%</Td>
-                      <Td>{rec.suggestedSymbols.join(', ') || '-'}</Td>
+                      <Td>
+                        {rec.suggestedSymbols.length === 0 ? (
+                          '-'
+                        ) : (
+                          <SecurityLabelList>
+                            {rec.suggestedSymbols.map((symbol) => (
+                              <SecurityLabel
+                                key={`${rec.tagId}-${symbol}`}
+                                info={getSecurityDisplayInfo(
+                                  securityDisplayBySymbol,
+                                  symbol,
+                                )}
+                              />
+                            ))}
+                          </SecurityLabelList>
+                        )}
+                      </Td>
                     </tr>
                   ))}
                 </tbody>
@@ -1172,6 +1199,10 @@ export const RebalancingGroupManagementModal: React.FC<
                       const estimatedAmount = row.priceAvailable
                         ? quantity * row.unitPriceInBaseCurrency
                         : null;
+                      const securityDisplayInfo = getSecurityDisplayInfo(
+                        securityDisplayBySymbol,
+                        row.symbol,
+                      );
 
                       return (
                         <tr key={row.key}>
@@ -1180,7 +1211,9 @@ export const RebalancingGroupManagementModal: React.FC<
                               {row.tagName}
                             </TagChip>
                           </Td>
-                          <Td>{row.symbol}</Td>
+                          <Td>
+                            <SecurityLabel info={securityDisplayInfo} />
+                          </Td>
                           <Td>
                             {row.priceAvailable
                               ? currencyFormatter.format(
@@ -1190,7 +1223,7 @@ export const RebalancingGroupManagementModal: React.FC<
                           </Td>
                           <Td>
                             <TextInput
-                              aria-label={`${row.symbol} 매수 수량`}
+                              aria-label={`${securityDisplayInfo.displayName} ${securityDisplayInfo.symbol} 매수 수량`}
                               type="number"
                               inputMode="numeric"
                               min="0"

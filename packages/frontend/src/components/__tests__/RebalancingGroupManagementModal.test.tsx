@@ -7,6 +7,7 @@ import { RebalancingGroupManagementModal } from '../RebalancingGroupManagementMo
 
 const mockUseGetRebalancingGroupsQuery = vi.fn();
 const mockUseGetTagsQuery = vi.fn();
+const mockUseGetHoldingsQuery = vi.fn();
 const mockUseGetRebalancingAnalysisQuery = vi.fn();
 const mockUseGetInvestmentRecommendationQuery = vi.fn();
 const mockUseSetTargetAllocationsMutation = vi.fn();
@@ -37,6 +38,7 @@ vi.mock('../../graphql/__generated__', () => ({
   useGetRebalancingGroupsQuery: (...args: unknown[]) =>
     mockUseGetRebalancingGroupsQuery(...args),
   useGetTagsQuery: (...args: unknown[]) => mockUseGetTagsQuery(...args),
+  useGetHoldingsQuery: (...args: unknown[]) => mockUseGetHoldingsQuery(...args),
   useGetRebalancingAnalysisQuery: (...args: unknown[]) =>
     mockUseGetRebalancingAnalysisQuery(...args),
   useGetInvestmentRecommendationQuery: (...args: unknown[]) =>
@@ -79,6 +81,29 @@ describe('RebalancingGroupManagementModal', () => {
         tags: [
           { id: 'tag-1', name: '성장주', color: '#ff0000' },
           { id: 'tag-2', name: '배당주', color: '#00ff00' },
+        ],
+      },
+      loading: false,
+    });
+    mockUseGetHoldingsQuery.mockReturnValue({
+      data: {
+        holdings: [
+          {
+            id: 'holding-aapl',
+            source: 'MANUAL',
+            accountId: 'account-1',
+            market: 'US',
+            symbol: 'AAPL',
+            name: 'Apple Inc.',
+            alias: '애플 장기',
+            quantity: '10',
+            currentPrice: '250',
+            marketValue: '2500',
+            currency: 'USD',
+            lastTradedAt: new Date('2024-01-02T00:00:00Z').toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
         ],
       },
       loading: false,
@@ -382,8 +407,12 @@ describe('RebalancingGroupManagementModal', () => {
       { withApollo: false },
     );
 
+    await screen.findByLabelText('애플 장기 AAPL 매수 수량');
+    expect(screen.getAllByText('애플 장기').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('AAPL').length).toBeGreaterThan(0);
+
     const quantityInput = (await screen.findByLabelText(
-      'AAPL 매수 수량',
+      '애플 장기 AAPL 매수 수량',
     )) as HTMLInputElement;
     await userEvent.clear(quantityInput);
     await userEvent.type(quantityInput, '2');
@@ -426,7 +455,9 @@ describe('RebalancingGroupManagementModal', () => {
       { withApollo: false },
     );
 
-    expect(await screen.findByLabelText('AAPL 매수 수량')).toBeDisabled();
+    expect(
+      await screen.findByLabelText('애플 장기 AAPL 매수 수량'),
+    ).toBeDisabled();
   });
 
   it('삭제 버튼을 클릭하면 확인 후 그룹을 삭제하고 닫기 콜백을 호출한다', async () => {
