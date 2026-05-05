@@ -306,6 +306,26 @@ describe('Holdings', () => {
     });
   });
 
+  it('보유도 태그 참조도 없는 저장된 별칭은 종목 표시 이름 영역에서 숨긴다', () => {
+    securityAliasesDataState = [
+      {
+        id: 'alias-orphan',
+        market: 'US',
+        symbol: 'ORPHAN',
+        alias: '고아 별칭',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+
+    renderWithProviders(<Holdings />, { withApollo: false });
+
+    expect(
+      screen.queryByLabelText('ORPHAN 종목 표시 이름'),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('고아 별칭')).not.toBeInTheDocument();
+  });
+
   it('계좌 헤더를 클릭하면 계좌명 기준 정렬이 순환한다', async () => {
     const user = userEvent.setup();
     brokerageAccountsDataState = [

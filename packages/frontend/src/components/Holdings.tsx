@@ -515,22 +515,6 @@ export const Holdings: React.FC = () => {
       });
     }
 
-    for (const alias of securityAliases) {
-      const key = getSecurityAliasKey(alias.market ?? null, alias.symbol);
-      if (rowByKey.has(key)) {
-        continue;
-      }
-
-      rowByKey.set(key, {
-        key,
-        market: alias.market ?? null,
-        symbol: alias.symbol,
-        name: alias.symbol,
-        holdingCount: 0,
-        savedAlias: alias.alias,
-      });
-    }
-
     for (const link of holdingTags) {
       const symbol = link.holdingSymbol.trim().toUpperCase();
       if (symbol.length === 0 || heldSymbols.has(symbol)) {
