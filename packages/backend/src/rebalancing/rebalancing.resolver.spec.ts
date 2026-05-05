@@ -7,6 +7,7 @@ import {
   CalculateInvestmentInput,
   AddTagsToRebalancingGroupInput,
   RemoveTagsFromRebalancingGroupInput,
+  ExcludeSymbolFromRebalancingGroupInput,
   RenameRebalancingGroupInput,
 } from './rebalancing.dto';
 import {
@@ -86,6 +87,7 @@ describe('RebalancingResolver', () => {
       deleteGroup: jest.fn(),
       addTagsToGroup: jest.fn(),
       removeTagsFromGroup: jest.fn(),
+      excludeSymbolFromGroup: jest.fn(),
       renameGroup: jest.fn(),
       setTargetAllocations: jest.fn(),
       calculateInvestmentRecommendation: jest.fn(),
@@ -192,6 +194,22 @@ describe('RebalancingResolver', () => {
       resolver.removeTagsFromRebalancingGroup(mockUser, input),
     ).resolves.toBe(group);
     expect(service.removeTagsFromGroup).toHaveBeenCalledWith(
+      mockUser.userId,
+      input,
+    );
+  });
+
+  it('excludeSymbolFromRebalancingGroup은 사용자 ID와 입력을 전달한다', async () => {
+    const input: ExcludeSymbolFromRebalancingGroupInput = {
+      groupId: 'group-1',
+      symbol: '0072R0',
+    };
+    service.excludeSymbolFromGroup.mockResolvedValue(true);
+
+    await expect(
+      resolver.excludeSymbolFromRebalancingGroup(mockUser, input),
+    ).resolves.toBe(true);
+    expect(service.excludeSymbolFromGroup).toHaveBeenCalledWith(
       mockUser.userId,
       input,
     );

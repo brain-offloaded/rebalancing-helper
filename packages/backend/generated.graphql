@@ -92,6 +92,11 @@ scalar DateTime
 """decimal.js 기반 고정 소수점 값을 표현하는 커스텀 Decimal 스칼라입니다."""
 scalar Decimal
 
+input ExcludeSymbolFromRebalancingGroupInput {
+  groupId: String!
+  symbol: String!
+}
+
 type Holding {
   accountId: String!
   alias: String
@@ -172,6 +177,7 @@ type Mutation {
   deleteManualHolding(input: ManualHoldingIdentifierInput!): Boolean!
   deleteRebalancingGroup(id: String!): Boolean!
   deleteTag(id: String!): Boolean!
+  excludeSymbolFromRebalancingGroup(input: ExcludeSymbolFromRebalancingGroupInput!): Boolean!
   increaseManualHolding(input: IncreaseManualHoldingInput!): Holding!
   login(input: LoginInput!): AuthPayload!
   refreshBrokerageHoldings(accountId: String!): [Holding!]!
