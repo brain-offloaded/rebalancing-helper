@@ -218,6 +218,31 @@ describe('AuthProvider', () => {
     expect(consoleErrorSpy).toHaveBeenCalled();
   });
 
+  it('사용자 정보 조회 결과가 UNAUTHENTICATED GraphQL 에러를 포함하면 토큰을 초기화한다', async () => {
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'token');
+    mockApollo.query.mockResolvedValue({
+      data: null,
+      errors: [
+        new GraphQLError(
+          'Unauthorized',
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          { code: 'UNAUTHENTICATED' },
+        ),
+      ],
+    });
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => expect(result.current.initializing).toBe(false));
+    expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBeNull();
+    expect(result.current.user).toBeNull();
+    expect(mockApollo.query).toHaveBeenCalledTimes(1);
+  });
+
   it('사용자 정보 조회가 401 네트워크 오류면 토큰을 초기화한다', async () => {
     localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'token');
     mockApollo.query.mockRejectedValue(

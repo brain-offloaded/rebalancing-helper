@@ -92,6 +92,11 @@ scalar DateTime
 """decimal.js 기반 고정 소수점 값을 표현하는 커스텀 Decimal 스칼라입니다."""
 scalar Decimal
 
+input ExcludeSymbolFromRebalancingGroupInput {
+  groupId: String!
+  symbol: String!
+}
+
 type Holding {
   accountId: String!
   alias: String
@@ -172,6 +177,7 @@ type Mutation {
   deleteManualHolding(input: ManualHoldingIdentifierInput!): Boolean!
   deleteRebalancingGroup(id: String!): Boolean!
   deleteTag(id: String!): Boolean!
+  excludeSymbolFromRebalancingGroup(input: ExcludeSymbolFromRebalancingGroupInput!): Boolean!
   increaseManualHolding(input: IncreaseManualHoldingInput!): Holding!
   login(input: LoginInput!): AuthPayload!
   refreshBrokerageHoldings(accountId: String!): [Holding!]!
@@ -182,6 +188,7 @@ type Mutation {
   setHoldingAlias(input: SetHoldingAliasInput!): Holding!
   setHoldingTags(input: SetHoldingTagsInput!): [HoldingTag!]!
   setManualHoldingQuantity(input: SetManualHoldingQuantityInput!): Holding!
+  setSecurityAlias(input: SetSecurityAliasInput!): SecurityAlias
   setTargetAllocations(input: SetTargetAllocationsInput!): Boolean!
   syncManualHoldingPrice(input: ManualHoldingIdentifierInput!): Holding!
   updateBroker(input: UpdateBrokerInput!): Broker!
@@ -204,6 +211,7 @@ type Query {
   rebalancingAnalysis(groupId: String!): RebalancingAnalysis!
   rebalancingGroup(id: String!): RebalancingGroup
   rebalancingGroups: [RebalancingGroup!]!
+  securityAliases: [SecurityAlias!]!
   tag(id: String!): Tag
   tags: [Tag!]!
   tagsForHolding(holdingSymbol: String!): [String!]!
@@ -254,6 +262,15 @@ input RenameRebalancingGroupInput {
   name: String!
 }
 
+type SecurityAlias {
+  alias: String!
+  createdAt: DateTime!
+  id: ID!
+  market: String
+  symbol: String!
+  updatedAt: DateTime!
+}
+
 input SetHoldingAliasInput {
   alias: String
   holdingId: String!
@@ -268,6 +285,12 @@ input SetManualHoldingQuantityInput {
   accountId: String!
   market: String!
   quantity: Decimal!
+  symbol: String!
+}
+
+input SetSecurityAliasInput {
+  alias: String
+  market: String
   symbol: String!
 }
 

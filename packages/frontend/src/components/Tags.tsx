@@ -3,7 +3,9 @@ import styled from 'styled-components';
 import {
   useCreateTagMutation,
   useDeleteTagMutation,
+  useGetHoldingTagsQuery,
   useGetTagsQuery,
+  useRemoveHoldingTagMutation,
   useUpdateTagMutation,
   type GetTagsQuery,
 } from '../graphql/__generated__';
@@ -41,7 +43,29 @@ const ColorSwatch = styled.button<{ $selected: boolean; $color: string }>`
   cursor: pointer;
 `;
 
+const LinkedSymbolList = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing.xs};
+  margin-top: ${({ theme }) => theme.spacing.sm};
+`;
+
+const LinkedSymbolItem = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs};
+  padding: ${({ theme }) => `${theme.spacing.xs} ${theme.spacing.sm}`};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.borderRadius.sm};
+  background-color: ${({ theme }) => theme.colors.light};
+`;
+
 type Tag = GetTagsQuery['tags'][number];
+type HoldingTagLink = {
+  id: string;
+  holdingSymbol: string;
+  tagId: string;
+};
 
 type TagFormState = {
   name: string;
@@ -74,11 +98,38 @@ export const Tags: React.FC = () => {
   const [formState, setFormState] = useState<TagFormState>(INITIAL_FORM_STATE);
 
   const { data, loading, error, refetch } = useGetTagsQuery();
+  const {
+    data: holdingTagsData,
+    loading: holdingTagsLoading,
+    refetch: refetchHoldingTags,
+  } = useGetHoldingTagsQuery();
   const [createTag] = useCreateTagMutation();
   const [updateTag] = useUpdateTagMutation();
   const [deleteTag] = useDeleteTagMutation();
+  const [removeHoldingTag] = useRemoveHoldingTagMutation();
 
   const tags = useMemo(() => data?.tags ?? [], [data]);
+  const holdingTagsByTagId = useMemo(() => {
+    const map = new Map<string, HoldingTagLink[]>();
+    const holdingTags = holdingTagsData?.holdingTags ?? [];
+
+    for (const link of holdingTags) {
+      const current = map.get(link.tagId) ?? [];
+      current.push(link);
+      map.set(link.tagId, current);
+    }
+
+    for (const links of map.values()) {
+      links.sort((left, right) =>
+        left.holdingSymbol.localeCompare(right.holdingSymbol, 'ko', {
+          sensitivity: 'base',
+          numeric: true,
+        }),
+      );
+    }
+
+    return map;
+  }, [holdingTagsData?.holdingTags]);
 
   const handleChange = useCallback(
     <Key extends keyof TagFormState>(key: Key, value: TagFormState[Key]) => {
@@ -136,6 +187,33 @@ export const Tags: React.FC = () => {
       }
     },
     [deleteTag, refetch],
+  );
+
+  const handleRemoveHoldingTag = useCallback(
+    async (tag: Tag, holdingSymbol: string) => {
+      if (
+        !window.confirm(
+          `${holdingSymbol} 종목에서 ${tag.name} 태그를 해제하시겠습니까?`,
+        )
+      ) {
+        return;
+      }
+
+      try {
+        await removeHoldingTag({
+          variables: {
+            input: {
+              holdingSymbol,
+              tagId: tag.id,
+            },
+          },
+        });
+        refetchHoldingTags();
+      } catch (mutationError) {
+        console.error('종목 태그 해제 실패:', mutationError);
+      }
+    },
+    [refetchHoldingTags, removeHoldingTag],
   );
 
   if (loading) {
@@ -234,6 +312,32 @@ export const Tags: React.FC = () => {
               </CardTitle>
             </CardHeader>
             {tag.description ? <p>{tag.description}</p> : null}
+            <div>
+              <strong>연결 종목</strong>
+              {holdingTagsLoading ? (
+                <p>종목 연결을 불러오는 중입니다.</p>
+              ) : (holdingTagsByTagId.get(tag.id) ?? []).length === 0 ? (
+                <p>연결된 종목이 없습니다.</p>
+              ) : (
+                <LinkedSymbolList>
+                  {(holdingTagsByTagId.get(tag.id) ?? []).map((link) => (
+                    <LinkedSymbolItem key={link.id}>
+                      {link.holdingSymbol}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        aria-label={`${link.holdingSymbol} ${tag.name} 태그 해제`}
+                        onClick={() =>
+                          handleRemoveHoldingTag(tag, link.holdingSymbol)
+                        }
+                      >
+                        해제
+                      </Button>
+                    </LinkedSymbolItem>
+                  ))}
+                </LinkedSymbolList>
+              )}
+            </div>
             <CardActions>
               <Button onClick={() => handleEdit(tag)}>수정</Button>
               <Button variant="danger" onClick={() => handleDelete(tag.id)}>

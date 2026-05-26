@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from 'react';
 import { ApolloError } from '@apollo/client';
+import { GraphQLError } from 'graphql';
 import { apolloClient, AUTH_TOKEN_STORAGE_KEY } from '../apollo-client';
 import {
   LoginDocument,
@@ -36,6 +37,8 @@ type NetworkErrorWithStatus = {
     status?: number;
   };
 };
+
+type GraphqlErrorLike = Pick<GraphQLError, 'message' | 'extensions'>;
 
 const readStoredToken = (): string | null => {
   if (typeof window === 'undefined') {
@@ -94,12 +97,10 @@ const getRetryDelayMs = (retryAttempt: number): number => {
   return Math.min(exponentialDelay, CURRENT_USER_RETRY_MAX_MS);
 };
 
-const isAuthenticationError = (error: unknown): boolean => {
-  if (!(error instanceof ApolloError)) {
-    return false;
-  }
-
-  const hasGraphqlAuthError = error.graphQLErrors.some((graphQLError) => {
+const hasGraphqlAuthenticationError = (
+  graphQLErrors: readonly GraphqlErrorLike[],
+): boolean =>
+  graphQLErrors.some((graphQLError) => {
     const code = graphQLError.extensions?.code;
 
     return (
@@ -108,20 +109,49 @@ const isAuthenticationError = (error: unknown): boolean => {
     );
   });
 
-  if (hasGraphqlAuthError) {
-    return true;
-  }
+const hasUnauthorizedNetworkStatus = (networkError: unknown): boolean => {
+  const candidate = networkError as NetworkErrorWithStatus | null;
 
-  const networkError = error.networkError as NetworkErrorWithStatus | null;
-  if (!networkError) {
+  if (!candidate) {
     return false;
   }
 
   return (
-    networkError.statusCode === 401 ||
-    networkError.status === 401 ||
-    networkError.response?.status === 401
+    candidate.statusCode === 401 ||
+    candidate.status === 401 ||
+    candidate.response?.status === 401
   );
+};
+
+const isAuthenticationError = (error: unknown): boolean => {
+  if (error instanceof ApolloError) {
+    if (hasGraphqlAuthenticationError(error.graphQLErrors)) {
+      return true;
+    }
+
+    return hasUnauthorizedNetworkStatus(error.networkError);
+  }
+
+  if (
+    error &&
+    typeof error === 'object' &&
+    'errors' in error &&
+    Array.isArray(error.errors) &&
+    hasGraphqlAuthenticationError(error.errors as readonly GraphqlErrorLike[])
+  ) {
+    return true;
+  }
+
+  if (
+    error &&
+    typeof error === 'object' &&
+    'error' in error &&
+    isAuthenticationError((error as { error?: unknown }).error)
+  ) {
+    return true;
+  }
+
+  return hasUnauthorizedNetworkStatus(error);
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -157,10 +187,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       let shouldKeepInitializing = false;
 
       try {
-        const { data } = await apolloClient.query<MeQuery, MeQueryVariables>({
+        const result = await apolloClient.query<MeQuery, MeQueryVariables>({
           query: MeDocument,
           fetchPolicy: 'network-only',
         });
+        const { data } = result;
+
+        if (isAuthenticationError(result)) {
+          if (!cancelled) {
+            setToken(null);
+            setUser(null);
+          }
+          return;
+        }
+
+        if (!data?.me) {
+          throw (
+            result.error ?? new Error('현재 사용자 정보를 가져오지 못했습니다.')
+          );
+        }
 
         if (!cancelled) {
           retryAttempt = 0;

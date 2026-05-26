@@ -121,6 +121,11 @@ export type CreateTagInput = {
   name: Scalars['String']['input'];
 };
 
+export type ExcludeSymbolFromRebalancingGroupInput = {
+  groupId: Scalars['String']['input'];
+  symbol: Scalars['String']['input'];
+};
+
 export type Holding = {
   __typename?: 'Holding';
   accountId: Scalars['String']['output'];
@@ -203,6 +208,7 @@ export type Mutation = {
   deleteManualHolding: Scalars['Boolean']['output'];
   deleteRebalancingGroup: Scalars['Boolean']['output'];
   deleteTag: Scalars['Boolean']['output'];
+  excludeSymbolFromRebalancingGroup: Scalars['Boolean']['output'];
   increaseManualHolding: Holding;
   login: AuthPayload;
   refreshBrokerageHoldings: Array<Holding>;
@@ -213,6 +219,7 @@ export type Mutation = {
   setHoldingAlias: Holding;
   setHoldingTags: Array<HoldingTag>;
   setManualHoldingQuantity: Holding;
+  setSecurityAlias: Maybe<SecurityAlias>;
   setTargetAllocations: Scalars['Boolean']['output'];
   syncManualHoldingPrice: Holding;
   updateBroker: Broker;
@@ -269,6 +276,10 @@ export type MutationDeleteTagArgs = {
   id: Scalars['String']['input'];
 };
 
+export type MutationExcludeSymbolFromRebalancingGroupArgs = {
+  input: ExcludeSymbolFromRebalancingGroupInput;
+};
+
 export type MutationIncreaseManualHoldingArgs = {
   input: IncreaseManualHoldingInput;
 };
@@ -307,6 +318,10 @@ export type MutationSetHoldingTagsArgs = {
 
 export type MutationSetManualHoldingQuantityArgs = {
   input: SetManualHoldingQuantityInput;
+};
+
+export type MutationSetSecurityAliasArgs = {
+  input: SetSecurityAliasInput;
 };
 
 export type MutationSetTargetAllocationsArgs = {
@@ -348,6 +363,7 @@ export type Query = {
   rebalancingAnalysis: RebalancingAnalysis;
   rebalancingGroup: Maybe<RebalancingGroup>;
   rebalancingGroups: Array<RebalancingGroup>;
+  securityAliases: Array<SecurityAlias>;
   tag: Maybe<Tag>;
   tags: Array<Tag>;
   tagsForHolding: Array<Scalars['String']['output']>;
@@ -442,6 +458,16 @@ export type RenameRebalancingGroupInput = {
   name: Scalars['String']['input'];
 };
 
+export type SecurityAlias = {
+  __typename?: 'SecurityAlias';
+  alias: Scalars['String']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  market: Maybe<Scalars['String']['output']>;
+  symbol: Scalars['String']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+};
+
 export type SetHoldingAliasInput = {
   alias: InputMaybe<Scalars['String']['input']>;
   holdingId: Scalars['String']['input'];
@@ -456,6 +482,12 @@ export type SetManualHoldingQuantityInput = {
   accountId: Scalars['String']['input'];
   market: Scalars['String']['input'];
   quantity: Scalars['Decimal']['input'];
+  symbol: Scalars['String']['input'];
+};
+
+export type SetSecurityAliasInput = {
+  alias: InputMaybe<Scalars['String']['input']>;
+  market: InputMaybe<Scalars['String']['input']>;
   symbol: Scalars['String']['input'];
 };
 
@@ -856,6 +888,21 @@ export type GetHoldingsQuery = {
   }>;
 };
 
+export type GetSecurityAliasesQueryVariables = Exact<{ [key: string]: never }>;
+
+export type GetSecurityAliasesQuery = {
+  __typename?: 'Query';
+  securityAliases: Array<{
+    __typename?: 'SecurityAlias';
+    id: string;
+    market: string | null;
+    symbol: string;
+    alias: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+};
+
 export type CreateManualHoldingMutationVariables = Exact<{
   input: CreateManualHoldingInput;
 }>;
@@ -988,6 +1035,23 @@ export type SetHoldingAliasMutation = {
     createdAt: string;
     updatedAt: string;
   };
+};
+
+export type SetSecurityAliasMutationVariables = Exact<{
+  input: SetSecurityAliasInput;
+}>;
+
+export type SetSecurityAliasMutation = {
+  __typename?: 'Mutation';
+  setSecurityAlias: {
+    __typename?: 'SecurityAlias';
+    id: string;
+    market: string | null;
+    symbol: string;
+    alias: string;
+    createdAt: string;
+    updatedAt: string;
+  } | null;
 };
 
 export type GetMarketsQueryVariables = Exact<{ [key: string]: never }>;
@@ -1154,6 +1218,15 @@ export type RemoveTagsFromRebalancingGroupMutation = {
     createdAt: string;
     updatedAt: string;
   };
+};
+
+export type ExcludeSymbolFromRebalancingGroupMutationVariables = Exact<{
+  input: ExcludeSymbolFromRebalancingGroupInput;
+}>;
+
+export type ExcludeSymbolFromRebalancingGroupMutation = {
+  __typename?: 'Mutation';
+  excludeSymbolFromRebalancingGroup: boolean;
 };
 
 export type RenameRebalancingGroupMutationVariables = Exact<{
@@ -2522,6 +2595,88 @@ export type GetHoldingsQueryResult = Apollo.QueryResult<
   GetHoldingsQuery,
   GetHoldingsQueryVariables
 >;
+export const GetSecurityAliasesDocument = gql`
+  query GetSecurityAliases {
+    securityAliases {
+      id
+      market
+      symbol
+      alias
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+/**
+ * __useGetSecurityAliasesQuery__
+ *
+ * To run a query within a React component, call `useGetSecurityAliasesQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetSecurityAliasesQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetSecurityAliasesQuery({
+ *   variables: {
+ *   },
+ * });
+ */
+export function useGetSecurityAliasesQuery(
+  baseOptions?: Apollo.QueryHookOptions<
+    GetSecurityAliasesQuery,
+    GetSecurityAliasesQueryVariables
+  >,
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return Apollo.useQuery<
+    GetSecurityAliasesQuery,
+    GetSecurityAliasesQueryVariables
+  >(GetSecurityAliasesDocument, options);
+}
+export function useGetSecurityAliasesLazyQuery(
+  baseOptions?: Apollo.LazyQueryHookOptions<
+    GetSecurityAliasesQuery,
+    GetSecurityAliasesQueryVariables
+  >,
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return Apollo.useLazyQuery<
+    GetSecurityAliasesQuery,
+    GetSecurityAliasesQueryVariables
+  >(GetSecurityAliasesDocument, options);
+}
+export function useGetSecurityAliasesSuspenseQuery(
+  baseOptions?:
+    | Apollo.SkipToken
+    | Apollo.SuspenseQueryHookOptions<
+        GetSecurityAliasesQuery,
+        GetSecurityAliasesQueryVariables
+      >,
+) {
+  const options =
+    baseOptions === Apollo.skipToken
+      ? baseOptions
+      : { ...defaultOptions, ...baseOptions };
+  return Apollo.useSuspenseQuery<
+    GetSecurityAliasesQuery,
+    GetSecurityAliasesQueryVariables
+  >(GetSecurityAliasesDocument, options);
+}
+export type GetSecurityAliasesQueryHookResult = ReturnType<
+  typeof useGetSecurityAliasesQuery
+>;
+export type GetSecurityAliasesLazyQueryHookResult = ReturnType<
+  typeof useGetSecurityAliasesLazyQuery
+>;
+export type GetSecurityAliasesSuspenseQueryHookResult = ReturnType<
+  typeof useGetSecurityAliasesSuspenseQuery
+>;
+export type GetSecurityAliasesQueryResult = Apollo.QueryResult<
+  GetSecurityAliasesQuery,
+  GetSecurityAliasesQueryVariables
+>;
 export const CreateManualHoldingDocument = gql`
   mutation CreateManualHolding($input: CreateManualHoldingInput!) {
     createManualHolding(input: $input) {
@@ -2885,6 +3040,61 @@ export type SetHoldingAliasMutationResult =
 export type SetHoldingAliasMutationOptions = Apollo.BaseMutationOptions<
   SetHoldingAliasMutation,
   SetHoldingAliasMutationVariables
+>;
+export const SetSecurityAliasDocument = gql`
+  mutation SetSecurityAlias($input: SetSecurityAliasInput!) {
+    setSecurityAlias(input: $input) {
+      id
+      market
+      symbol
+      alias
+      createdAt
+      updatedAt
+    }
+  }
+`;
+export type SetSecurityAliasMutationFn = Apollo.MutationFunction<
+  SetSecurityAliasMutation,
+  SetSecurityAliasMutationVariables
+>;
+
+/**
+ * __useSetSecurityAliasMutation__
+ *
+ * To run a mutation, you first call `useSetSecurityAliasMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useSetSecurityAliasMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [setSecurityAliasMutation, { data, loading, error }] = useSetSecurityAliasMutation({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useSetSecurityAliasMutation(
+  baseOptions?: Apollo.MutationHookOptions<
+    SetSecurityAliasMutation,
+    SetSecurityAliasMutationVariables
+  >,
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return Apollo.useMutation<
+    SetSecurityAliasMutation,
+    SetSecurityAliasMutationVariables
+  >(SetSecurityAliasDocument, options);
+}
+export type SetSecurityAliasMutationHookResult = ReturnType<
+  typeof useSetSecurityAliasMutation
+>;
+export type SetSecurityAliasMutationResult =
+  Apollo.MutationResult<SetSecurityAliasMutation>;
+export type SetSecurityAliasMutationOptions = Apollo.BaseMutationOptions<
+  SetSecurityAliasMutation,
+  SetSecurityAliasMutationVariables
 >;
 export const GetMarketsDocument = gql`
   query GetMarkets {
@@ -3553,6 +3763,58 @@ export type RemoveTagsFromRebalancingGroupMutationOptions =
   Apollo.BaseMutationOptions<
     RemoveTagsFromRebalancingGroupMutation,
     RemoveTagsFromRebalancingGroupMutationVariables
+  >;
+export const ExcludeSymbolFromRebalancingGroupDocument = gql`
+  mutation ExcludeSymbolFromRebalancingGroup(
+    $input: ExcludeSymbolFromRebalancingGroupInput!
+  ) {
+    excludeSymbolFromRebalancingGroup(input: $input)
+  }
+`;
+export type ExcludeSymbolFromRebalancingGroupMutationFn =
+  Apollo.MutationFunction<
+    ExcludeSymbolFromRebalancingGroupMutation,
+    ExcludeSymbolFromRebalancingGroupMutationVariables
+  >;
+
+/**
+ * __useExcludeSymbolFromRebalancingGroupMutation__
+ *
+ * To run a mutation, you first call `useExcludeSymbolFromRebalancingGroupMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useExcludeSymbolFromRebalancingGroupMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [excludeSymbolFromRebalancingGroupMutation, { data, loading, error }] = useExcludeSymbolFromRebalancingGroupMutation({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useExcludeSymbolFromRebalancingGroupMutation(
+  baseOptions?: Apollo.MutationHookOptions<
+    ExcludeSymbolFromRebalancingGroupMutation,
+    ExcludeSymbolFromRebalancingGroupMutationVariables
+  >,
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return Apollo.useMutation<
+    ExcludeSymbolFromRebalancingGroupMutation,
+    ExcludeSymbolFromRebalancingGroupMutationVariables
+  >(ExcludeSymbolFromRebalancingGroupDocument, options);
+}
+export type ExcludeSymbolFromRebalancingGroupMutationHookResult = ReturnType<
+  typeof useExcludeSymbolFromRebalancingGroupMutation
+>;
+export type ExcludeSymbolFromRebalancingGroupMutationResult =
+  Apollo.MutationResult<ExcludeSymbolFromRebalancingGroupMutation>;
+export type ExcludeSymbolFromRebalancingGroupMutationOptions =
+  Apollo.BaseMutationOptions<
+    ExcludeSymbolFromRebalancingGroupMutation,
+    ExcludeSymbolFromRebalancingGroupMutationVariables
   >;
 export const RenameRebalancingGroupDocument = gql`
   mutation RenameRebalancingGroup($input: RenameRebalancingGroupInput!) {

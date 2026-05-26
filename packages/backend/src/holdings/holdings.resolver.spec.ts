@@ -9,8 +9,14 @@ import {
   SetManualHoldingQuantityInput,
   ManualHoldingIdentifierInput,
   SetHoldingAliasInput,
+  SetSecurityAliasInput,
 } from './holdings.dto';
-import { HoldingTag, Holding, HoldingSource } from './holdings.entities';
+import {
+  HoldingTag,
+  Holding,
+  HoldingSource,
+  SecurityAlias,
+} from './holdings.entities';
 import { ActiveUserData } from '../auth/auth.types';
 
 const mockUser: ActiveUserData = {
@@ -44,6 +50,17 @@ const createHolding = (overrides: Partial<Holding> = {}): Holding => ({
   updatedAt: overrides.updatedAt ?? new Date('2024-01-03T00:00:00Z'),
 });
 
+const createSecurityAlias = (
+  overrides: Partial<SecurityAlias> = {},
+): SecurityAlias => ({
+  id: overrides.id ?? 'alias-1',
+  market: overrides.market ?? 'US',
+  symbol: overrides.symbol ?? 'VOO',
+  alias: overrides.alias ?? '나의 ETF',
+  createdAt: overrides.createdAt ?? new Date('2024-01-02T00:00:00Z'),
+  updatedAt: overrides.updatedAt ?? new Date('2024-01-03T00:00:00Z'),
+});
+
 describe('HoldingsResolver', () => {
   let resolver: HoldingsResolver;
   let service: jest.Mocked<HoldingsService>;
@@ -63,6 +80,8 @@ describe('HoldingsResolver', () => {
       deleteManualHolding: jest.fn(),
       syncManualHoldingPrice: jest.fn(),
       setHoldingAlias: jest.fn(),
+      getSecurityAliases: jest.fn(),
+      setSecurityAlias: jest.fn(),
     } as unknown as jest.Mocked<HoldingsService>;
 
     resolver = new HoldingsResolver(service);
@@ -284,6 +303,32 @@ describe('HoldingsResolver', () => {
       manualHolding,
     );
     expect(service.setHoldingAlias).toHaveBeenCalledWith(
+      mockUser.userId,
+      input,
+    );
+  });
+
+  it('securityAliases는 사용자 ID로 종목 별칭 목록을 조회한다', async () => {
+    const aliases = [createSecurityAlias()];
+    service.getSecurityAliases.mockResolvedValue(aliases);
+
+    await expect(resolver.securityAliases(mockUser)).resolves.toBe(aliases);
+    expect(service.getSecurityAliases).toHaveBeenCalledWith(mockUser.userId);
+  });
+
+  it('setSecurityAlias는 사용자 ID와 입력을 전달한다', async () => {
+    const input: SetSecurityAliasInput = {
+      market: 'US',
+      symbol: 'VOO',
+      alias: '나의 ETF',
+    };
+    const alias = createSecurityAlias();
+    service.setSecurityAlias.mockResolvedValue(alias);
+
+    await expect(resolver.setSecurityAlias(mockUser, input)).resolves.toBe(
+      alias,
+    );
+    expect(service.setSecurityAlias).toHaveBeenCalledWith(
       mockUser.userId,
       input,
     );

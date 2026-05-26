@@ -1,7 +1,12 @@
 import { UseGuards } from '@nestjs/common';
 import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import { HoldingsService } from './holdings.service';
-import { HoldingTag, Holding, HoldingSource } from './holdings.entities';
+import {
+  HoldingTag,
+  Holding,
+  HoldingSource,
+  SecurityAlias,
+} from './holdings.entities';
 import {
   AddHoldingTagInput,
   RemoveHoldingTagInput,
@@ -11,6 +16,7 @@ import {
   SetManualHoldingQuantityInput,
   ManualHoldingIdentifierInput,
   SetHoldingAliasInput,
+  SetSecurityAliasInput,
 } from './holdings.dto';
 import { GqlAuthGuard } from '../auth/gql-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -46,6 +52,13 @@ export class HoldingsResolver {
     @Args('tagId') tagId: string,
   ): Promise<string[]> {
     return this.holdingsService.getHoldingsForTag(user.userId, tagId);
+  }
+
+  @Query(() => [SecurityAlias])
+  securityAliases(
+    @CurrentUser() user: ActiveUserData,
+  ): Promise<SecurityAlias[]> {
+    return this.holdingsService.getSecurityAliases(user.userId);
   }
 
   @Mutation(() => HoldingTag)
@@ -136,5 +149,13 @@ export class HoldingsResolver {
     @Args('input') input: SetHoldingAliasInput,
   ): Promise<Holding> {
     return this.holdingsService.setHoldingAlias(user.userId, input);
+  }
+
+  @Mutation(() => SecurityAlias, { nullable: true })
+  setSecurityAlias(
+    @CurrentUser() user: ActiveUserData,
+    @Args('input') input: SetSecurityAliasInput,
+  ): Promise<SecurityAlias | null> {
+    return this.holdingsService.setSecurityAlias(user.userId, input);
   }
 }

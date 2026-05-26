@@ -22,6 +22,7 @@ import {
   CalculateInvestmentInput,
   AddTagsToRebalancingGroupInput,
   RemoveTagsFromRebalancingGroupInput,
+  ExcludeSymbolFromRebalancingGroupInput,
   RenameRebalancingGroupInput,
 } from './rebalancing.dto';
 import { HoldingsService } from '../holdings/holdings.service';
@@ -400,6 +401,29 @@ export class RebalancingService {
 
     const updatedGroup = await this.getGroupForUser(userId, input.groupId);
     return this.mapGroup(updatedGroup);
+  }
+
+  async excludeSymbolFromGroup(
+    userId: string,
+    input: ExcludeSymbolFromRebalancingGroupInput,
+  ): Promise<boolean> {
+    const group = await this.getGroupForUser(userId, input.groupId);
+    const groupTagIds = group.tags.map((tag) => tag.tagId);
+    const symbol = input.symbol.trim();
+
+    if (groupTagIds.length === 0 || symbol.length === 0) {
+      return false;
+    }
+
+    const result = await this.prisma.holdingTag.deleteMany({
+      where: {
+        userId,
+        holdingSymbol: symbol,
+        tagId: { in: groupTagIds },
+      },
+    });
+
+    return result.count > 0;
   }
 
   async renameGroup(

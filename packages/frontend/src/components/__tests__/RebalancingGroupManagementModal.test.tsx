@@ -7,6 +7,8 @@ import { RebalancingGroupManagementModal } from '../RebalancingGroupManagementMo
 
 const mockUseGetRebalancingGroupsQuery = vi.fn();
 const mockUseGetTagsQuery = vi.fn();
+const mockUseGetHoldingsQuery = vi.fn();
+const mockUseGetSecurityAliasesQuery = vi.fn();
 const mockUseGetRebalancingAnalysisQuery = vi.fn();
 const mockUseGetInvestmentRecommendationQuery = vi.fn();
 const mockUseSetTargetAllocationsMutation = vi.fn();
@@ -37,6 +39,9 @@ vi.mock('../../graphql/__generated__', () => ({
   useGetRebalancingGroupsQuery: (...args: unknown[]) =>
     mockUseGetRebalancingGroupsQuery(...args),
   useGetTagsQuery: (...args: unknown[]) => mockUseGetTagsQuery(...args),
+  useGetHoldingsQuery: (...args: unknown[]) => mockUseGetHoldingsQuery(...args),
+  useGetSecurityAliasesQuery: (...args: unknown[]) =>
+    mockUseGetSecurityAliasesQuery(...args),
   useGetRebalancingAnalysisQuery: (...args: unknown[]) =>
     mockUseGetRebalancingAnalysisQuery(...args),
   useGetInvestmentRecommendationQuery: (...args: unknown[]) =>
@@ -55,6 +60,7 @@ describe('RebalancingGroupManagementModal', () => {
   const updateGroup = vi.fn().mockResolvedValue({});
   const setTargets = vi.fn().mockResolvedValue({});
   const deleteGroup = vi.fn().mockResolvedValue({});
+  const refetchRecommendation = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -81,6 +87,33 @@ describe('RebalancingGroupManagementModal', () => {
           { id: 'tag-2', name: '배당주', color: '#00ff00' },
         ],
       },
+      loading: false,
+    });
+    mockUseGetHoldingsQuery.mockReturnValue({
+      data: {
+        holdings: [
+          {
+            id: 'holding-aapl',
+            source: 'MANUAL',
+            accountId: 'account-1',
+            market: 'US',
+            symbol: 'AAPL',
+            name: 'Apple Inc.',
+            alias: '애플 장기',
+            quantity: '10',
+            currentPrice: '250',
+            marketValue: '2500',
+            currency: 'USD',
+            lastTradedAt: new Date('2024-01-02T00:00:00Z').toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ],
+      },
+      loading: false,
+    });
+    mockUseGetSecurityAliasesQuery.mockReturnValue({
+      data: { securityAliases: [] },
       loading: false,
     });
     mockUseGetRebalancingAnalysisQuery.mockReturnValue({
@@ -119,6 +152,7 @@ describe('RebalancingGroupManagementModal', () => {
     mockUseGetInvestmentRecommendationQuery.mockReturnValue({
       data: { investmentRecommendation: [] },
       loading: false,
+      refetch: refetchRecommendation,
     });
     mockUseUpdateRebalancingGroupMutation.mockReturnValue([
       updateGroup,
@@ -134,6 +168,7 @@ describe('RebalancingGroupManagementModal', () => {
     ]);
     window.alert = vi.fn();
     window.confirm = vi.fn(() => true);
+    window.localStorage.clear();
   });
 
   it('목표 비율 입력을 모두 지우면 빈 문자열이 유지된다', async () => {
@@ -382,8 +417,12 @@ describe('RebalancingGroupManagementModal', () => {
       { withApollo: false },
     );
 
+    await screen.findByLabelText('애플 장기 AAPL 매수 수량');
+    expect(screen.getAllByText('애플 장기').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('AAPL').length).toBeGreaterThan(0);
+
     const quantityInput = (await screen.findByLabelText(
-      'AAPL 매수 수량',
+      '애플 장기 AAPL 매수 수량',
     )) as HTMLInputElement;
     await userEvent.clear(quantityInput);
     await userEvent.type(quantityInput, '2');
@@ -426,7 +465,190 @@ describe('RebalancingGroupManagementModal', () => {
       { withApollo: false },
     );
 
-    expect(await screen.findByLabelText('AAPL 매수 수량')).toBeDisabled();
+    expect(
+      await screen.findByLabelText('애플 장기 AAPL 매수 수량'),
+    ).toBeDisabled();
+  });
+
+  it('종목별 매수 수량 계산에서 즐겨찾기를 먼저 정렬한다', async () => {
+    mockUseGetInvestmentRecommendationQuery.mockReturnValue({
+      data: {
+        investmentRecommendation: [
+          {
+            tagId: 'tag-1',
+            tagName: '성장주',
+            recommendedAmount: 500,
+            recommendedPercentage: 50,
+            suggestedSymbols: ['AAPL'],
+            symbolQuotes: [
+              {
+                symbol: 'AAPL',
+                unitPriceInBaseCurrency: 250,
+                baseCurrency: 'USD',
+                priceAvailable: true,
+              },
+            ],
+            baseCurrency: 'USD',
+          },
+          {
+            tagId: 'tag-2',
+            tagName: '배당주',
+            recommendedAmount: 500,
+            recommendedPercentage: 50,
+            suggestedSymbols: ['VOO'],
+            symbolQuotes: [
+              {
+                symbol: 'VOO',
+                unitPriceInBaseCurrency: 500,
+                baseCurrency: 'USD',
+                priceAvailable: true,
+              },
+            ],
+            baseCurrency: 'USD',
+          },
+        ],
+      },
+      loading: false,
+    });
+
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <RebalancingGroupManagementModal
+        open
+        groupId="group-1"
+        onClose={vi.fn()}
+      />,
+      { withApollo: false },
+    );
+
+    expect(
+      (await screen.findAllByLabelText(/매수 수량/))[0],
+    ).toHaveAccessibleName('애플 장기 AAPL 매수 수량');
+
+    await user.click(
+      await screen.findByRole('button', { name: 'VOO 즐겨찾기 추가' }),
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'VOO 즐겨찾기 해제' }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByLabelText(/매수 수량/)[0]).toHaveAccessibleName(
+      'VOO VOO 매수 수량',
+    );
+    expect(
+      JSON.parse(
+        window.localStorage.getItem(
+          'rebalancing-helper:favorite-recommendation-symbols',
+        ) ?? '[]',
+      ),
+    ).toEqual(['VOO']);
+  });
+
+  it('투자 추천 요약에는 추천 종목 칼럼과 그룹 제외 버튼을 표시하지 않는다', async () => {
+    mockUseGetHoldingsQuery.mockReturnValue({
+      data: { holdings: [] },
+      loading: false,
+    });
+    mockUseGetInvestmentRecommendationQuery.mockReturnValue({
+      data: {
+        investmentRecommendation: [
+          {
+            tagId: 'tag-1',
+            tagName: '성장주',
+            recommendedAmount: 500,
+            recommendedPercentage: 50,
+            suggestedSymbols: ['0072R0'],
+            symbolQuotes: [
+              {
+                symbol: '0072R0',
+                unitPriceInBaseCurrency: 100,
+                baseCurrency: 'USD',
+                priceAvailable: true,
+              },
+            ],
+            baseCurrency: 'USD',
+          },
+        ],
+      },
+      loading: false,
+      refetch: refetchRecommendation,
+    });
+
+    renderWithProviders(
+      <RebalancingGroupManagementModal
+        open
+        groupId="group-1"
+        onClose={vi.fn()}
+      />,
+      { withApollo: false },
+    );
+
+    expect(await screen.findByText('50.0%')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('columnheader', { name: '추천 종목' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /그룹에서 제외/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('미보유 추천 종목에도 저장된 종목 표시 이름을 적용한다', async () => {
+    mockUseGetHoldingsQuery.mockReturnValue({
+      data: { holdings: [] },
+      loading: false,
+    });
+    mockUseGetSecurityAliasesQuery.mockReturnValue({
+      data: {
+        securityAliases: [
+          {
+            id: 'alias-0072r0',
+            market: null,
+            symbol: '0072R0',
+            alias: '금 현물 권리',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ],
+      },
+      loading: false,
+    });
+    mockUseGetInvestmentRecommendationQuery.mockReturnValue({
+      data: {
+        investmentRecommendation: [
+          {
+            tagId: 'tag-1',
+            tagName: '성장주',
+            recommendedAmount: 500,
+            recommendedPercentage: 50,
+            suggestedSymbols: ['0072R0'],
+            symbolQuotes: [
+              {
+                symbol: '0072R0',
+                unitPriceInBaseCurrency: 100,
+                baseCurrency: 'USD',
+                priceAvailable: true,
+              },
+            ],
+            baseCurrency: 'USD',
+          },
+        ],
+      },
+      loading: false,
+      refetch: refetchRecommendation,
+    });
+
+    renderWithProviders(
+      <RebalancingGroupManagementModal
+        open
+        groupId="group-1"
+        onClose={vi.fn()}
+      />,
+      { withApollo: false },
+    );
+
+    expect(await screen.findByText('금 현물 권리')).toBeInTheDocument();
+    expect(screen.getAllByText('0072R0').length).toBeGreaterThan(0);
   });
 
   it('삭제 버튼을 클릭하면 확인 후 그룹을 삭제하고 닫기 콜백을 호출한다', async () => {

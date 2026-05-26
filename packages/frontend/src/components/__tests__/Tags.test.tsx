@@ -6,7 +6,9 @@ import { Tags } from '../Tags';
 import {
   CreateTagDocument,
   DeleteTagDocument,
+  GetHoldingTagsDocument,
   GetTagsDocument,
+  RemoveHoldingTagDocument,
   UpdateTagDocument,
 } from '../../graphql/__generated__';
 
@@ -41,6 +43,13 @@ const getInputByLabel = (
   return input as HTMLInputElement;
 };
 
+const emptyHoldingTagsQueryResult = () => ({
+  data: { holdingTags: [] },
+  loading: false,
+  error: undefined,
+  refetch: vi.fn(),
+});
+
 describe('Tags', () => {
   beforeEach(() => {
     mockUseQuery.mockReset();
@@ -55,6 +64,9 @@ describe('Tags', () => {
     mockUseQuery.mockImplementation((query) => {
       if (query === GetTagsDocument) {
         return { data: undefined, loading: true, error: undefined };
+      }
+      if (query === GetHoldingTagsDocument) {
+        return emptyHoldingTagsQueryResult();
       }
 
       throw new Error('예상치 못한 쿼리 호출');
@@ -74,6 +86,9 @@ describe('Tags', () => {
           loading: false,
           error: new Error('fetch failed'),
         };
+      }
+      if (query === GetHoldingTagsDocument) {
+        return emptyHoldingTagsQueryResult();
       }
 
       throw new Error('예상치 못한 쿼리 호출');
@@ -114,6 +129,9 @@ describe('Tags', () => {
           refetch: vi.fn(),
         };
       }
+      if (query === GetHoldingTagsDocument) {
+        return emptyHoldingTagsQueryResult();
+      }
 
       throw new Error('예상치 못한 쿼리 호출');
     });
@@ -138,6 +156,9 @@ describe('Tags', () => {
           error: undefined,
           refetch,
         };
+      }
+      if (query === GetHoldingTagsDocument) {
+        return emptyHoldingTagsQueryResult();
       }
 
       throw new Error('예상치 못한 쿼리 호출');
@@ -207,6 +228,9 @@ describe('Tags', () => {
           refetch,
         };
       }
+      if (query === GetHoldingTagsDocument) {
+        return emptyHoldingTagsQueryResult();
+      }
 
       throw new Error('예상치 못한 쿼리 호출');
     });
@@ -260,6 +284,92 @@ describe('Tags', () => {
     expect(screen.queryByText('태그 수정')).not.toBeInTheDocument();
   });
 
+  it('태그에 연결된 종목을 해제한다', async () => {
+    const tag = {
+      id: 'tag-1',
+      name: '금',
+      description: '금 관련 종목',
+      color: '#ffc107',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const refetchHoldingTags = vi.fn();
+    const removeHoldingTag = vi.fn().mockResolvedValue({});
+
+    mockUseQuery.mockImplementation((query) => {
+      if (query === GetTagsDocument) {
+        return {
+          data: { tags: [tag] },
+          loading: false,
+          error: undefined,
+          refetch: vi.fn(),
+        };
+      }
+      if (query === GetHoldingTagsDocument) {
+        return {
+          data: {
+            holdingTags: [
+              {
+                id: 'holding-tag-1',
+                holdingSymbol: '0072R0',
+                tagId: 'tag-1',
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          },
+          loading: false,
+          error: undefined,
+          refetch: refetchHoldingTags,
+        };
+      }
+
+      throw new Error('예상치 못한 쿼리 호출');
+    });
+    mockUseMutation.mockImplementation((document) => {
+      if (document === RemoveHoldingTagDocument) {
+        return [removeHoldingTag, { loading: false }];
+      }
+      if (document === CreateTagDocument) {
+        return [vi.fn(), { loading: false }];
+      }
+      if (document === UpdateTagDocument) {
+        return [vi.fn(), { loading: false }];
+      }
+      if (document === DeleteTagDocument) {
+        return [vi.fn(), { loading: false }];
+      }
+
+      return [vi.fn(), { loading: false }];
+    });
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const user = userEvent.setup();
+
+    renderWithProviders(<Tags />, { withApollo: false });
+
+    await user.click(
+      screen.getByRole('button', { name: '0072R0 금 태그 해제' }),
+    );
+
+    await waitFor(() => {
+      expect(removeHoldingTag).toHaveBeenCalledWith({
+        variables: {
+          input: {
+            holdingSymbol: '0072R0',
+            tagId: 'tag-1',
+          },
+        },
+      });
+    });
+
+    expect(refetchHoldingTags).toHaveBeenCalled();
+    expect(confirmSpy).toHaveBeenCalledWith(
+      '0072R0 종목에서 금 태그를 해제하시겠습니까?',
+    );
+
+    confirmSpy.mockRestore();
+  });
+
   it('태그를 삭제한다', async () => {
     const tag = {
       id: 'tag-1',
@@ -280,6 +390,9 @@ describe('Tags', () => {
           error: undefined,
           refetch,
         };
+      }
+      if (query === GetHoldingTagsDocument) {
+        return emptyHoldingTagsQueryResult();
       }
 
       throw new Error('예상치 못한 쿼리 호출');
