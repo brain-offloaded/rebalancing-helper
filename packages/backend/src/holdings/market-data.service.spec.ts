@@ -134,12 +134,11 @@ describe('MarketDataService', () => {
     expect(quote.price).toBe(173_000);
   });
 
-  it('KRX 금현물 가격이 없으면 NotFoundException을 던진다', async () => {
-    naverGoldServiceMock.getLatestPrice.mockResolvedValue(null);
+  it('KRX 금현물 조회 실패를 호출자에게 전달한다', async () => {
+    const error = new Error('Gold quote request failed');
+    naverGoldServiceMock.getLatestPrice.mockRejectedValue(error);
 
-    await expect(service.getQuote('KRX_GOLD', 'KRXGOLD')).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(service.getQuote('KRX_GOLD', 'KRXGOLD')).rejects.toBe(error);
   });
 
   it('비트코인 시장은 빗썸 시세를 활용한다', async () => {

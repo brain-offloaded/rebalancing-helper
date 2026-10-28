@@ -14,10 +14,6 @@ export class KrxGoldMarketQuoteStrategy implements MarketQuoteStrategy {
   ): Promise<MarketQuoteStrategyResult | null> {
     const latestPrice = await this.naverGoldService.getLatestPrice();
 
-    if (!latestPrice) {
-      return null;
-    }
-
     const quote: MarketQuoteSource = {
       symbol: context.symbol,
       shortName: 'KRX 금현물',
