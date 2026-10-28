@@ -125,6 +125,33 @@ describe('AuthService', () => {
     });
   });
 
+  describe('refreshSession', () => {
+    it('기존 사용자의 새 토큰과 사용자 정보를 반환한다', async () => {
+      usersService.findById.mockResolvedValue(baseUser);
+      const realJwt = new JwtService({
+        secret: 'test-secret',
+        signOptions: { expiresIn: '60d' },
+      });
+      const result = await new AuthService(
+        realJwt,
+        usersService,
+      ).refreshSession(baseUser.id);
+      const claims = realJwt.verify<{ sub: string; iat: number; exp: number }>(
+        result.accessToken,
+      );
+      expect(claims.sub).toBe(baseUser.id);
+      expect(claims.exp - claims.iat).toBe(60 * 24 * 60 * 60);
+      expect(result.user.id).toBe(baseUser.id);
+    });
+
+    it('삭제된 사용자는 갱신하지 않는다', async () => {
+      usersService.findById.mockResolvedValue(null);
+      await expect(service.refreshSession('missing')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+  });
+
   describe('getActiveUserData', () => {
     it('사용자를 찾으면 ActiveUserData를 반환한다', async () => {
       usersService.findById.mockResolvedValue(baseUser);

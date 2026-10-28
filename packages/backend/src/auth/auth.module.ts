@@ -16,7 +16,7 @@ import { TypedConfigModule, TypedConfigService } from '../typed-config';
       inject: [TypedConfigService],
       useFactory: (configService: TypedConfigService) => ({
         secret: configService.get('JWT_SECRET'),
-        signOptions: { expiresIn: '40d' },
+        signOptions: { expiresIn: '60d' },
       }),
     }),
   ],

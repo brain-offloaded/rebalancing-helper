@@ -212,6 +212,7 @@ export type Mutation = {
   increaseManualHolding: Holding;
   login: AuthPayload;
   refreshBrokerageHoldings: Array<Holding>;
+  refreshSession: AuthPayload;
   register: AuthPayload;
   removeHoldingTag: Scalars['Boolean']['output'];
   removeTagsFromRebalancingGroup: RebalancingGroup;
@@ -612,6 +613,23 @@ export type MeQuery = {
     email: string;
     createdAt: string;
     updatedAt: string;
+  };
+};
+
+export type RefreshSessionMutationVariables = Exact<{ [key: string]: never }>;
+
+export type RefreshSessionMutation = {
+  __typename?: 'Mutation';
+  refreshSession: {
+    __typename?: 'AuthPayload';
+    accessToken: string;
+    user: {
+      __typename?: 'User';
+      id: string;
+      email: string;
+      createdAt: string;
+      updatedAt: string;
+    };
   };
 };
 
@@ -1463,6 +1481,61 @@ export type MeQueryHookResult = ReturnType<typeof useMeQuery>;
 export type MeLazyQueryHookResult = ReturnType<typeof useMeLazyQuery>;
 export type MeSuspenseQueryHookResult = ReturnType<typeof useMeSuspenseQuery>;
 export type MeQueryResult = Apollo.QueryResult<MeQuery, MeQueryVariables>;
+export const RefreshSessionDocument = gql`
+  mutation RefreshSession {
+    refreshSession {
+      accessToken
+      user {
+        id
+        email
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+export type RefreshSessionMutationFn = Apollo.MutationFunction<
+  RefreshSessionMutation,
+  RefreshSessionMutationVariables
+>;
+
+/**
+ * __useRefreshSessionMutation__
+ *
+ * To run a mutation, you first call `useRefreshSessionMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useRefreshSessionMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [refreshSessionMutation, { data, loading, error }] = useRefreshSessionMutation({
+ *   variables: {
+ *   },
+ * });
+ */
+export function useRefreshSessionMutation(
+  baseOptions?: Apollo.MutationHookOptions<
+    RefreshSessionMutation,
+    RefreshSessionMutationVariables
+  >,
+) {
+  const options = { ...defaultOptions, ...baseOptions };
+  return Apollo.useMutation<
+    RefreshSessionMutation,
+    RefreshSessionMutationVariables
+  >(RefreshSessionDocument, options);
+}
+export type RefreshSessionMutationHookResult = ReturnType<
+  typeof useRefreshSessionMutation
+>;
+export type RefreshSessionMutationResult =
+  Apollo.MutationResult<RefreshSessionMutation>;
+export type RefreshSessionMutationOptions = Apollo.BaseMutationOptions<
+  RefreshSessionMutation,
+  RefreshSessionMutationVariables
+>;
 export const GetBrokerageAccountsDocument = gql`
   query GetBrokerageAccounts {
     brokerageAccounts {

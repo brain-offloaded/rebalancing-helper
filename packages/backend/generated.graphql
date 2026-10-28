@@ -181,6 +181,7 @@ type Mutation {
   increaseManualHolding(input: IncreaseManualHoldingInput!): Holding!
   login(input: LoginInput!): AuthPayload!
   refreshBrokerageHoldings(accountId: String!): [Holding!]!
+  refreshSession: AuthPayload!
   register(input: RegisterInput!): AuthPayload!
   removeHoldingTag(input: RemoveHoldingTagInput!): Boolean!
   removeTagsFromRebalancingGroup(input: RemoveTagsFromRebalancingGroupInput!): RebalancingGroup!

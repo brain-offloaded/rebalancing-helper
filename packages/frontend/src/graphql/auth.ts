@@ -38,3 +38,17 @@ export const ME_QUERY = gql`
     }
   }
 `;
+
+export const REFRESH_SESSION_MUTATION = gql`
+  mutation RefreshSession {
+    refreshSession {
+      accessToken
+      user {
+        id
+        email
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;

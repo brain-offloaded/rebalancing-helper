@@ -12,9 +12,8 @@ import {
   LoginDocument,
   type LoginMutation,
   type LoginMutationVariables,
-  MeDocument,
-  type MeQuery,
-  type MeQueryVariables,
+  RefreshSessionDocument,
+  type RefreshSessionMutation,
   RegisterDocument,
   type RegisterMutation,
   type RegisterMutationVariables,
@@ -187,9 +186,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       let shouldKeepInitializing = false;
 
       try {
-        const result = await apolloClient.query<MeQuery, MeQueryVariables>({
-          query: MeDocument,
-          fetchPolicy: 'network-only',
+        const result = await apolloClient.mutate<RefreshSessionMutation>({
+          mutation: RefreshSessionDocument,
         });
         const { data } = result;
 
@@ -201,7 +199,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
-        if (!data?.me) {
+        if (!data?.refreshSession) {
           throw (
             result.error ?? new Error('현재 사용자 정보를 가져오지 못했습니다.')
           );
@@ -209,7 +207,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (!cancelled) {
           retryAttempt = 0;
-          setUser(data.me as User);
+          setToken(data.refreshSession.accessToken);
+          setUser(data.refreshSession.user as User);
         }
       } catch (error) {
         console.error('Failed to fetch current user', error);
