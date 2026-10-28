@@ -53,6 +53,14 @@ export class AuthService {
     return this.buildAuthPayload(user);
   }
 
+  async refreshSession(userId: string): Promise<AuthPayload> {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    return this.buildAuthPayload(user);
+  }
+
   async getActiveUserData(userId: string): Promise<ActiveUserData> {
     const user = await this.usersService.findById(userId);
 

@@ -72,6 +72,27 @@ export class Holding {
 }
 
 @ObjectType()
+export class SecurityAlias {
+  @Field(() => ID)
+  id: string;
+
+  @Field(() => String, { nullable: true })
+  market: string | null;
+
+  @Field(() => String)
+  symbol: string;
+
+  @Field(() => String)
+  alias: string;
+
+  @Field(() => Date)
+  createdAt: Date;
+
+  @Field(() => Date)
+  updatedAt: Date;
+}
+
+@ObjectType()
 export class EnrichedHolding {
   @Field(() => ID)
   id: string;

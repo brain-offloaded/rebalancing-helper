@@ -24,6 +24,8 @@ import {
   useGetRebalancingAnalysisQuery,
   useGetInvestmentRecommendationQuery,
   useGetTagsQuery,
+  useGetHoldingsQuery,
+  useGetSecurityAliasesQuery,
   useSetTargetAllocationsMutation,
   useUpdateRebalancingGroupMutation,
   useDeleteRebalancingGroupMutation,
@@ -43,6 +45,11 @@ import {
   ValueBadge,
 } from './holdings/styles';
 import { formatLastUpdated } from './holdings/formatters';
+import { SecurityLabel } from './holdings/SecurityLabel';
+import {
+  buildSecurityDisplayMap,
+  getSecurityDisplayInfo,
+} from './holdings/security-display';
 
 type ChartMode = 'percentage' | 'value';
 
@@ -73,7 +80,6 @@ interface InvestmentRecommendation {
   tagName: string;
   recommendedAmount: number;
   recommendedPercentage: number;
-  suggestedSymbols: string[];
   symbolQuotes: RecommendationSymbolQuote[];
   baseCurrency: string;
 }
@@ -182,9 +188,55 @@ const TagSelectionGrid = styled.div`
 const RADIAN = Math.PI / 180;
 
 const ZERO_DECIMAL_CURRENCIES = new Set(['KRW', 'JPY']);
+const FAVORITE_SYMBOLS_STORAGE_KEY =
+  'rebalancing-helper:favorite-recommendation-symbols';
 
 const getRecommendationSymbolKey = (tagId: string, symbol: string) =>
   `${tagId}:${symbol}`;
+
+const normalizeSymbol = (symbol: string) => symbol.trim().toUpperCase();
+
+const loadFavoriteSymbols = () => {
+  if (typeof window === 'undefined') {
+    return new Set<string>();
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(FAVORITE_SYMBOLS_STORAGE_KEY);
+    if (!rawValue) {
+      return new Set<string>();
+    }
+
+    const parsed = JSON.parse(rawValue);
+    if (!Array.isArray(parsed)) {
+      return new Set<string>();
+    }
+
+    return new Set(
+      parsed
+        .filter((value): value is string => typeof value === 'string')
+        .map(normalizeSymbol)
+        .filter((value) => value.length > 0),
+    );
+  } catch {
+    return new Set<string>();
+  }
+};
+
+const saveFavoriteSymbols = (symbols: Set<string>) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      FAVORITE_SYMBOLS_STORAGE_KEY,
+      JSON.stringify(Array.from(symbols).sort()),
+    );
+  } catch {
+    // 즐겨찾기 저장 실패는 추천 계산 사용을 막지 않습니다.
+  }
+};
 
 const parseQuantityInput = (value: string): number => {
   const parsed = Number(value);
@@ -227,6 +279,10 @@ export const RebalancingGroupManagementModal: React.FC<
     refetch: refetchGroups,
   } = useGetRebalancingGroupsQuery({ skip: !open });
   const { data: tagsData } = useGetTagsQuery({ skip: !open });
+  const { data: holdingsData } = useGetHoldingsQuery({ skip: !open });
+  const { data: securityAliasesData } = useGetSecurityAliasesQuery({
+    skip: !open,
+  });
   const {
     data: analysisData,
     loading: analysisLoading,
@@ -271,6 +327,14 @@ export const RebalancingGroupManagementModal: React.FC<
   const group = useMemo(
     () => groupsData?.rebalancingGroups?.find((item) => item.id === groupId),
     [groupsData?.rebalancingGroups, groupId],
+  );
+  const securityDisplayBySymbol = useMemo(
+    () =>
+      buildSecurityDisplayMap(
+        holdingsData?.holdings ?? [],
+        securityAliasesData?.securityAliases ?? [],
+      ),
+    [holdingsData?.holdings, securityAliasesData?.securityAliases],
   );
 
   const analysis = analysisData?.rebalancingAnalysis as
@@ -372,6 +436,8 @@ export const RebalancingGroupManagementModal: React.FC<
   const [quantityInputs, setQuantityInputs] = useState<Record<string, string>>(
     {},
   );
+  const [favoriteSymbols, setFavoriteSymbols] =
+    useState<Set<string>>(loadFavoriteSymbols);
 
   useEffect(() => {
     if (!group) {
@@ -428,6 +494,10 @@ export const RebalancingGroupManagementModal: React.FC<
       return unchanged ? prev : next;
     });
   }, [analysis, selectedTagIds]);
+
+  useEffect(() => {
+    saveFavoriteSymbols(favoriteSymbols);
+  }, [favoriteSymbols]);
 
   const saveBasicInfo = useCallback(
     async (options?: { showSuccessAlert?: boolean }) => {
@@ -602,7 +672,7 @@ export const RebalancingGroupManagementModal: React.FC<
   const isDeleting = deletingGroup;
 
   const recommendationSymbolRows = useMemo(() => {
-    return recommendations.flatMap((recommendation) => {
+    const rows = recommendations.flatMap((recommendation, tagOrder) => {
       const tagColor =
         tagsData?.tags?.find((tag: Tag) => tag.id === recommendation.tagId)
           ?.color ?? '#ccc';
@@ -615,12 +685,47 @@ export const RebalancingGroupManagementModal: React.FC<
         tagId: recommendation.tagId,
         tagName: recommendation.tagName,
         tagColor,
+        tagOrder,
         symbol: symbolQuote.symbol,
+        normalizedSymbol: normalizeSymbol(symbolQuote.symbol),
         unitPriceInBaseCurrency: symbolQuote.unitPriceInBaseCurrency,
         priceAvailable: symbolQuote.priceAvailable,
+        isFavorite: favoriteSymbols.has(normalizeSymbol(symbolQuote.symbol)),
       }));
     });
-  }, [recommendations, tagsData?.tags]);
+
+    return rows.sort((left, right) => {
+      if (left.isFavorite !== right.isFavorite) {
+        return left.isFavorite ? -1 : 1;
+      }
+
+      if (left.tagOrder !== right.tagOrder) {
+        return left.tagOrder - right.tagOrder;
+      }
+
+      return left.normalizedSymbol.localeCompare(right.normalizedSymbol, 'ko', {
+        sensitivity: 'base',
+        numeric: true,
+      });
+    });
+  }, [favoriteSymbols, recommendations, tagsData?.tags]);
+
+  const handleToggleFavoriteSymbol = useCallback((symbol: string) => {
+    const normalizedSymbol = normalizeSymbol(symbol);
+    if (normalizedSymbol.length === 0) {
+      return;
+    }
+
+    setFavoriteSymbols((previous) => {
+      const next = new Set(previous);
+      if (next.has(normalizedSymbol)) {
+        next.delete(normalizedSymbol);
+      } else {
+        next.add(normalizedSymbol);
+      }
+      return next;
+    });
+  }, []);
 
   const totalRecommendedAmount = useMemo(() => {
     return recommendations.reduce(
@@ -1125,7 +1230,6 @@ export const RebalancingGroupManagementModal: React.FC<
                     <Th>태그</Th>
                     <Th>추천 투자액</Th>
                     <Th>투자 비율</Th>
-                    <Th>추천 종목</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1144,7 +1248,6 @@ export const RebalancingGroupManagementModal: React.FC<
                       </Td>
                       <Td>{currencyFormatter.format(rec.recommendedAmount)}</Td>
                       <Td>{rec.recommendedPercentage.toFixed(1)}%</Td>
-                      <Td>{rec.suggestedSymbols.join(', ') || '-'}</Td>
                     </tr>
                   ))}
                 </tbody>
@@ -1157,6 +1260,7 @@ export const RebalancingGroupManagementModal: React.FC<
                 <AllocationTable>
                   <thead>
                     <tr>
+                      <Th>즐겨찾기</Th>
                       <Th>태그</Th>
                       <Th>종목</Th>
                       <Th>기준통화 단가 ({currencySymbol})</Th>
@@ -1172,15 +1276,39 @@ export const RebalancingGroupManagementModal: React.FC<
                       const estimatedAmount = row.priceAvailable
                         ? quantity * row.unitPriceInBaseCurrency
                         : null;
+                      const securityDisplayInfo = getSecurityDisplayInfo(
+                        securityDisplayBySymbol,
+                        row.symbol,
+                      );
+                      const favoriteButtonLabel =
+                        securityDisplayInfo.displayName === row.symbol
+                          ? `${row.symbol} 즐겨찾기 ${row.isFavorite ? '해제' : '추가'}`
+                          : `${securityDisplayInfo.displayName} ${row.symbol} 즐겨찾기 ${row.isFavorite ? '해제' : '추가'}`;
 
                       return (
                         <tr key={row.key}>
+                          <Td>
+                            <Button
+                              type="button"
+                              variant={row.isFavorite ? 'primary' : 'secondary'}
+                              size="sm"
+                              aria-label={favoriteButtonLabel}
+                              aria-pressed={row.isFavorite}
+                              onClick={() =>
+                                handleToggleFavoriteSymbol(row.symbol)
+                              }
+                            >
+                              {row.isFavorite ? '★' : '☆'}
+                            </Button>
+                          </Td>
                           <Td>
                             <TagChip color={row.tagColor}>
                               {row.tagName}
                             </TagChip>
                           </Td>
-                          <Td>{row.symbol}</Td>
+                          <Td>
+                            <SecurityLabel info={securityDisplayInfo} />
+                          </Td>
                           <Td>
                             {row.priceAvailable
                               ? currencyFormatter.format(
@@ -1190,7 +1318,7 @@ export const RebalancingGroupManagementModal: React.FC<
                           </Td>
                           <Td>
                             <TextInput
-                              aria-label={`${row.symbol} 매수 수량`}
+                              aria-label={`${securityDisplayInfo.displayName} ${securityDisplayInfo.symbol} 매수 수량`}
                               type="number"
                               inputMode="numeric"
                               min="0"

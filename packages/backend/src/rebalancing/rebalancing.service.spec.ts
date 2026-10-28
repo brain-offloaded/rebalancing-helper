@@ -38,6 +38,9 @@ type MockedPrisma = {
     deleteMany: jest.Mock;
     createMany: jest.Mock;
   };
+  holdingTag: {
+    deleteMany: jest.Mock;
+  };
   $transaction: jest.Mock;
 };
 
@@ -90,6 +93,9 @@ describe('RebalancingService', () => {
         findMany: jest.fn(),
         deleteMany: jest.fn(),
         createMany: jest.fn(),
+      },
+      holdingTag: {
+        deleteMany: jest.fn(),
       },
       $transaction: jest.fn(),
     };
@@ -178,6 +184,44 @@ describe('RebalancingService', () => {
       where: { groupId: 'group-1', tagId: { in: ['tag-2', 'tag-3'] } },
     });
     expect(result.tagIds).toEqual(['tag-1']);
+  });
+
+  it('excludeSymbolFromGroup은 그룹 태그를 종목에서 제거한다', async () => {
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(
+      buildGroup({
+        tags: [
+          { groupId: 'group-1', tagId: 'tag-1', createdAt: baseDate },
+          { groupId: 'group-1', tagId: 'tag-2', createdAt: baseDate },
+        ],
+      }),
+    );
+    prismaMock.holdingTag.deleteMany.mockResolvedValue({ count: 2 });
+
+    const result = await service.excludeSymbolFromGroup(USER_ID, {
+      groupId: 'group-1',
+      symbol: '  0072R0  ',
+    });
+
+    expect(prismaMock.holdingTag.deleteMany).toHaveBeenCalledWith({
+      where: {
+        userId: USER_ID,
+        holdingSymbol: '0072R0',
+        tagId: { in: ['tag-1', 'tag-2'] },
+      },
+    });
+    expect(result).toBe(true);
+  });
+
+  it('excludeSymbolFromGroup은 제거된 태그가 없으면 false를 반환한다', async () => {
+    prismaMock.rebalancingGroup.findFirst.mockResolvedValue(buildGroup());
+    prismaMock.holdingTag.deleteMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      service.excludeSymbolFromGroup(USER_ID, {
+        groupId: 'group-1',
+        symbol: '0072R0',
+      }),
+    ).resolves.toBe(false);
   });
 
   it('renameGroup은 그룹 이름을 변경한다', async () => {

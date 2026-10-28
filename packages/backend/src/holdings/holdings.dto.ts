@@ -108,3 +108,22 @@ export class SetHoldingAliasInput {
   @MaxLength(100)
   alias: string | null;
 }
+
+@InputType()
+export class SetSecurityAliasInput {
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  market: string | null;
+
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  symbol: string;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  alias: string | null;
+}

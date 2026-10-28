@@ -53,7 +53,7 @@ describe('AuthProvider', () => {
   beforeEach(() => {
     vi.useRealTimers();
     localStorage.clear();
-    mockApollo.query.mockReset();
+    mockApollo.mutate.mockReset();
     mockApollo.mutate.mockReset();
     mockApollo.clearStore.mockReset();
   });
@@ -74,7 +74,24 @@ describe('AuthProvider', () => {
 
     await waitFor(() => expect(result.current.initializing).toBe(false));
     expect(result.current.user).toBeNull();
-    expect(mockApollo.query).not.toHaveBeenCalled();
+    expect(mockApollo.mutate).not.toHaveBeenCalled();
+  });
+
+  it('저장된 토큰으로 접속하면 갱신된 토큰을 저장한다', async () => {
+    const user = {
+      id: 'user-1',
+      email: 'demo@example.com',
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+    };
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'old-token');
+    mockApollo.mutate.mockResolvedValue({
+      data: { refreshSession: { accessToken: 'new-token', user } },
+    });
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.user).toEqual(user));
+    expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBe('new-token');
   });
 
   it('저장된 토큰이 있으면 사용자 정보를 조회한다', async () => {
@@ -85,13 +102,15 @@ describe('AuthProvider', () => {
       updatedAt: '2024-01-01T00:00:00.000Z',
     };
     localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'token');
-    mockApollo.query.mockResolvedValue({ data: { me: user } });
+    mockApollo.mutate.mockResolvedValue({
+      data: { refreshSession: { accessToken: 'new-token', user } },
+    });
 
     const { result } = renderHook(() => useAuth(), { wrapper });
 
     await waitFor(() => expect(result.current.user).toEqual(user));
     expect(result.current.initializing).toBe(false);
-    expect(mockApollo.query).toHaveBeenCalledTimes(1);
+    expect(mockApollo.mutate).toHaveBeenCalledTimes(1);
   });
 
   it('사용자 정보 조회가 네트워크 오류면 초기화 상태를 유지하고 재시도한다', async () => {
@@ -104,28 +123,30 @@ describe('AuthProvider', () => {
 
     vi.useFakeTimers();
     localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'token');
-    mockApollo.query
+    mockApollo.mutate
       .mockRejectedValueOnce(new ApolloError({}))
-      .mockResolvedValueOnce({ data: { me: user } });
+      .mockResolvedValueOnce({
+        data: { refreshSession: { accessToken: 'new-token', user } },
+      });
 
     const { result } = renderHook(() => useAuth(), { wrapper });
 
     await flushAsyncEffects();
-    expect(mockApollo.query).toHaveBeenCalledTimes(1);
+    expect(mockApollo.mutate).toHaveBeenCalledTimes(1);
     expect(result.current.initializing).toBe(true);
     expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBe('token');
 
     act(() => {
       vi.advanceTimersByTime(2_999);
     });
-    expect(mockApollo.query).toHaveBeenCalledTimes(1);
+    expect(mockApollo.mutate).toHaveBeenCalledTimes(1);
 
     act(() => {
       vi.advanceTimersByTime(1);
     });
 
     await flushAsyncEffects();
-    expect(mockApollo.query).toHaveBeenCalledTimes(2);
+    expect(mockApollo.mutate).toHaveBeenCalledTimes(2);
     expect(result.current.user).toEqual(user);
     expect(result.current.initializing).toBe(false);
   });
@@ -133,39 +154,39 @@ describe('AuthProvider', () => {
   it('네트워크 오류 재시도는 지수 백오프 간격을 적용한다', async () => {
     vi.useFakeTimers();
     localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'token');
-    mockApollo.query.mockRejectedValue(new ApolloError({}));
+    mockApollo.mutate.mockRejectedValue(new ApolloError({}));
 
     renderHook(() => useAuth(), { wrapper });
 
     await flushAsyncEffects();
-    expect(mockApollo.query).toHaveBeenCalledTimes(1);
+    expect(mockApollo.mutate).toHaveBeenCalledTimes(1);
 
     act(() => {
       vi.advanceTimersByTime(3_000);
     });
     await flushAsyncEffects();
-    expect(mockApollo.query).toHaveBeenCalledTimes(2);
+    expect(mockApollo.mutate).toHaveBeenCalledTimes(2);
 
     act(() => {
       vi.advanceTimersByTime(5_999);
     });
-    expect(mockApollo.query).toHaveBeenCalledTimes(2);
+    expect(mockApollo.mutate).toHaveBeenCalledTimes(2);
 
     act(() => {
       vi.advanceTimersByTime(1);
     });
     await flushAsyncEffects();
-    expect(mockApollo.query).toHaveBeenCalledTimes(3);
+    expect(mockApollo.mutate).toHaveBeenCalledTimes(3);
   });
 
   it('사용자 조회 재시도 타이머는 언마운트 시 정리한다', async () => {
     vi.useFakeTimers();
     localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'token');
-    mockApollo.query.mockRejectedValue(new ApolloError({}));
+    mockApollo.mutate.mockRejectedValue(new ApolloError({}));
 
     const { unmount } = renderHook(() => useAuth(), { wrapper });
     await flushAsyncEffects();
-    expect(mockApollo.query).toHaveBeenCalledTimes(1);
+    expect(mockApollo.mutate).toHaveBeenCalledTimes(1);
 
     unmount();
 
@@ -173,12 +194,12 @@ describe('AuthProvider', () => {
       vi.advanceTimersByTime(60_000);
     });
 
-    expect(mockApollo.query).toHaveBeenCalledTimes(1);
+    expect(mockApollo.mutate).toHaveBeenCalledTimes(1);
   });
 
   it('사용자 정보 조회가 unauthorized 메시지면 토큰을 초기화한다', async () => {
     localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'token');
-    mockApollo.query.mockRejectedValue(
+    mockApollo.mutate.mockRejectedValue(
       new ApolloError({
         graphQLErrors: [new GraphQLError('Unauthorized: expired token')],
       }),
@@ -194,7 +215,7 @@ describe('AuthProvider', () => {
 
   it('사용자 정보 조회가 인증 오류면 토큰을 초기화한다', async () => {
     localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'token');
-    mockApollo.query.mockRejectedValue(
+    mockApollo.mutate.mockRejectedValue(
       new ApolloError({
         graphQLErrors: [
           new GraphQLError(
@@ -218,9 +239,34 @@ describe('AuthProvider', () => {
     expect(consoleErrorSpy).toHaveBeenCalled();
   });
 
+  it('사용자 정보 조회 결과가 UNAUTHENTICATED GraphQL 에러를 포함하면 토큰을 초기화한다', async () => {
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'token');
+    mockApollo.mutate.mockResolvedValue({
+      data: null,
+      errors: [
+        new GraphQLError(
+          'Unauthorized',
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          { code: 'UNAUTHENTICATED' },
+        ),
+      ],
+    });
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => expect(result.current.initializing).toBe(false));
+    expect(localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)).toBeNull();
+    expect(result.current.user).toBeNull();
+    expect(mockApollo.mutate).toHaveBeenCalledTimes(1);
+  });
+
   it('사용자 정보 조회가 401 네트워크 오류면 토큰을 초기화한다', async () => {
     localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, 'token');
-    mockApollo.query.mockRejectedValue(
+    mockApollo.mutate.mockRejectedValue(
       new ApolloError({
         networkError: {
           name: 'ServerError',

@@ -35,21 +35,6 @@ vi.mock('./components/Dashboard', () => ({
   Dashboard: DashboardMock,
 }));
 
-const RebalancingGroupDetailPageMock = vi.hoisted(() =>
-  vi.fn(({ onClose }: { onClose: () => void }) => (
-    <div>
-      <div data-testid="rebalancing-group-detail" />
-      <button type="button" onClick={onClose}>
-        닫기
-      </button>
-    </div>
-  )),
-);
-
-vi.mock('./components/RebalancingGroupDetailPage', () => ({
-  RebalancingGroupDetailPage: RebalancingGroupDetailPageMock,
-}));
-
 const useAuthMock = vi.hoisted(() => vi.fn());
 
 vi.mock('./auth/use-auth', () => ({
@@ -65,7 +50,6 @@ describe('AppShell', () => {
     useAuthMock.mockReset();
     AuthFormMock.mockClear();
     DashboardMock.mockClear();
-    RebalancingGroupDetailPageMock.mockClear();
     ApolloProviderMock.mockClear();
     window.history.replaceState({}, '', '/');
   });
@@ -162,47 +146,7 @@ describe('AppShell', () => {
     expect(logout).toHaveBeenCalled();
   });
 
-  it('URL에 리밸런싱 그룹 파라미터가 있으면 상세 페이지를 보여주고 닫기 시 대시보드로 돌아간다', async () => {
-    window.history.replaceState(
-      {},
-      '',
-      '/?rebalancingGroupId=rebalancing-group-1',
-    );
-    const replaceStateSpy = vi.spyOn(window.history, 'replaceState');
-    const logout = vi.fn();
-
-    useAuthMock.mockReturnValue({
-      user: {
-        id: 'user-1',
-        email: 'demo@example.com',
-        createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z',
-      },
-      initializing: false,
-      login: vi.fn(),
-      register: vi.fn(),
-      logout,
-    });
-
-    render(<AppShell />);
-
-    expect(RebalancingGroupDetailPageMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        groupId: 'rebalancing-group-1',
-      }),
-      expect.anything(),
-    );
-    expect(screen.getByTestId('rebalancing-group-detail')).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole('button', { name: '닫기' }));
-
-    expect(replaceStateSpy).toHaveBeenCalledWith({}, '', '/');
-    expect(DashboardMock).toHaveBeenCalled();
-
-    replaceStateSpy.mockRestore();
-  });
-
-  it('브라우저 뒤로 가기(popstate) 이벤트에 따라 리밸런싱 그룹 상세 페이지를 갱신한다', () => {
+  it('URL에 리밸런싱 그룹 파라미터가 있어도 대시보드를 렌더링한다', () => {
     window.history.replaceState(
       {},
       '',
@@ -222,29 +166,9 @@ describe('AppShell', () => {
       logout: vi.fn(),
     });
 
-    const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
-    const { unmount } = render(<AppShell />);
+    render(<AppShell />);
 
-    RebalancingGroupDetailPageMock.mockClear();
-
-    act(() => {
-      window.history.replaceState(
-        {},
-        '',
-        '/?rebalancingGroupId=rebalancing-group-2',
-      );
-      window.dispatchEvent(new PopStateEvent('popstate'));
-    });
-
-    const latestCall = RebalancingGroupDetailPageMock.mock.calls.at(-1);
-    expect(latestCall?.[0].groupId).toBe('rebalancing-group-2');
-
-    unmount();
-    expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      'popstate',
-      expect.any(Function),
-    );
-    removeEventListenerSpy.mockRestore();
+    expect(screen.getByTestId('dashboard')).toBeInTheDocument();
   });
 
   it('App 컴포넌트는 ApolloProvider를 통해 AppShell을 감싼다', () => {

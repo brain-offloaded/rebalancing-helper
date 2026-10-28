@@ -13,6 +13,7 @@ import {
   CalculateInvestmentInput,
   AddTagsToRebalancingGroupInput,
   RemoveTagsFromRebalancingGroupInput,
+  ExcludeSymbolFromRebalancingGroupInput,
   RenameRebalancingGroupInput,
 } from './rebalancing.dto';
 import { GqlAuthGuard } from '../auth/gql-auth.guard';
@@ -93,6 +94,14 @@ export class RebalancingResolver {
     @Args('input') input: RemoveTagsFromRebalancingGroupInput,
   ): Promise<RebalancingGroup> {
     return this.rebalancingService.removeTagsFromGroup(user.userId, input);
+  }
+
+  @Mutation(() => Boolean)
+  excludeSymbolFromRebalancingGroup(
+    @CurrentUser() user: ActiveUserData,
+    @Args('input') input: ExcludeSymbolFromRebalancingGroupInput,
+  ): Promise<boolean> {
+    return this.rebalancingService.excludeSymbolFromGroup(user.userId, input);
   }
 
   @Mutation(() => RebalancingGroup)

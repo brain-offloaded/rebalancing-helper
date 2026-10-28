@@ -12,8 +12,10 @@ import {
   GetHoldingsDocument,
   GetBrokerageAccountsDocument,
   GetMarketsDocument,
+  GetSecurityAliasesDocument,
   GetTagsDocument,
   GetHoldingTagsDocument,
+  SetSecurityAliasDocument,
   SetHoldingTagsDocument,
   SetManualHoldingQuantityDocument,
   SyncManualHoldingPriceDocument,
@@ -53,6 +55,8 @@ let brokerageAccountsDataState: Array<Record<string, unknown>>;
 let brokerageAccountsLoadingState: boolean;
 let holdingTagsListState: Array<Record<string, unknown>>;
 let holdingTagsRefetchFn: ReturnType<typeof vi.fn>;
+let securityAliasesDataState: Array<Record<string, unknown>>;
+let securityAliasesRefetchFn: ReturnType<typeof vi.fn>;
 
 vi.mock('@apollo/client', async () => {
   const actual =
@@ -79,6 +83,8 @@ describe('Holdings', () => {
     marketsDataState = defaultMarkets;
     holdingTagsListState = [];
     holdingTagsRefetchFn = vi.fn();
+    securityAliasesDataState = [];
+    securityAliasesRefetchFn = vi.fn();
     brokerageAccountsDataState = [
       {
         id: 'acc-1',
@@ -127,6 +133,13 @@ describe('Holdings', () => {
           data: { holdingTags: holdingTagsListState },
           loading: false,
           refetch: holdingTagsRefetchFn,
+        };
+      }
+      if (query === GetSecurityAliasesDocument) {
+        return {
+          data: { securityAliases: securityAliasesDataState },
+          loading: false,
+          refetch: securityAliasesRefetchFn,
         };
       }
       if (query === GetBrokerageAccountsDocument) {
@@ -188,10 +201,129 @@ describe('Holdings', () => {
 
     expect(screen.getByText('증권사 계좌')).toBeInTheDocument();
     expect(screen.getAllByText('수동 계좌').length).toBeGreaterThan(0);
-    expect(screen.getByText('AAPL')).toBeInTheDocument();
-    expect(screen.getByText('US · VOO')).toBeInTheDocument();
-    expect(screen.getByText('Vanguard S&P 500 ETF')).toBeInTheDocument();
+    expect(screen.getAllByText('AAPL').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('US · VOO').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Vanguard S&P 500 ETF').length).toBeGreaterThan(
+      0,
+    );
     expect(screen.getByText('$412.35')).toBeInTheDocument();
+  });
+
+  it('종목 표시 이름 영역에서 같은 종목 코드의 별칭을 저장한다', async () => {
+    const user = userEvent.setup();
+    holdingsData = [
+      createHolding({
+        id: 'holding-a',
+        source: 'BROKERAGE',
+        accountId: 'acc-1',
+        market: 'US',
+        symbol: 'VOO',
+        name: 'Vanguard S&P 500 ETF',
+      }),
+      createHolding({
+        id: 'holding-b',
+        source: 'MANUAL',
+        accountId: 'manual-account-1',
+        market: 'US',
+        symbol: 'VOO',
+        name: 'Vanguard S&P 500 ETF',
+      }),
+    ];
+    const setSecurityAlias = vi.fn().mockResolvedValue({});
+    mockUseMutation.mockImplementation((document) => {
+      if (document === SetSecurityAliasDocument) {
+        return [setSecurityAlias, { loading: false }];
+      }
+      return [vi.fn(), { loading: false }];
+    });
+
+    renderWithProviders(<Holdings />, { withApollo: false });
+
+    const input = screen.getByLabelText('VOO 종목 표시 이름');
+    await user.type(input, '미국 대표 ETF');
+    const row = input.closest('tr');
+    if (!row) {
+      throw new Error('종목 표시 이름 행을 찾지 못했습니다.');
+    }
+    await user.click(within(row).getByRole('button', { name: '저장' }));
+
+    await waitFor(() => {
+      expect(setSecurityAlias).toHaveBeenCalledWith({
+        variables: {
+          input: {
+            market: 'US',
+            symbol: 'VOO',
+            alias: '미국 대표 ETF',
+          },
+        },
+      });
+    });
+    expect(holdingsRefetchFn).toHaveBeenCalled();
+    expect(securityAliasesRefetchFn).toHaveBeenCalled();
+  });
+
+  it('종목 표시 이름 영역에 태그로 참조된 미보유 종목을 표시한다', async () => {
+    const user = userEvent.setup();
+    holdingTagsListState = [
+      {
+        id: 'holding-tag-1',
+        holdingSymbol: '0072R0',
+        tagId: 'tag-gold',
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    const setSecurityAlias = vi.fn().mockResolvedValue({});
+    mockUseMutation.mockImplementation((document) => {
+      if (document === SetSecurityAliasDocument) {
+        return [setSecurityAlias, { loading: false }];
+      }
+      return [vi.fn(), { loading: false }];
+    });
+
+    renderWithProviders(<Holdings />, { withApollo: false });
+
+    const input = screen.getByLabelText('0072R0 종목 표시 이름');
+    expect(input).toBeInTheDocument();
+    expect(screen.getByText('미보유')).toBeInTheDocument();
+
+    await user.type(input, '금 현물 권리');
+    const row = input.closest('tr');
+    if (!row) {
+      throw new Error('미보유 종목 표시 이름 행을 찾지 못했습니다.');
+    }
+    await user.click(within(row).getByRole('button', { name: '저장' }));
+
+    await waitFor(() => {
+      expect(setSecurityAlias).toHaveBeenCalledWith({
+        variables: {
+          input: {
+            market: null,
+            symbol: '0072R0',
+            alias: '금 현물 권리',
+          },
+        },
+      });
+    });
+  });
+
+  it('보유도 태그 참조도 없는 저장된 별칭은 종목 표시 이름 영역에서 숨긴다', () => {
+    securityAliasesDataState = [
+      {
+        id: 'alias-orphan',
+        market: 'US',
+        symbol: 'ORPHAN',
+        alias: '고아 별칭',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+
+    renderWithProviders(<Holdings />, { withApollo: false });
+
+    expect(
+      screen.queryByLabelText('ORPHAN 종목 표시 이름'),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText('고아 별칭')).not.toBeInTheDocument();
   });
 
   it('계좌 헤더를 클릭하면 계좌명 기준 정렬이 순환한다', async () => {
@@ -321,15 +453,15 @@ describe('Holdings', () => {
 
     renderWithProviders(<Holdings />, { withApollo: false });
 
-    await user.click(screen.getByText('Invesco QQQ Trust'));
-    await screen.findByRole('button', { name: '저장' });
+    await user.click(screen.getAllByText('Invesco QQQ Trust')[0]);
+    const dialog = await screen.findByRole('dialog');
 
-    await user.click(screen.getByRole('button', { name: '태그 선택' }));
+    await user.click(within(dialog).getByRole('button', { name: '태그 선택' }));
     const tagPlaceholder = screen.getByRole('option', { name: '태그 선택' });
     const tagSelect = tagPlaceholder.parentElement as HTMLSelectElement;
     await user.selectOptions(tagSelect, 'tag-2');
 
-    await user.click(screen.getByRole('button', { name: '저장' }));
+    await user.click(within(dialog).getByRole('button', { name: '저장' }));
 
     await waitFor(() => {
       expect(setHoldingTags).toHaveBeenCalledWith({
@@ -458,7 +590,7 @@ describe('Holdings', () => {
 
     renderWithProviders(<Holdings />, { withApollo: false });
 
-    await user.click(screen.getByText('Vanguard S&P 500 ETF'));
+    await user.click(screen.getAllByText('Vanguard S&P 500 ETF')[0]);
     const deltaInput = await screen.findByPlaceholderText('+100');
     expect(deltaInput).toHaveValue('0');
     const targetInput = await screen.findByPlaceholderText('5');
@@ -466,7 +598,8 @@ describe('Holdings', () => {
     await user.clear(deltaInput);
     await user.type(deltaInput, '1');
     expect(targetInput).toHaveValue('3');
-    await user.click(screen.getByRole('button', { name: '저장' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: '저장' }));
 
     await waitFor(() => {
       expect(setManualHoldingQuantity).toHaveBeenCalledWith({
@@ -511,7 +644,7 @@ describe('Holdings', () => {
 
     renderWithProviders(<Holdings />, { withApollo: false });
 
-    await user.click(screen.getByText('Vanguard S&P 500 ETF'));
+    await user.click(screen.getAllByText('Vanguard S&P 500 ETF')[0]);
     const targetInput = await screen.findByPlaceholderText('5');
     const deltaInput = await screen.findByPlaceholderText('+100');
     expect(targetInput).toHaveValue('5');
@@ -519,7 +652,8 @@ describe('Holdings', () => {
     await user.clear(targetInput);
     await user.type(targetInput, '10');
     expect(deltaInput).toHaveValue('+5');
-    await user.click(screen.getByRole('button', { name: '저장' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: '저장' }));
 
     await waitFor(() => {
       expect(setManualHoldingQuantity).toHaveBeenCalledWith({
@@ -563,9 +697,9 @@ describe('Holdings', () => {
 
     renderWithProviders(<Holdings />, { withApollo: false });
 
-    await user.click(screen.getByText('Vanguard S&P 500 ETF'));
-    await screen.findByRole('button', { name: '저장' });
-    await user.click(screen.getByRole('button', { name: '삭제' }));
+    await user.click(screen.getAllByText('Vanguard S&P 500 ETF')[0]);
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: '삭제' }));
 
     await waitFor(() => {
       expect(deleteManualHolding).toHaveBeenCalledWith({

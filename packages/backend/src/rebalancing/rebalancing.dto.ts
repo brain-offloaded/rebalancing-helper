@@ -104,6 +104,19 @@ export class RemoveTagsFromRebalancingGroupInput {
 }
 
 @InputType()
+export class ExcludeSymbolFromRebalancingGroupInput {
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  groupId: string;
+
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  symbol: string;
+}
+
+@InputType()
 export class RenameRebalancingGroupInput {
   @Field()
   @IsString()

@@ -135,7 +135,8 @@ export const HoldingDetailModal: React.FC<HoldingDetailModalProps> = ({
             placeholder="별칭을 입력하세요"
           />
           <HelperText>
-            별칭을 입력하면 목록에 표시되는 이름을 변경할 수 있습니다.
+            같은 시장과 종목 코드를 가진 모든 보유 종목에 같은 표시 이름이
+            적용됩니다.
           </HelperText>
         </Field>
       </ModalSection>
